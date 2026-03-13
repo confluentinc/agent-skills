@@ -1,0 +1,11 @@
+name: agent-skills
+lang: unknown
+lang_version: unknown
+git:
+  enable: true
+codeowners:
+  enable: true
+renovatebot:
+  enable: false
+semaphore:
+  enable: true
