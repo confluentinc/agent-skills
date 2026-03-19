@@ -14,46 +14,24 @@ agent:
 
 auto_cancel:
   running:
-    when: "branch != 'master'"
+    when: "branch != 'main'"
 
 execution_time_limit:
   hours: 1
 
 queue:
-  - when: "branch != 'master'"
+  - when: "branch != 'main'"
     processing: parallel
 
 global_job_config:
   prologue:
     commands:
       - checkout
-      - make show-args
-      - make init-ci
-  epilogue:
-    always:
-      commands:
-        - make epilogue-ci
 
 blocks:
-  - name: "Build, Test, Release"
-    run:
-      # don't run the build or unit tests on non-functional changes...
-      when: "change_in('/', {exclude: ['/.deployed-versions/', '.github/', 'service.yml', 'README.md'], default_branch: 'master'})"
+  - name: "No-op Placeholder"
     task:
-      # You can customize your CI job here
-      #      env_vars:
-      #        # custom env_vars
-      #      prologue:
-      #        commands:
-      #          # custom vault secrets
-      #          # custom prologue commands
       jobs:
-        - name: "Build, Test, Release"
+        - name: "No-op Placeholder"
           commands:
-            - make build
-            - make test
-            - make release-ci
-      epilogue:
-        always:
-          commands:
-            - make testbreak-after
+            - echo "Markdown skills repo - no build required"
