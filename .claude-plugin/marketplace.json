@@ -1,0 +1,13 @@
+{
+  "name": "confluent-agent-skills",
+  "owner": {
+    "name": "Confluent"
+  },
+  "plugins": [
+    {
+      "name": "streaming-skills-plugin",
+      "source": "./",
+      "description": "Skills for streaming application developers, covering Kafka and Flink client libraries and Schema Registry"
+    }
+  ]
+}
