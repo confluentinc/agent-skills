@@ -29,9 +29,12 @@ global_job_config:
       - checkout
 
 blocks:
-  - name: "No-op Placeholder"
+  - name: "Validate Skills"
+    run:
+      when: "change_in('/skills/')"
     task:
       jobs:
-        - name: "No-op Placeholder"
+        - name: "Skill Validator"
           commands:
-            - echo "Markdown skills repo - no build required"
+            - go install github.com/agent-ecosystem/skill-validator/cmd/skill-validator@v1.3.0
+            - skill-validator check skills || [ $? -eq 2 ]
