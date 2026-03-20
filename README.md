@@ -31,12 +31,20 @@ Example prompts:
 - "Build a Flink Table API application in Python to filter streaming data"
 - "Set up a streaming pipeline with Schema Registry"
 
+## Skills
+
+This repository includes the following skills:
+
+| Skill                          | Description |
+|--------------------------------|-------------|
+| **kafka-streams-programming**  | Architect, build, and debug Kafka Streams applications that run as a library inside your JVM with no separate cluster required. Handles topology design, pattern selection (joins, windows, aggregations), code generation for complete projects with proper Schema Registry integration, and troubleshooting production issues like rebalancing loops, state store problems, and performance tuning. |
+
 ## Repository layout
 
 ```
 agent-skills/
 ├── skills/               # Individual skill definitions
-│   ├── skill-name/       # Example skill directory
+│   ├── skill-name/       # Individual skill directory
 │   │   ├── SKILL.md      # Skill description
 │   │   ├── evals/        # Evaluation tests for the skill
 │   │   └── references/   # Assets referenced by SKILL.md
