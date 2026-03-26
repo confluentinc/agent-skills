@@ -181,14 +181,12 @@ def parse_session(session_path: Path) -> dict:
             corrections += 1
             msg["is_correction"] = True
 
-    # Final context size estimate (from last usage)
-    final_context_tokens = 0
-    if last_usage:
-        final_context_tokens = (
-            last_usage.get("input_tokens", 0)
-            + last_usage.get("cache_creation_input_tokens", 0)
-            + last_usage.get("cache_read_input_tokens", 0)
-        )
+    # Peak context size (largest single-turn input before compression)
+    peak_context_tokens = 0
+    for turn in per_turn_tokens:
+        turn_context = turn["input"] + turn["cache_creation"] + turn["cache_read"]
+        if turn_context > peak_context_tokens:
+            peak_context_tokens = turn_context
 
     return {
         "session_id": session_path.stem,
@@ -202,7 +200,7 @@ def parse_session(session_path: Path) -> dict:
             "total_cache_read": total_cache_read,
             "tokens_burnt": total_input_tokens + total_output_tokens + total_cache_creation,
             "total_all": total_input_tokens + total_output_tokens + total_cache_creation + total_cache_read,
-            "final_context_size": final_context_tokens,
+            "peak_context_size": peak_context_tokens,
         },
         "per_turn_tokens": per_turn_tokens,
         "tools": tools_used,
@@ -487,13 +485,27 @@ function renderSession() {{
   const corrClass = s.corrections.count > 3 ? 'danger' : s.corrections.count > 0 ? 'warning' : 'success';
   html += '<div class="stats-grid">';
   html += `<div class="stat-card ${{corrClass}}"><div class="stat-value">${{s.corrections.count}}</div><div class="stat-label">Corrections</div></div>`;
-  html += `<div class="stat-card"><div class="stat-value">${{formatNumber(s.tokens.tokens_burnt)}}</div><div class="stat-label">Tokens Burnt</div><div style="font-size:11px;color:#6e7681;margin-top:2px">input + output + cache write</div></div>`;
-  html += `<div class="stat-card"><div class="stat-value">${{formatNumber(s.tokens.total_cache_read)}}</div><div class="stat-label">Cache Read</div><div style="font-size:11px;color:#6e7681;margin-top:2px">reused context (low cost)</div></div>`;
-  html += `<div class="stat-card"><div class="stat-value">${{formatNumber(s.tokens.final_context_size)}}</div><div class="stat-label">Final Context Size</div></div>`;
+  html += `<div class="stat-card"><div class="stat-value">${{formatNumber(s.tokens.peak_context_size)}}</div><div class="stat-label">Peak Context Size</div></div>`;
   html += `<div class="stat-card"><div class="stat-value">${{Object.keys(s.tools).length}}</div><div class="stat-label">Unique Tools</div></div>`;
   html += `<div class="stat-card"><div class="stat-value">${{s.corrections.total_human_messages}}</div><div class="stat-label">User Messages</div></div>`;
   html += `<div class="stat-card"><div class="stat-value">${{s.corrections.interruptions}}</div><div class="stat-label">Interruptions</div></div>`;
   html += '</div>';
+
+  // Full-price tokens box
+  html += `<div class="card"><h3>Full-Price Tokens</h3>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-value">${{formatNumber(s.tokens.total_input)}}</div><div class="stat-label">Input Tokens</div></div>
+      <div class="stat-card"><div class="stat-value">${{formatNumber(s.tokens.total_output)}}</div><div class="stat-label">Output Tokens</div></div>
+      <div class="stat-card"><div class="stat-value">${{formatNumber(s.tokens.total_input + s.tokens.total_output)}}</div><div class="stat-label">Total Full-Price</div></div>
+    </div></div>`;
+
+  // Cache tokens box (discounted)
+  html += `<div class="card"><h3>Cache Tokens <span style="font-size:12px;color:#3fb950;font-weight:400">(discounted)</span></h3>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-value">${{formatNumber(s.tokens.total_cache_creation)}}</div><div class="stat-label">Cache Write</div><div style="font-size:11px;color:#6e7681;margin-top:2px">25% of input price</div></div>
+      <div class="stat-card"><div class="stat-value">${{formatNumber(s.tokens.total_cache_read)}}</div><div class="stat-label">Cache Read</div><div style="font-size:11px;color:#6e7681;margin-top:2px">10% of input price</div></div>
+      <div class="stat-card"><div class="stat-value">${{formatNumber(s.tokens.total_cache_creation + s.tokens.total_cache_read)}}</div><div class="stat-label">Total Cache</div></div>
+    </div></div>`;
 
   // Token breakdown
   html += `<div class="card"><h3>Token Breakdown</h3>`;
