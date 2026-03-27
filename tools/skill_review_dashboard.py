@@ -5,21 +5,25 @@ Skill PR Review Dashboard
 Serves a localhost HTML dashboard that parses Claude session logs to show
 corrections, tokens, and user messages.
 
+Requires Python 3.10+.
+
 Usage:
     python tools/skill_review_dashboard.py \
         --session-id ea2636f8-e42f-4a23-b15b-9b86bfc79a6c \
         [--project-path /path/to/project]  # defaults to cwd
 """
 
+from __future__ import annotations
+
 import argparse
 import json
 import os
 import re
 import sys
+import tempfile
 import webbrowser
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
-import tempfile
 
 
 def find_session_log(session_id: str, project_path: str | None = None) -> Path | None:
@@ -28,6 +32,9 @@ def find_session_log(session_id: str, project_path: str | None = None) -> Path |
 
     # Try project-specific directory first
     if project_path:
+        # Claude stores project directories under ~/.claude/projects with the
+        # original project path's "/" separators replaced by "-".
+        # e.g. "/Users/alice/my-project" -> "-Users-alice-my-project"
         safe_name = project_path.replace("/", "-")
         project_dir = claude_dir / "projects" / safe_name
         candidate = project_dir / f"{session_id}.jsonl"
@@ -49,11 +56,18 @@ def find_session_log(session_id: str, project_path: str | None = None) -> Path |
 def parse_session(session_path: Path) -> dict:
     """Parse a Claude session JSONL file and extract metrics."""
     entries = []
-    with open(session_path) as f:
+    with open(session_path, encoding="utf-8", errors="replace") as f:
         for line in f:
             line = line.strip()
-            if line:
+            if not line:
+                continue
+            try:
                 entries.append(json.loads(line))
+            except json.JSONDecodeError as e:
+                print(
+                    f"Warning: Skipping malformed JSON line in {session_path}: {e}",
+                    file=sys.stderr,
+                )
 
     # Token tracking
     total_input_tokens = 0
@@ -172,7 +186,10 @@ def generate_html(session_data: dict) -> str:
     """Generate the dashboard HTML by injecting session data into the template."""
     template_path = Path(__file__).parent / "dashboard_template.html"
     template = template_path.read_text()
-    return template.replace("__SESSION_DATA__", json.dumps(session_data))
+    # Escape JSON for safe embedding inside a <script> tag to prevent
+    # content containing "</script>" from breaking out of the script block.
+    safe_json = json.dumps(session_data).replace("</", "<\\/")
+    return template.replace("__SESSION_DATA__", safe_json)
 
 
 def main():
@@ -203,28 +220,29 @@ def main():
         print(f"Dashboard written to: {args.static}")
         return
 
-    # Serve via HTTP
-    tmpdir = tempfile.mkdtemp(prefix="skill-review-")
-    html_path = os.path.join(tmpdir, "index.html")
-    with open(html_path, "w") as f:
-        f.write(html)
+    # Serve via HTTP using a temp directory that auto-cleans on exit
+    with tempfile.TemporaryDirectory(prefix="skill-review-") as tmpdir:
+        html_path = os.path.join(tmpdir, "index.html")
+        with open(html_path, "w") as f:
+            f.write(html)
 
-    os.chdir(tmpdir)
+        class QuietHandler(SimpleHTTPRequestHandler):
+            def __init__(self, *a, **kw):
+                super().__init__(*a, directory=tmpdir, **kw)
 
-    class QuietHandler(SimpleHTTPRequestHandler):
-        def log_message(self, format, *args):
-            pass  # suppress request logs
+            def log_message(self, format, *a):
+                pass  # suppress request logs
 
-    server = HTTPServer(("localhost", args.port), QuietHandler)
-    url = f"http://localhost:{args.port}"
-    print(f"Dashboard running at: {url}")
-    webbrowser.open(url)
+        server = HTTPServer(("localhost", args.port), QuietHandler)
+        url = f"http://localhost:{args.port}"
+        print(f"Dashboard running at: {url}")
+        webbrowser.open(url)
 
-    try:
-        server.serve_forever()
-    except KeyboardInterrupt:
-        print("\nShutting down.")
-        server.shutdown()
+        try:
+            server.serve_forever()
+        except KeyboardInterrupt:
+            print("\nShutting down.")
+            server.shutdown()
 
 
 if __name__ == "__main__":
