@@ -6,29 +6,122 @@
 <title>Skill PR Review Dashboard</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f1117; color: #e1e4e8; }
 
-  .panel { padding: 24px; max-width: 1200px; margin: 0 auto; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+    background: linear-gradient(180deg, #fff7f4 0%, #fce4ec 35%, #e8d5e0 65%, #d4c5d8 100%);
+    color: #121212;
+    font-size: 18px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
 
-  .card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 20px; margin-bottom: 16px; }
-  .card h3 { color: #58a6ff; margin-bottom: 12px; font-size: 16px; }
+  .panel {
+    padding: 48px 32px;
+    max-width: 1000px;
+    margin: 0 auto;
+  }
 
-  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
-  .stat-card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 16px; text-align: center; }
-  .stat-value { font-size: 28px; font-weight: 700; color: #58a6ff; }
-  .stat-label { font-size: 12px; color: #9CA3AF; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
-  .stat-card.warning .stat-value { color: #d29922; }
-  .stat-card.danger .stat-value { color: #f85149; }
-  .stat-card.success .stat-value { color: #3fb950; }
+  h2 {
+    font-family: 'Georgia', serif;
+    font-size: 2.25rem;
+    font-weight: 700;
+    color: #121212;
+    margin-bottom: 10px;
+  }
 
-  .message-list { max-height: 400px; overflow-y: auto; }
-  .message { padding: 10px 12px; border-left: 3px solid #30363d; margin-bottom: 8px; font-size: 13px; background: #0d1117; border-radius: 0 4px 4px 0; }
-  .message.correction { border-left-color: #f85149; background: #1a0f0f; }
-  .message.interruption { border-left-color: #d29922; background: #1a1700; }
-  .message .ts { color: #9CA3AF; font-size: 11px; margin-bottom: 4px; }
-  .message .badge { display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 8px; margin-left: 6px; font-weight: 600; }
-  .message .badge.correction { background: #f8514933; color: #f85149; }
-  .message .badge.interruption { background: #d2992233; color: #d29922; }
+  .session-meta {
+    font-family: 'SF Mono', 'Fira Code', 'Fira Mono', 'Roboto Mono', monospace;
+    font-size: 1rem;
+    color: #3d3d3d;
+    margin-bottom: 36px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #121212;
+    line-height: 1.7;
+  }
+
+  .card {
+    border: 1px solid #121212;
+    padding: 28px;
+    margin-bottom: 28px;
+  }
+  .card h3 {
+    font-family: 'Georgia', serif;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #121212;
+    margin-bottom: 18px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1px;
+    background: #121212;
+    border: 1px solid #121212;
+    margin-bottom: 28px;
+  }
+  .stat-card {
+    background: #ffffff;
+    padding: 24px 20px;
+    text-align: center;
+  }
+  .stat-value {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #121212;
+  }
+  .stat-label {
+    font-size: 0.9rem;
+    color: #3d3d3d;
+    margin-top: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .stat-card.warning .stat-value { color: #7a5200; }
+  .stat-card.danger .stat-value { color: #a82315; }
+  .stat-card.success .stat-value { color: #15642e; }
+
+  .message-list {
+    max-height: 600px;
+    overflow-y: auto;
+  }
+  .message-list:focus {
+    outline: 2px solid #121212;
+    outline-offset: 2px;
+  }
+  .message {
+    padding: 16px 20px;
+    border-bottom: 1px solid #ccc;
+    font-size: 1.05rem;
+    line-height: 1.5;
+  }
+  .message:last-child { border-bottom: none; }
+  .message.correction { background: rgba(253, 240, 239, 0.7); }
+  .message.interruption { background: rgba(253, 246, 227, 0.7); }
+
+  .message .ts {
+    font-family: 'SF Mono', 'Fira Code', 'Fira Mono', 'Roboto Mono', monospace;
+    color: #3d3d3d;
+    font-size: 0.9rem;
+    margin-bottom: 6px;
+  }
+  .message .badge {
+    display: inline-block;
+    font-family: 'SF Mono', 'Fira Code', 'Fira Mono', 'Roboto Mono', monospace;
+    font-size: 0.8rem;
+    padding: 3px 10px;
+    margin-left: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border: 1px solid;
+  }
+  .message .badge.correction { border-color: #a82315; color: #a82315; }
+  .message .badge.interruption { border-color: #7a5200; color: #7a5200; }
 </style>
 </head>
 <body>
@@ -48,9 +141,10 @@ function renderSession() {
   const panel = document.getElementById('session-panel');
   const s = sessionData;
 
-  let html = `<h2 style="margin-bottom:16px;color:#e1e4e8">Session: ${s.session_id}</h2>
-    <div style="color:#9CA3AF;font-size:13px;margin-bottom:16px">
-      Model: <strong style="color:#e1e4e8">${s.model || 'unknown'}</strong> &middot;
+  let html = `<h2>Session Review</h2>
+    <div class="session-meta">
+      ${s.session_id}<br>
+      ${s.model || 'unknown'} &middot;
       ${s.session_start ? new Date(s.session_start).toLocaleString() : '?'} &mdash;
       ${s.session_end ? new Date(s.session_end).toLocaleString() : '?'}
     </div>`;
@@ -60,32 +154,31 @@ function renderSession() {
     ? Math.round((new Date(s.session_end) - new Date(s.session_start)) / 60000)
     : '?';
   const corrClass = s.corrections.count > 3 ? 'danger' : s.corrections.count > 0 ? 'warning' : 'success';
-  const corrIcon = s.corrections.count > 3 ? '!!' : s.corrections.count > 0 ? '!' : '';
   html += '<div class="stats-grid">';
-  html += `<div class="stat-card"><div class="stat-value">${durationMin}<span style="font-size:14px;color:#9CA3AF"> min</span></div><div class="stat-label">Session Duration</div></div>`;
-  html += `<div class="stat-card ${corrClass}"><div class="stat-value">${corrIcon ? corrIcon + ' ' : ''}${s.corrections.count}</div><div class="stat-label">Corrections</div></div>`;
+  html += `<div class="stat-card"><div class="stat-value">${durationMin}<span style="font-size:1.1rem;color:#3d3d3d"> min</span></div><div class="stat-label">Duration</div></div>`;
+  html += `<div class="stat-card ${corrClass}"><div class="stat-value">${s.corrections.count}</div><div class="stat-label">Corrections</div></div>`;
   html += `<div class="stat-card"><div class="stat-value">${s.corrections.total_human_messages}</div><div class="stat-label">User Messages</div></div>`;
   html += `<div class="stat-card"><div class="stat-value">${s.corrections.interruptions}</div><div class="stat-label">Interruptions</div></div>`;
   html += '</div>';
 
-  // Full-price tokens box
+  // Full-price tokens
   html += `<div class="card"><h3>Full-Price Tokens</h3>
     <div class="stats-grid">
-      <div class="stat-card"><div class="stat-value">${formatNumber(s.tokens.total_input)}</div><div class="stat-label">Input Tokens</div></div>
-      <div class="stat-card"><div class="stat-value">${formatNumber(s.tokens.total_output)}</div><div class="stat-label">Output Tokens</div></div>
-      <div class="stat-card"><div class="stat-value">${formatNumber(s.tokens.total_input + s.tokens.total_output)}</div><div class="stat-label">Total Full-Price</div></div>
+      <div class="stat-card"><div class="stat-value">${formatNumber(s.tokens.total_input)}</div><div class="stat-label">Input</div></div>
+      <div class="stat-card"><div class="stat-value">${formatNumber(s.tokens.total_output)}</div><div class="stat-label">Output</div></div>
+      <div class="stat-card"><div class="stat-value">${formatNumber(s.tokens.total_input + s.tokens.total_output)}</div><div class="stat-label">Total</div></div>
     </div></div>`;
 
-  // Cache tokens box
+  // Cache tokens
   html += `<div class="card"><h3>Cache Tokens</h3>
     <div class="stats-grid">
-      <div class="stat-card"><div class="stat-value">${formatNumber(s.tokens.total_cache_creation)}</div><div class="stat-label">Cache Write</div></div>
-      <div class="stat-card"><div class="stat-value">${formatNumber(s.tokens.total_cache_read)}</div><div class="stat-label">Cache Read</div></div>
-      <div class="stat-card"><div class="stat-value">${formatNumber(s.tokens.total_cache_creation + s.tokens.total_cache_read)}</div><div class="stat-label">Total Cache</div></div>
+      <div class="stat-card"><div class="stat-value">${formatNumber(s.tokens.total_cache_creation)}</div><div class="stat-label">Write</div></div>
+      <div class="stat-card"><div class="stat-value">${formatNumber(s.tokens.total_cache_read)}</div><div class="stat-label">Read</div></div>
+      <div class="stat-card"><div class="stat-value">${formatNumber(s.tokens.total_cache_creation + s.tokens.total_cache_read)}</div><div class="stat-label">Total</div></div>
     </div></div>`;
 
   // User messages / corrections
-  html += `<div class="card"><h3 id="msg-heading">User Messages (${s.corrections.count} correction${s.corrections.count !== 1 ? 's' : ''} detected)</h3><div class="message-list" role="region" aria-labelledby="msg-heading" tabindex="0">`;
+  html += `<div class="card"><h3 id="msg-heading">User Messages &mdash; ${s.corrections.count} correction${s.corrections.count !== 1 ? 's' : ''}</h3><div class="message-list" role="region" aria-labelledby="msg-heading" tabindex="0">`;
   for (const msg of s.corrections.messages) {
     let cls = '';
     let badges = '';
