@@ -85,12 +85,15 @@ def parse_session(session_path: Path) -> dict:
                 if not model:
                     model = msg.get("model", "")
 
-                usage = msg.get("usage", {})
-                if usage:
-                    total_input_tokens += usage.get("input_tokens", 0)
-                    total_output_tokens += usage.get("output_tokens", 0)
-                    total_cache_creation += usage.get("cache_creation_input_tokens", 0)
-                    total_cache_read += usage.get("cache_read_input_tokens", 0)
+                # Only count usage from completed responses to avoid
+                # double-counting streaming progress entries
+                if msg.get("stop_reason") is not None:
+                    usage = msg.get("usage", {})
+                    if usage:
+                        total_input_tokens += usage.get("input_tokens", 0)
+                        total_output_tokens += usage.get("output_tokens", 0)
+                        total_cache_creation += usage.get("cache_creation_input_tokens", 0)
+                        total_cache_read += usage.get("cache_read_input_tokens", 0)
 
         elif entry_type == "user":
             msg = entry.get("message", {})
