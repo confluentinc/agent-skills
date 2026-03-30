@@ -1,14 +1,6 @@
 ---
 name: confluent-cloud-cdc-tableflow
-description: |
-  Set up end-to-end Change Data Capture (CDC) pipelines on Confluent Cloud using Debezium source connectors, Flink for transformation, and Tableflow for data lake integration. This skill handles the complete workflow from database to Iceberg/Delta tables. Use this skill whenever users mention CDC, Debezium, Tableflow, streaming database changes, replication to data lakes, real-time data pipelines from databases, or want to stream changes from SQL Server, MySQL, PostgreSQL, Oracle, or DynamoDB to Iceberg or Delta Lake. Also trigger for phrases like "set up database replication", "stream database to data lake", "capture database changes", "sync database to Iceberg/Delta", or any mention of connecting databases to Confluent Cloud with Schema Registry.
-compatibility:
-  tools:
-    - Bash
-    - Read
-    - Write
-    - Edit
-    - mcp__confluent__* (Confluent MCP Server - preferred for all operations)
+description: Set up end-to-end Change Data Capture (CDC) pipelines on Confluent Cloud using Debezium source connectors, Flink for transformation, and Tableflow for data lake integration. This skill handles the complete workflow from database to Iceberg/Delta tables. Use this skill whenever users mention CDC, Debezium, Tableflow, streaming database changes, replication to data lakes, real-time data pipelines from databases, or want to stream changes from SQL Server, MySQL, PostgreSQL, Oracle, or DynamoDB to Iceberg or Delta Lake. Also trigger for phrases like "set up database replication", "stream database to data lake", "capture database changes", "sync database to Iceberg/Delta", or any mention of connecting databases to Confluent Cloud with Schema Registry.
 ---
 
 # Confluent Cloud CDC to Tableflow Pipeline
