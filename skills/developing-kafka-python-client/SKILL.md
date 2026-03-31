@@ -1,6 +1,6 @@
 ---
 name: developing-kafka-python-client
-description: "Scaffold a production-ready Python project for producing to and/or consuming from Kafka using confluent-kafka-python, with Schema Registry and Avro serialization. Supports both Confluent Cloud and local/open-source Kafka (via Docker). Use this skill when the user wants to send messages to or read messages from Kafka in Python, set up a Python streaming app, or build a Kafka producer or consumer — even if they don't mention specific libraries. Also trigger for questions about Avro serialization, Schema Registry integration, or async Kafka clients in Python. Do NOT trigger for debugging existing Kafka applications, Kafka Connect setup, Flink SQL, Tableflow, or non-Python Kafka clients."
+description: "Scaffold a Python Kafka producer/consumer project using confluent-kafka-python with Schema Registry and Avro. Supports Confluent Cloud and local Docker."
 ---
 
 # Confluent Kafka Python Client Scaffold
