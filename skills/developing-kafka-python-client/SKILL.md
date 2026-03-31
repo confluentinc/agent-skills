@@ -34,6 +34,7 @@ Create this file structure in the user's chosen directory:
 │   └── test_project.py  # unit tests (always generated)
 ├── .env.example         # template for credentials
 ├── requirements.txt
+├── README.md
 ├── docker-compose.yml   # (local Docker path only)
 ```
 
