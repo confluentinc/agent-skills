@@ -214,6 +214,79 @@
           "expect_exit_code": 0
         }
       ]
+    },
+    {
+      "id": 3,
+      "prompt": "I want to try Kafka locally with Docker. Set up a Python producer and consumer for order events (order_id, customer_id, product, quantity, price)",
+      "expected_output": "A Python project with producer.py, consumer.py, common.py, docker-compose.yml, schemas/value.avsc, tests/test_project.py, .env.example, requirements.txt. Uses PLAINTEXT for local Docker, docker-compose with Kafka and Schema Registry, graceful shutdown. Tests pass with pytest.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "producer-exists",
+          "type": "file_exists",
+          "description": "producer.py is generated",
+          "path": "producer.py"
+        },
+        {
+          "id": "consumer-exists",
+          "type": "file_exists",
+          "description": "consumer.py is generated",
+          "path": "consumer.py"
+        },
+        {
+          "id": "common-exists",
+          "type": "file_exists",
+          "description": "common.py is generated",
+          "path": "common.py"
+        },
+        {
+          "id": "docker-compose-exists",
+          "type": "file_exists",
+          "description": "docker-compose.yml is generated for local Docker",
+          "path": "docker-compose.yml"
+        },
+        {
+          "id": "tests-exist",
+          "type": "file_exists",
+          "description": "Unit tests are generated",
+          "path": "tests/test_project.py"
+        },
+        {
+          "id": "env-example-has-local",
+          "type": "file_contains",
+          "description": ".env.example sets KAFKA_ENV=local",
+          "path": ".env.example",
+          "contains": "KAFKA_ENV=local"
+        },
+        {
+          "id": "common-supports-plaintext",
+          "type": "file_contains",
+          "description": "common.py supports PLAINTEXT protocol",
+          "path": "common.py",
+          "contains": "PLAINTEXT"
+        },
+        {
+          "id": "schema-has-order-fields",
+          "type": "file_contains",
+          "description": "Avro schema includes order_id field",
+          "path": "schemas/value.avsc",
+          "contains": "order_id"
+        },
+        {
+          "id": "requirements-has-pytest",
+          "type": "file_contains",
+          "description": "requirements.txt includes pytest",
+          "path": "requirements.txt",
+          "contains": "pytest"
+        },
+        {
+          "id": "tests-pass",
+          "type": "command",
+          "description": "All unit tests pass with pytest",
+          "command": "cd {{output_dir}} && pip install -r requirements.txt -q && python -m pytest tests/ -v --tb=short 2>&1",
+          "expect_exit_code": 0
+        }
+      ]
     }
   ]
 }

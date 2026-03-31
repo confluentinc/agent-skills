@@ -1,17 +1,26 @@
 # <Project Name>
 
-A Python application that [produces to / consumes from / produces to and consumes from] Confluent Cloud using `confluent-kafka-python` with Avro serialization and Schema Registry.
+A Python application that [produces to / consumes from / produces to and consumes from] Kafka using `confluent-kafka-python` with Avro serialization and Schema Registry.
 
 ## Prerequisites
 
 - Python 3.8+
-- A Confluent Cloud cluster with an API key
-- A Schema Registry instance with an API key
-- The value schema registered in Schema Registry (see [Schema Setup](#schema-setup))
+- **Confluent Cloud path:** A Confluent Cloud cluster and Schema Registry with API keys
+- **Local Docker path:** Docker and Docker Compose installed
 
 ## Setup
 
-1. Create a virtual environment and install dependencies:
+### Option A: Confluent Cloud
+
+1. Copy `.env.example` to `.env` and fill in your Confluent Cloud credentials:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+   You can find your bootstrap server, API keys, and Schema Registry URL in the [Confluent Cloud Console](https://confluent.cloud/) under your cluster and environment settings. Make sure `KAFKA_ENV=cloud` is set.
+
+2. Create a virtual environment and install dependencies:
 
    ```bash
    python -m venv venv
@@ -19,24 +28,43 @@ A Python application that [produces to / consumes from / produces to and consume
    pip install -r requirements.txt
    ```
 
-2. Copy `.env.example` to `.env` and fill in your Confluent Cloud credentials:
+### Option B: Local Docker (Open-Source Kafka)
+
+1. Start Kafka and Schema Registry:
+
+   ```bash
+   docker compose up -d
+   ```
+
+2. Copy `.env.example` to `.env` — the defaults are pre-filled for local Docker, no edits needed:
 
    ```bash
    cp .env.example .env
    ```
 
-   You can find your bootstrap server, API keys, and Schema Registry URL in the [Confluent Cloud Console](https://confluent.cloud/) under your cluster and environment settings.
+   Make sure `KAFKA_ENV=local` is set.
+
+3. Create a virtual environment and install dependencies:
+
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   pip install -r requirements.txt
+   ```
+
+4. (Optional) Create the topic manually if auto-creation is disabled:
+
+   ```bash
+   docker compose exec kafka kafka-topics --create --topic <topic-name> --bootstrap-server localhost:29092
+   ```
 
 ## Schema Setup
 
-This project uses Avro serialization with Schema Registry. Before running the producer, you need to set up the value schema in Confluent Cloud:
+This project uses Avro serialization with Schema Registry.
 
-1. Go to your environment in the [Confluent Cloud Console](https://confluent.cloud/)
-2. Navigate to **Schema Registry** > **Schemas**
-3. Click **Add Schema**, select the topic (`<topic-name>-value` subject), and choose **Avro**
-4. Paste the contents of `schemas/value.avsc` and click **Create**
+- **Confluent Cloud:** Go to the [Confluent Cloud Console](https://confluent.cloud/), navigate to **Schema Registry** > **Schemas**, click **Add Schema**, select the topic (`<topic-name>-value` subject), choose **Avro**, and paste the contents of `schemas/value.avsc`. Alternatively, the producer will auto-register the schema on first run.
 
-Alternatively, the producer will attempt to auto-register the schema on first run if auto-registration is enabled (the default in Confluent Cloud). You can verify your schema was registered by checking the Schema Registry subjects in the Cloud Console.
+- **Local Docker:** The producer will auto-register the schema with the local Schema Registry on first run. No manual setup needed.
 
 ## Running
 
@@ -48,10 +76,18 @@ python producer.py
 python consumer.py
 ```
 
+## Stopping (Local Docker)
+
+```bash
+docker compose down       # stop containers
+docker compose down -v    # stop and remove stored data
+```
+
 ## Project Structure
 
 - `common.py` — Shared configuration loading and connectivity verification
 - `producer.py` — Async Kafka producer with Avro serialization
 - `consumer.py` — Async Kafka consumer with Avro deserialization
 - `schemas/value.avsc` — Avro schema for the message value
-- `.env.example` — Template for Confluent Cloud credentials
+- `.env.example` — Template for credentials / local config
+- `docker-compose.yml` — Local Kafka + Schema Registry (Docker path only)

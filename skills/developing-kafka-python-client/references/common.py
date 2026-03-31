@@ -8,6 +8,7 @@ def load_config() -> dict:
     """Load configuration from .env file."""
     load_dotenv()
     return {
+        "kafka_env": os.getenv("KAFKA_ENV", "cloud"),
         "bootstrap_server": os.getenv("CC_BOOTSTRAP_SERVER"),
         "api_key": os.getenv("CC_API_KEY"),
         "api_secret": os.getenv("CC_API_SECRET"),
@@ -21,15 +22,24 @@ def load_config() -> dict:
 
 
 def get_kafka_config(config: dict) -> dict:
-    """Build Kafka client configuration for Confluent Cloud."""
-    return {
+    """Build Kafka client configuration.
+
+    Uses SASL_SSL for Confluent Cloud, PLAINTEXT for local Docker.
+    """
+    kafka_config = {
         "bootstrap.servers": config["bootstrap_server"],
-        "security.protocol": "SASL_SSL",
-        "sasl.mechanisms": "PLAIN",
-        "sasl.username": config["api_key"],
-        "sasl.password": config["api_secret"],
         "client.id": config["client_id"],
     }
+
+    if config.get("kafka_env") == "local":
+        kafka_config["security.protocol"] = "PLAINTEXT"
+    else:
+        kafka_config["security.protocol"] = "SASL_SSL"
+        kafka_config["sasl.mechanisms"] = "PLAIN"
+        kafka_config["sasl.username"] = config["api_key"]
+        kafka_config["sasl.password"] = config["api_secret"]
+
+    return kafka_config
 
 
 def verify_kafka_setup(kafka_config: dict, topic: str) -> bool:

@@ -22,6 +22,7 @@ class TestLoadConfig:
     """Verify load_config reads all required env vars."""
 
     @patch.dict(os.environ, {
+        "KAFKA_ENV": "cloud",
         "CC_BOOTSTRAP_SERVER": "pkc-test.us-east-1.aws.confluent.cloud:9092",
         "CC_API_KEY": "test-key",
         "CC_API_SECRET": "test-secret",
@@ -36,6 +37,7 @@ class TestLoadConfig:
         import common
         config = common.load_config()
 
+        assert config["kafka_env"] == "cloud"
         assert config["bootstrap_server"] == "pkc-test.us-east-1.aws.confluent.cloud:9092"
         assert config["api_key"] == "test-key"
         assert config["api_secret"] == "test-secret"
@@ -44,6 +46,7 @@ class TestLoadConfig:
         assert config["sr_key"] == "sr-key"
         assert config["sr_secret"] == "sr-secret"
 
+    @patch("common.load_dotenv")
     @patch.dict(os.environ, {
         "CC_BOOTSTRAP_SERVER": "broker:9092",
         "CC_API_KEY": "k",
@@ -52,25 +55,29 @@ class TestLoadConfig:
         "CC_SR_API_KEY": "srk",
         "CC_SR_API_SECRET": "srs",
     }, clear=False)
-    def test_load_config_uses_defaults(self):
-        # Remove optional vars so defaults kick in
+    def test_load_config_uses_defaults(self, mock_dotenv):
+        # Remove optional vars so defaults kick in.
+        # load_dotenv is patched to prevent .env files from polluting the test.
+        os.environ.pop("KAFKA_ENV", None)
         os.environ.pop("CC_TOPIC", None)
         os.environ.pop("CLIENT_ID", None)
         os.environ.pop("GROUP_ID", None)
         import common
         config = common.load_config()
 
+        assert config["kafka_env"] == "cloud"
         assert config["topic"] == "demo-topic"
         assert config["client_id"] == "python-client"
         assert config["group_id"] == "python-consumer-group"
 
 
 class TestGetKafkaConfig:
-    """Verify get_kafka_config builds a valid Confluent Cloud config."""
+    """Verify get_kafka_config builds the right config for each environment."""
 
-    def test_contains_sasl_ssl(self):
+    def test_cloud_contains_sasl_ssl(self):
         import common
         config = {
+            "kafka_env": "cloud",
             "bootstrap_server": "broker:9092",
             "api_key": "key",
             "api_secret": "secret",
@@ -83,6 +90,21 @@ class TestGetKafkaConfig:
         assert kafka_cfg["sasl.mechanisms"] == "PLAIN"
         assert kafka_cfg["sasl.username"] == "key"
         assert kafka_cfg["sasl.password"] == "secret"
+
+    def test_local_uses_plaintext(self):
+        import common
+        config = {
+            "kafka_env": "local",
+            "bootstrap_server": "localhost:9092",
+            "client_id": "client",
+        }
+        kafka_cfg = common.get_kafka_config(config)
+
+        assert kafka_cfg["bootstrap.servers"] == "localhost:9092"
+        assert kafka_cfg["security.protocol"] == "PLAINTEXT"
+        assert "sasl.mechanisms" not in kafka_cfg
+        assert "sasl.username" not in kafka_cfg
+        assert "sasl.password" not in kafka_cfg
 
 
 class TestVerifyKafkaSetup:
@@ -156,10 +178,13 @@ class TestProducer:
         mock_result.error.return_value = None
         mock_result.partition.return_value = 0
         mock_result.offset.return_value = 1
-        mock_producer.produce.return_value = asyncio.Future()
-        mock_producer.produce.return_value.set_result(mock_result)
+        # AIOProducer.produce() is async and returns a Future.
+        # AsyncMock handles the first await; set return_value to the mock_result
+        # so the second await (on the Future) resolves to it.
+        mock_producer.produce.return_value = mock_result
 
-        mock_serializer = AsyncMock(return_value=b"serialized")
+        # AvroSerializer is synchronous — use MagicMock, not AsyncMock
+        mock_serializer = MagicMock(return_value=b"serialized")
 
         messages = [{"id": "1", "type": "test"}]
         await prod.produce(mock_producer, "test-topic", mock_serializer, messages)
