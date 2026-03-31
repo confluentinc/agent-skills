@@ -27,7 +27,7 @@ async def create_avro_serializer(topic, sr_url, sr_key, sr_secret):
         schema_id = await sr_client.register_schema(subject, avro_schema)
         print(f"Registered schema (ID: {schema_id}) for subject {subject}")
 
-    return await AsyncAvroSerializer(sr_client, schema_str)
+    return AsyncAvroSerializer(sr_client, schema_str)
 
 
 async def produce(producer, topic, serializer, messages):
