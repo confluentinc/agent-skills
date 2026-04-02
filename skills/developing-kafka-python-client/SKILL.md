@@ -52,7 +52,7 @@ These principles matter because they prevent the most common production issues w
 
 1. **Reuse the producer instance.** Creating a new producer per message is expensive — each one opens new TCP connections, does SASL handshakes, and fetches metadata. Create one producer and reuse it for all messages. The produce function should accept the producer as a parameter, not instantiate one.
 
-2. **Always use Schema Registry with Avro.** Schema Registry enforces a contract between producers and consumers. Without it, schema changes silently break downstream consumers. Always register schemas and use `AsyncAvroSerializer` / `AsyncAvroDeserializer` from `confluent_kafka.schema_registry._async.avro`.
+2. **Always use Schema Registry with Avro.** Schema Registry enforces a contract between producers and consumers. Without it, schema changes silently break downstream consumers. Always register schemas and use the appropriate serializer for the chosen producer style: `AsyncAvroSerializer` / `AsyncAvroDeserializer` from `confluent_kafka.schema_registry._async.avro` for async, or `AvroSerializer` / `AvroDeserializer` from `confluent_kafka.schema_registry.avro` for synchronous.
 
 3. **Choose the right producer style.** The `confluent-kafka-python` library offers two producer APIs:
    - **AsyncIO Producer** (`AIOProducer` from `confluent_kafka.aio`): Non-blocking, integrates with `asyncio` event loops. Use with `AsyncAvroSerializer` from `confluent_kafka.schema_registry._async.avro` and `AsyncSchemaRegistryClient`. Best for applications already running an event loop (FastAPI, aiohttp, Sanic, asyncio workers).
