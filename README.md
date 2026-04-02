@@ -38,6 +38,7 @@ This repository includes the following skills:
 | Skill                          | Description |
 |--------------------------------|-------------|
 | **kafka-streams-programming**  | Architect, build, and debug Kafka Streams applications that run as a library inside your JVM with no separate cluster required. Handles topology design, pattern selection (joins, windows, aggregations), code generation for complete projects with proper Schema Registry integration, and troubleshooting production issues like rebalancing loops, state store problems, and performance tuning. |
+| **schema-registry-adopting**   | Scan a project or repository to identify Kafka applications, extract schemas from data models, tag PII fields, generate Terraform for Confluent Schema Registry registration, and produce a migration report with rollout ordering. Automates the migration path from unmanaged schemas to Schema Registry with proper governance and compliance.                          
 
 ## Repository layout
 
