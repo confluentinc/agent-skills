@@ -1,11 +1,11 @@
 ---
 name: developing-kafka-python-client
-description: "Scaffold an async Python Kafka producer/consumer project using confluent-kafka-python with Schema Registry serialization (Avro, JSON Schema, or Protobuf). Supports Confluent Cloud and local Docker."
+description: "Scaffold a Python Kafka producer/consumer project using confluent-kafka-python with Schema Registry serialization (Avro, JSON Schema, or Protobuf). Supports async (AIOProducer) and synchronous (Producer) modes, Confluent Cloud, and local Docker."
 ---
 
 # Confluent Kafka Python Client Scaffold
 
-Generate a production-ready Python project for producing to and/or consuming from Kafka using `confluent-kafka-python`. Supports two target environments: **Confluent Cloud** (managed) and **Local Docker** (open-source Kafka). The generated code follows Confluent's best practices.
+Generate a production-ready Python project for producing to and/or consuming from Kafka using `confluent-kafka-python`. Supports two target environments: **Confluent Cloud** (managed) and **Local Docker** (open-source Kafka), and two producer styles: **AsyncIO** (non-blocking) and **Synchronous** (blocking). The generated code follows Confluent's best practices.
 
 ## Step 1: Gather Requirements
 
@@ -13,8 +13,11 @@ Generate a production-ready Python project for producing to and/or consuming fro
 
 1. **Target environment?** — Confluent Cloud or local Kafka (Docker). **Always prompt for this, even if the user didn't mention it.** If they mention "open source", "local", "docker", "self-hosted", or just want to try Kafka without a cloud account, choose **local Docker**. If they mention "Confluent Cloud", "CC", or have existing cloud credentials, choose **Confluent Cloud**. Default to Confluent Cloud if they confirm they don't have a preference, but always ask first.
 2. **Producer, consumer, or both?**
-3. **What kind of data are you producing?** (Get field names and types so you can generate a matching schema and sample data.)
-4. **Schema format?** — Avro (default), JSON Schema, or Protobuf. If the user doesn't have a preference, use Avro.
+3. **Async or synchronous producer?** (Only if producer is requested.) Help the user choose:
+   - **AsyncIO Producer** (`AIOProducer`): Use when code runs under an event loop — FastAPI/Starlette, aiohttp, Sanic, asyncio workers — and must not block.
+   - **Synchronous Producer** (`Producer`): Use for scripts, batch jobs, and highest-throughput pipelines where the user controls threads/processes and can call `poll()`/`flush()` directly.
+   If the user mentions an async framework (FastAPI, aiohttp, Sanic) or uses `asyncio`, default to **AsyncIO**. If they mention scripts, batch, ETL, or don't have a preference, default to **Synchronous**.
+4. **What kind of data are you producing?** (Get field names and types so you can generate a matching Avro schema and sample data.)
 5. **Topic name?** (Default: `demo-topic`)
 6. **Consumer group ID?** (Only if consumer; default: `python-consumer-group`)
 
@@ -30,7 +33,7 @@ Create this file structure in the user's chosen directory:
 ├── consumer.py          # (if requested)
 ├── common.py            # shared config loading + verification helpers
 ├── schemas/
-│   └── value.avsc|.json|.proto  # schema for the message value (format depends on choice)
+│   └── value.avsc       # Avro schema for the message value
 ├── tests/
 │   └── test_project.py  # unit tests (always generated)
 ├── .env.example         # template for credentials
@@ -49,14 +52,14 @@ These principles matter because they prevent the most common production issues w
 
 1. **Reuse the producer instance.** Creating a new producer per message is expensive — each one opens new TCP connections, does SASL handshakes, and fetches metadata. Create one producer and reuse it for all messages. The produce function should accept the producer as a parameter, not instantiate one.
 
-2. **Always use Schema Registry.** Schema Registry enforces a contract between producers and consumers. Without it, schema changes silently break downstream consumers. Always register schemas and use the appropriate serializer/deserializer for the chosen format:
-   - **Avro:** `AsyncAvroSerializer` / `AsyncAvroDeserializer` from `confluent_kafka.schema_registry._async.avro`
-   - **JSON Schema:** `AsyncJSONSerializer` / `AsyncJSONDeserializer` from `confluent_kafka.schema_registry._async.json_schema`
-   - **Protobuf:** `AsyncProtobufSerializer` / `AsyncProtobufDeserializer` from `confluent_kafka.schema_registry._async.protobuf`
+2. **Always use Schema Registry with Avro.** Schema Registry enforces a contract between producers and consumers. Without it, schema changes silently break downstream consumers. Always register schemas and use `AsyncAvroSerializer` / `AsyncAvroDeserializer` from `confluent_kafka.schema_registry._async.avro`.
 
-3. **Use the async API.** The `confluent-kafka-python` library provides `AIOProducer` and `AIOConsumer` in `confluent_kafka.aio`. Use these with `asyncio` for non-blocking I/O. This is the modern recommended approach.
+3. **Choose the right producer style.** The `confluent-kafka-python` library offers two producer APIs:
+   - **AsyncIO Producer** (`AIOProducer` from `confluent_kafka.aio`): Non-blocking, integrates with `asyncio` event loops. Use with `AsyncAvroSerializer` from `confluent_kafka.schema_registry._async.avro` and `AsyncSchemaRegistryClient`. Best for applications already running an event loop (FastAPI, aiohttp, Sanic, asyncio workers).
+   - **Synchronous Producer** (`Producer` from `confluent_kafka`): Blocking calls with delivery callbacks. Use with `AvroSerializer` from `confluent_kafka.schema_registry.avro` and `SchemaRegistryClient`. Best for scripts, batch jobs, and highest-throughput pipelines where the user controls threads/processes and can call `poll()`/`flush()` directly.
+   Always ask the user which style fits their use case. The consumer always uses `AIOConsumer` (async) — long-running poll loops benefit from non-blocking I/O, and mixing sync/async consumer styles adds complexity with little benefit.
 
-4. **Graceful shutdown.** Producers must `flush()` and `close()` before exiting — otherwise buffered messages are lost. Consumers must `unsubscribe()` then `close()` to leave the consumer group cleanly (avoiding unnecessary rebalances). Use `try/finally` blocks and handle `KeyboardInterrupt` / signals.
+4. **Graceful shutdown.** Async producers must `flush()` and `close()` (both awaited) before exiting. Synchronous producers must call `flush()` before exiting — otherwise buffered messages are lost. Consumers must `unsubscribe()` then `close()` to leave the consumer group cleanly (avoiding unnecessary rebalances). Use `try/finally` blocks and handle `KeyboardInterrupt` / signals.
 
 5. **Support both Confluent Cloud and local Docker.** When targeting Confluent Cloud, configure `SASL_SSL` with `PLAIN` mechanism and load API keys from `.env`. When targeting local Docker, use `PLAINTEXT` with no authentication. The `KAFKA_ENV` environment variable (`cloud` or `local`) controls which path is used. Load all settings from environment variables via `.env`.
 
@@ -66,17 +69,31 @@ These principles matter because they prevent the most common production issues w
 
 This module handles configuration loading and connectivity verification. Use `references/common.py` as the template.
 
-### producer.py Pattern
+### producer.py Pattern (AsyncIO)
 
-Use `references/producer.py` as the template. The producer must follow this structure.
+When the user chooses the **AsyncIO producer**, use `references/producer.py` as the template.
 
-Key points in the producer:
+Key points:
 - `produce()` takes a producer instance as a parameter — it never creates one
 - The producer is created once in `main()` and can be passed to multiple `produce()` calls
-- The async serializer (`AsyncAvroSerializer`, `AsyncJSONSerializer`, or `AsyncProtobufSerializer`) must be `await`ed when calling it on a message
+- The async serializer (`AsyncAvroSerializer`) must be `await`ed when calling it on a message
 - `AIOProducer.produce()` is async and returns an `asyncio.Future`. You must `await` the method to get the Future, then `await` the Future to get the delivered `Message`: `future = await producer.produce(...); result = await future`
 - `AIOProducer.flush()` and `close()` are coroutines — they must be `await`ed in the `finally` block
 - Signal handlers set a shutdown event for graceful termination
+
+### producer.py Pattern (Synchronous)
+
+When the user chooses the **synchronous producer**, use `references/producer_sync.py` as the template.
+
+Key points:
+- `produce()` takes a producer instance as a parameter — it never creates one
+- The producer is created once in `main()` and can be passed to multiple `produce()` calls
+- Uses `AvroSerializer` (synchronous) from `confluent_kafka.schema_registry.avro` and `SchemaRegistryClient` from `confluent_kafka.schema_registry`
+- `Producer.produce()` is non-blocking — it enqueues the message. Call `producer.poll(0)` after each produce to serve delivery callbacks and keep the internal queue from filling up
+- Call `producer.flush()` after a batch to block until all in-flight messages are delivered
+- Use a `delivery_callback(err, msg)` function to handle per-message delivery reports
+- Signal handlers set a flag for graceful termination
+- `flush()` in the `finally` block ensures no buffered messages are lost
 
 ### consumer.py Pattern
 
@@ -84,18 +101,14 @@ Use `references/consumer.py` as the template.
 
 Key points in the consumer:
 - Signal-based graceful shutdown — `unsubscribe()` then `close()` to leave the consumer group cleanly
-- Deserialization via Schema Registry using the matching async deserializer (no fallback to raw JSON — Schema Registry is required)
+- Deserialization via Schema Registry using `AsyncAvroDeserializer` (no fallback to raw JSON — Schema Registry is required)
 - Continuous polling loop until shutdown signal
 
 ### schemas/
 
-Generate a schema file matching the chosen format and the user's data domain. The file should be placed in `schemas/`:
+Generate an Avro schema file matching the user's data domain. The file should be placed at `schemas/value.avsc`.
 
-- **Avro:** `schemas/value.avsc`
-- **JSON Schema:** `schemas/value.json`
-- **Protobuf:** `schemas/value.proto`
-
-For example, if the user is producing financial transactions with Avro:
+For example, if the user is producing financial transactions:
 
 ```json
 {
@@ -150,22 +163,9 @@ GROUP_ID=python-consumer-group
 
 ### requirements.txt
 
-Install the extras matching the chosen schema format:
-
 ```
-# Avro (default)
 confluent-kafka[avro,schema_registry]>=2.13.2
-
-# JSON Schema
-confluent-kafka[json,schema_registry]>=2.13.2
-
-# Protobuf
-confluent-kafka[protobuf,schema_registry]>=2.13.2
-```
-
-Common dependencies (always include):
-
-```
+fastavro
 python-dotenv
 requests>=2.25.0
 httpx
@@ -176,11 +176,9 @@ pytest
 pytest-asyncio
 ```
 
-If using Avro, also include `fastavro`. If using Protobuf, also include `protobuf`.
-
 Every third-party package imported anywhere in the generated code (producer.py, consumer.py, common.py) must have a corresponding entry in requirements.txt. If the code does `from confluent_kafka import ...`, then `confluent-kafka` must be in requirements.txt. If it does `from dotenv import load_dotenv`, then `python-dotenv` must be listed. This includes transitive dependencies that aren't automatically installed — for example, the async Schema Registry client imports `httpx` and `authlib` at runtime, so both must be explicitly listed even though they aren't declared as dependencies of `confluent-kafka`. The user should be able to `pip install -r requirements.txt` and run the code with zero `ModuleNotFoundError`s.
 
-Always include `pytest` and `pytest-asyncio` — tests are always generated. Only include `Faker` if the producer generates sample data with it.
+Always include `pytest`. Include `pytest-asyncio` if the project uses the async producer or consumer. Only include `Faker` if the producer generates sample data with it.
 
 ### README.md
 
@@ -194,7 +192,7 @@ The tests should verify these properties of the generated code:
 
 1. **common.py**: `load_config()` returns all required keys and uses correct defaults. `get_kafka_config()` produces a config with `SASL_SSL` and `PLAIN` when `KAFKA_ENV=cloud`, or `PLAINTEXT` with no SASL when `KAFKA_ENV=local`. `verify_kafka_setup()` and `verify_schema_registry()` return the right booleans when mocked to succeed or fail.
 
-2. **producer.py** (if generated): `produce()` accepts a producer instance as a parameter (never creates one). `AIOProducer` is instantiated exactly once in the module. Messages are passed through the serializer before producing.
+2. **producer.py** (if generated): `produce()` accepts a producer instance as a parameter (never creates one). The producer class (`AIOProducer` for async, `Producer` for sync) is instantiated exactly once in the module. Messages are passed through the serializer before producing. For synchronous producers, verify `flush()` is called after producing.
 
 3. **consumer.py** (if generated): Uses `AvroDeserializer` or `AsyncAvroDeserializer` (no raw JSON fallback). Calls `unsubscribe()` before `close()` for graceful shutdown.
 

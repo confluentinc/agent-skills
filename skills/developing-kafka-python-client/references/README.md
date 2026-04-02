@@ -86,7 +86,7 @@ docker compose down -v    # stop and remove stored data
 ## Project Structure
 
 - `common.py` — Shared configuration loading and connectivity verification
-- `producer.py` — Async Kafka producer with Avro serialization
+- `producer.py` — Kafka producer with Avro serialization (AsyncIO or synchronous, depending on your choice)
 - `consumer.py` — Async Kafka consumer with Avro deserialization
 - `schemas/value.avsc` — Avro schema for the message value
 - `.env.example` — Template for credentials / local config

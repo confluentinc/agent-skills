@@ -3,8 +3,8 @@
   "evals": [
     {
       "id": 0,
-      "prompt": "I need a Python Kafka producer for Confluent Cloud that sends user signup events with fields: user_id, email, plan_type, signed_up_at",
-      "expected_output": "A Python project with producer.py, common.py, schemas/value.avsc, tests/test_project.py, .env.example, requirements.txt. Producer reuses a single instance, uses Schema Registry with Avro, targets Confluent Cloud with SASL_SSL, has graceful shutdown. Tests pass with pytest.",
+      "prompt": "I need a Python Kafka producer for Confluent Cloud that sends user signup events with fields: user_id, email, plan_type, signed_up_at. I'm using FastAPI so I need async.",
+      "expected_output": "A Python project with an async producer.py using AIOProducer, common.py, schemas/value.avsc, tests/test_project.py, .env.example, requirements.txt. Producer reuses a single instance, uses Schema Registry with Avro, targets Confluent Cloud with SASL_SSL, has graceful shutdown. Tests pass with pytest.",
       "files": [],
       "assertions": [
         {
@@ -53,7 +53,7 @@
         {
           "id": "requirements-has-pytest-asyncio",
           "type": "file_contains",
-          "description": "requirements.txt includes pytest-asyncio",
+          "description": "requirements.txt includes pytest-asyncio for async producer",
           "path": "requirements.txt",
           "contains": "pytest-asyncio"
         },
@@ -70,6 +70,13 @@
           "description": "Producer uses AvroSerializer",
           "path": "producer.py",
           "contains": "AvroSerializer"
+        },
+        {
+          "id": "producer-is-async",
+          "type": "file_contains",
+          "description": "Producer uses AIOProducer for async",
+          "path": "producer.py",
+          "contains": "AIOProducer"
         },
         {
           "id": "producer-graceful-shutdown",
@@ -150,8 +157,8 @@
     },
     {
       "id": 2,
-      "prompt": "Scaffold a Python project with both a producer and consumer for IoT sensor readings (device_id, temperature, humidity, timestamp) on Confluent Cloud",
-      "expected_output": "A Python project with producer.py, consumer.py, common.py, schemas/value.avsc, tests/test_project.py, .env.example, requirements.txt. Both use Schema Registry, Confluent Cloud config, graceful shutdown. Producer reuses single instance. Tests pass with pytest.",
+      "prompt": "Scaffold a Python project with both a producer and consumer for IoT sensor readings (device_id, temperature, humidity, timestamp) on Confluent Cloud. I'm using aiohttp so I need async.",
+      "expected_output": "A Python project with async producer.py using AIOProducer, consumer.py, common.py, schemas/value.avsc, tests/test_project.py, .env.example, requirements.txt. Both use Schema Registry, Confluent Cloud config, graceful shutdown. Producer reuses single instance. Tests pass with pytest.",
       "files": [],
       "assertions": [
         {
@@ -193,6 +200,13 @@
           "contains": "temperature"
         },
         {
+          "id": "producer-is-async",
+          "type": "file_contains",
+          "description": "Producer uses AIOProducer for async",
+          "path": "producer.py",
+          "contains": "AIOProducer"
+        },
+        {
           "id": "requirements-has-pytest",
           "type": "file_contains",
           "description": "requirements.txt includes pytest",
@@ -202,7 +216,7 @@
         {
           "id": "requirements-has-pytest-asyncio",
           "type": "file_contains",
-          "description": "requirements.txt includes pytest-asyncio",
+          "description": "requirements.txt includes pytest-asyncio for async producer",
           "path": "requirements.txt",
           "contains": "pytest-asyncio"
         },
@@ -217,8 +231,8 @@
     },
     {
       "id": 3,
-      "prompt": "I want to try Kafka locally with Docker. Set up a Python producer and consumer for order events (order_id, customer_id, product, quantity, price)",
-      "expected_output": "A Python project with producer.py, consumer.py, common.py, docker-compose.yml, schemas/value.avsc, tests/test_project.py, .env.example, requirements.txt. Uses PLAINTEXT for local Docker, docker-compose with Kafka and Schema Registry, graceful shutdown. Tests pass with pytest.",
+      "prompt": "I want to try Kafka locally with Docker. Set up a Python producer and consumer for order events (order_id, customer_id, product, quantity, price). This is a batch script so synchronous producer is fine.",
+      "expected_output": "A Python project with synchronous producer.py using Producer (not AIOProducer), consumer.py, common.py, docker-compose.yml, schemas/value.avsc, tests/test_project.py, .env.example, requirements.txt. Uses PLAINTEXT for local Docker, docker-compose with Kafka and Schema Registry, graceful shutdown. Tests pass with pytest.",
       "files": [],
       "assertions": [
         {
@@ -266,6 +280,20 @@
           "contains": "PLAINTEXT"
         },
         {
+          "id": "producer-is-sync",
+          "type": "file_contains",
+          "description": "Producer uses synchronous Producer class with flush()",
+          "path": "producer.py",
+          "contains": "flush"
+        },
+        {
+          "id": "producer-uses-avro",
+          "type": "file_contains",
+          "description": "Producer uses AvroSerializer",
+          "path": "producer.py",
+          "contains": "AvroSerializer"
+        },
+        {
           "id": "schema-has-order-fields",
           "type": "file_contains",
           "description": "Avro schema includes order_id field",
@@ -280,6 +308,13 @@
           "contains": "pytest"
         },
         {
+          "id": "requirements-has-pytest-asyncio",
+          "type": "file_contains",
+          "description": "requirements.txt includes pytest-asyncio (consumer is always async)",
+          "path": "requirements.txt",
+          "contains": "pytest-asyncio"
+        },
+        {
           "id": "tests-pass",
           "type": "command",
           "description": "All unit tests pass with pytest",
@@ -291,7 +326,7 @@
     {
       "id": 4,
       "prompt": "I need a Python Kafka producer app",
-      "expected_output": "The skill should prompt the user about target environment (Confluent Cloud vs local Docker) before generating. It should not assume Confluent Cloud without asking. After gathering requirements, generates a complete project with producer.py, common.py, schema, tests, .env.example, requirements.txt.",
+      "expected_output": "The skill should prompt the user about target environment (Confluent Cloud vs local Docker) and producer style (async vs synchronous) before generating. It should not assume either without asking. After gathering requirements, generates a complete project with producer.py, common.py, schema, tests, .env.example, requirements.txt.",
       "files": [],
       "assertions": [
         {
@@ -323,6 +358,87 @@
           "type": "file_exists",
           "description": ".env.example is generated",
           "path": ".env.example"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "I need a synchronous Python Kafka producer for a batch ETL job on Confluent Cloud. It ingests CSV rows with fields: employee_id, department, salary, hire_date",
+      "expected_output": "A Python project with synchronous producer.py using Producer (not AIOProducer), common.py, schemas/value.avsc, tests/test_project.py, .env.example, requirements.txt. Producer uses synchronous AvroSerializer and SchemaRegistryClient, calls poll()/flush(), has delivery callbacks. Tests pass with pytest.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "producer-exists",
+          "type": "file_exists",
+          "description": "producer.py is generated",
+          "path": "producer.py"
+        },
+        {
+          "id": "common-exists",
+          "type": "file_exists",
+          "description": "common.py is generated",
+          "path": "common.py"
+        },
+        {
+          "id": "schema-exists",
+          "type": "file_exists",
+          "description": "Avro schema is generated",
+          "path": "schemas/value.avsc"
+        },
+        {
+          "id": "tests-exist",
+          "type": "file_exists",
+          "description": "Unit tests are generated",
+          "path": "tests/test_project.py"
+        },
+        {
+          "id": "producer-uses-sync-avro",
+          "type": "file_contains",
+          "description": "Producer uses synchronous AvroSerializer",
+          "path": "producer.py",
+          "contains": "AvroSerializer"
+        },
+        {
+          "id": "producer-has-flush",
+          "type": "file_contains",
+          "description": "Producer calls flush() for delivery",
+          "path": "producer.py",
+          "contains": "flush"
+        },
+        {
+          "id": "producer-has-poll",
+          "type": "file_contains",
+          "description": "Producer calls poll() to serve callbacks",
+          "path": "producer.py",
+          "contains": "poll"
+        },
+        {
+          "id": "producer-reuses-instance",
+          "type": "file_contains",
+          "description": "produce() accepts producer as parameter",
+          "path": "producer.py",
+          "contains": "def produce"
+        },
+        {
+          "id": "schema-has-employee-fields",
+          "type": "file_contains",
+          "description": "Avro schema includes employee_id field",
+          "path": "schemas/value.avsc",
+          "contains": "employee_id"
+        },
+        {
+          "id": "requirements-has-pytest",
+          "type": "file_contains",
+          "description": "requirements.txt includes pytest",
+          "path": "requirements.txt",
+          "contains": "pytest"
+        },
+        {
+          "id": "tests-pass",
+          "type": "command",
+          "description": "All unit tests pass with pytest",
+          "command": "cd {{output_dir}} && pip install -r requirements.txt -q && python -m pytest tests/ -v --tb=short 2>&1",
+          "expect_exit_code": 0
         }
       ]
     }

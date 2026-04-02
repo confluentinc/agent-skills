@@ -155,10 +155,14 @@ class TestVerifySchemaRegistry:
 # ---------------------------------------------------------------------------
 
 class TestProducer:
-    """Verify producer reuses instance and shuts down gracefully."""
+    """Verify producer reuses instance and shuts down gracefully.
 
-    @pytest.mark.asyncio
-    async def test_produce_accepts_existing_producer(self):
+    These tests work for both async (AIOProducer) and synchronous (Producer)
+    producer styles. The AST-based single-instantiation check detects whichever
+    producer class the generated code imports.
+    """
+
+    def test_produce_accepts_existing_producer(self):
         """produce() must take a producer as a parameter, not create one."""
         import producer as prod
         import inspect
@@ -168,26 +172,37 @@ class TestProducer:
             "produce() must accept a 'producer' parameter"
         )
 
-    @pytest.mark.asyncio
-    async def test_produce_sends_messages(self):
+    def test_produce_sends_messages(self):
         """Verify produce() calls producer.produce() for each message."""
         import producer as prod
-
-        mock_producer = AsyncMock()
-        mock_result = MagicMock()
-        mock_result.error.return_value = None
-        mock_result.partition.return_value = 0
-        mock_result.offset.return_value = 1
-        # AIOProducer.produce() is async and returns a Future.
-        # AsyncMock handles the first await; set return_value to the mock_result
-        # so the second await (on the Future) resolves to it.
-        mock_producer.produce.return_value = mock_result
-
-        # AvroSerializer is synchronous — use MagicMock, not AsyncMock
-        mock_serializer = MagicMock(return_value=b"serialized")
+        import asyncio
+        import inspect
 
         messages = [{"id": "1", "type": "test"}]
-        await prod.produce(mock_producer, "test-topic", mock_serializer, messages)
+
+        if inspect.iscoroutinefunction(prod.produce):
+            # Async producer path — serializer and producer.produce are coroutines.
+            # AIOProducer.produce() returns a Future that resolves to a Message.
+            mock_result = MagicMock()
+            mock_result.error.return_value = None
+            mock_result.partition.return_value = 0
+            mock_result.offset.return_value = 1
+
+            mock_producer = AsyncMock()
+            # await producer.produce() returns a future; await future returns the Message
+            mock_future = AsyncMock(return_value=mock_result)
+            mock_producer.produce.return_value = mock_future()
+
+            mock_serializer = AsyncMock(return_value=b"serialized")
+
+            asyncio.run(
+                prod.produce(mock_producer, "test-topic", mock_serializer, messages)
+            )
+        else:
+            # Synchronous producer path
+            mock_producer = MagicMock()
+            mock_serializer = MagicMock(return_value=b"serialized")
+            prod.produce(mock_producer, "test-topic", mock_serializer, messages)
 
         mock_producer.produce.assert_called_once()
 
@@ -197,22 +212,24 @@ class TestProducer:
         import ast
         source = open(prod.__file__).read()
         tree = ast.parse(source)
-        # Count how many times AIOProducer is instantiated
+
+        # Check for AIOProducer (async) or Producer (sync) instantiation
+        producer_classes = ("AIOProducer", "Producer")
         producer_calls = [
             node for node in ast.walk(tree)
             if isinstance(node, ast.Call)
             and isinstance(getattr(node, "func", None), ast.Name)
-            and node.func.id == "AIOProducer"
+            and node.func.id in producer_classes
         ]
         # Also check for attribute-style calls like aio.AIOProducer
         producer_calls += [
             node for node in ast.walk(tree)
             if isinstance(node, ast.Call)
             and isinstance(getattr(node, "func", None), ast.Attribute)
-            and node.func.attr == "AIOProducer"
+            and node.func.attr in producer_classes
         ]
         assert len(producer_calls) == 1, (
-            f"Expected exactly 1 AIOProducer instantiation, found {len(producer_calls)}"
+            f"Expected exactly 1 producer instantiation, found {len(producer_calls)}"
         )
 
 
