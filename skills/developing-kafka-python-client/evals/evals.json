@@ -287,6 +287,44 @@
           "expect_exit_code": 0
         }
       ]
+    },
+    {
+      "id": 4,
+      "prompt": "I need a Python Kafka producer app",
+      "expected_output": "The skill should prompt the user about target environment (Confluent Cloud vs local Docker) before generating. It should not assume Confluent Cloud without asking. After gathering requirements, generates a complete project with producer.py, common.py, schema, tests, .env.example, requirements.txt.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "producer-exists",
+          "type": "file_exists",
+          "description": "producer.py is generated",
+          "path": "producer.py"
+        },
+        {
+          "id": "common-exists",
+          "type": "file_exists",
+          "description": "common.py is generated",
+          "path": "common.py"
+        },
+        {
+          "id": "tests-exist",
+          "type": "file_exists",
+          "description": "Unit tests are generated",
+          "path": "tests/test_project.py"
+        },
+        {
+          "id": "requirements-exists",
+          "type": "file_exists",
+          "description": "requirements.txt is generated",
+          "path": "requirements.txt"
+        },
+        {
+          "id": "env-example-exists",
+          "type": "file_exists",
+          "description": ".env.example is generated",
+          "path": ".env.example"
+        }
+      ]
     }
   ]
 }

@@ -23,13 +23,13 @@ class TestLoadConfig:
 
     @patch.dict(os.environ, {
         "KAFKA_ENV": "cloud",
-        "CC_BOOTSTRAP_SERVER": "pkc-test.us-east-1.aws.confluent.cloud:9092",
-        "CC_API_KEY": "test-key",
-        "CC_API_SECRET": "test-secret",
-        "CC_TOPIC": "test-topic",
-        "CC_SCHEMA_REGISTRY_URL": "https://psrc-test.us-east-2.aws.confluent.cloud",
-        "CC_SR_API_KEY": "sr-key",
-        "CC_SR_API_SECRET": "sr-secret",
+        "BOOTSTRAP_SERVER": "pkc-test.us-east-1.aws.confluent.cloud:9092",
+        "API_KEY": "test-key",
+        "API_SECRET": "test-secret",
+        "TOPIC": "test-topic",
+        "SCHEMA_REGISTRY_URL": "https://psrc-test.us-east-2.aws.confluent.cloud",
+        "SR_API_KEY": "sr-key",
+        "SR_API_SECRET": "sr-secret",
         "CLIENT_ID": "test-client",
         "GROUP_ID": "test-group",
     })
@@ -48,18 +48,18 @@ class TestLoadConfig:
 
     @patch("common.load_dotenv")
     @patch.dict(os.environ, {
-        "CC_BOOTSTRAP_SERVER": "broker:9092",
-        "CC_API_KEY": "k",
-        "CC_API_SECRET": "s",
-        "CC_SCHEMA_REGISTRY_URL": "https://sr",
-        "CC_SR_API_KEY": "srk",
-        "CC_SR_API_SECRET": "srs",
+        "BOOTSTRAP_SERVER": "broker:9092",
+        "API_KEY": "k",
+        "API_SECRET": "s",
+        "SCHEMA_REGISTRY_URL": "https://sr",
+        "SR_API_KEY": "srk",
+        "SR_API_SECRET": "srs",
     }, clear=False)
     def test_load_config_uses_defaults(self, mock_dotenv):
         # Remove optional vars so defaults kick in.
         # load_dotenv is patched to prevent .env files from polluting the test.
         os.environ.pop("KAFKA_ENV", None)
-        os.environ.pop("CC_TOPIC", None)
+        os.environ.pop("TOPIC", None)
         os.environ.pop("CLIENT_ID", None)
         os.environ.pop("GROUP_ID", None)
         import common

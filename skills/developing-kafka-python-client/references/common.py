@@ -9,13 +9,13 @@ def load_config() -> dict:
     load_dotenv()
     return {
         "kafka_env": os.getenv("KAFKA_ENV", "cloud"),
-        "bootstrap_server": os.getenv("CC_BOOTSTRAP_SERVER"),
-        "api_key": os.getenv("CC_API_KEY"),
-        "api_secret": os.getenv("CC_API_SECRET"),
-        "topic": os.getenv("CC_TOPIC", "demo-topic"),
-        "sr_url": os.getenv("CC_SCHEMA_REGISTRY_URL"),
-        "sr_key": os.getenv("CC_SR_API_KEY"),
-        "sr_secret": os.getenv("CC_SR_API_SECRET"),
+        "bootstrap_server": os.getenv("BOOTSTRAP_SERVER"),
+        "api_key": os.getenv("API_KEY"),
+        "api_secret": os.getenv("API_SECRET"),
+        "topic": os.getenv("TOPIC", "demo-topic"),
+        "sr_url": os.getenv("SCHEMA_REGISTRY_URL"),
+        "sr_key": os.getenv("SR_API_KEY"),
+        "sr_secret": os.getenv("SR_API_SECRET"),
         "client_id": os.getenv("CLIENT_ID", "python-client"),
         "group_id": os.getenv("GROUP_ID", "python-consumer-group"),
     }

@@ -1,6 +1,6 @@
 ---
 name: developing-kafka-python-client
-description: "Scaffold a Python Kafka producer/consumer project using confluent-kafka-python with Schema Registry and Avro. Supports Confluent Cloud and local Docker."
+description: "Scaffold an async Python Kafka producer/consumer project using confluent-kafka-python with Schema Registry serialization (Avro, JSON Schema, or Protobuf). Supports Confluent Cloud and local Docker."
 ---
 
 # Confluent Kafka Python Client Scaffold
@@ -9,13 +9,14 @@ Generate a production-ready Python project for producing to and/or consuming fro
 
 ## Step 1: Gather Requirements
 
-Ask the user:
+**Always** ask the user these questions before generating — do not assume defaults for #1 or #2:
 
-1. **Target environment?** — Confluent Cloud or local Kafka (Docker). If they mention "open source", "local", "docker", "self-hosted", or just want to try Kafka without a cloud account, choose **local Docker**. If they mention "Confluent Cloud", "CC", or have existing cloud credentials, choose **Confluent Cloud**. If unclear, ask.
+1. **Target environment?** — Confluent Cloud or local Kafka (Docker). **Always prompt for this, even if the user didn't mention it.** If they mention "open source", "local", "docker", "self-hosted", or just want to try Kafka without a cloud account, choose **local Docker**. If they mention "Confluent Cloud", "CC", or have existing cloud credentials, choose **Confluent Cloud**. Default to Confluent Cloud if they confirm they don't have a preference, but always ask first.
 2. **Producer, consumer, or both?**
-3. **What kind of data are you producing?** (Get field names and types so you can generate a matching Avro schema and sample data.)
-4. **Topic name?** (Default: `demo-topic`)
-5. **Consumer group ID?** (Only if consumer; default: `python-consumer-group`)
+3. **What kind of data are you producing?** (Get field names and types so you can generate a matching schema and sample data.)
+4. **Schema format?** — Avro (default), JSON Schema, or Protobuf. If the user doesn't have a preference, use Avro.
+5. **Topic name?** (Default: `demo-topic`)
+6. **Consumer group ID?** (Only if consumer; default: `python-consumer-group`)
 
 Don't ask about Schema Registry — always include it.
 
@@ -29,7 +30,7 @@ Create this file structure in the user's chosen directory:
 ├── consumer.py          # (if requested)
 ├── common.py            # shared config loading + verification helpers
 ├── schemas/
-│   └── value.avsc       # Avro schema for the message value
+│   └── value.avsc|.json|.proto  # schema for the message value (format depends on choice)
 ├── tests/
 │   └── test_project.py  # unit tests (always generated)
 ├── .env.example         # template for credentials
@@ -48,7 +49,10 @@ These principles matter because they prevent the most common production issues w
 
 1. **Reuse the producer instance.** Creating a new producer per message is expensive — each one opens new TCP connections, does SASL handshakes, and fetches metadata. Create one producer and reuse it for all messages. The produce function should accept the producer as a parameter, not instantiate one.
 
-2. **Always use Schema Registry with Avro.** Schema Registry enforces a contract between producers and consumers. Without it, schema changes silently break downstream consumers. Always register schemas and use `AvroSerializer`/`AvroDeserializer`.
+2. **Always use Schema Registry.** Schema Registry enforces a contract between producers and consumers. Without it, schema changes silently break downstream consumers. Always register schemas and use the appropriate serializer/deserializer for the chosen format:
+   - **Avro:** `AsyncAvroSerializer` / `AsyncAvroDeserializer` from `confluent_kafka.schema_registry._async.avro`
+   - **JSON Schema:** `AsyncJSONSerializer` / `AsyncJSONDeserializer` from `confluent_kafka.schema_registry._async.json_schema`
+   - **Protobuf:** `AsyncProtobufSerializer` / `AsyncProtobufDeserializer` from `confluent_kafka.schema_registry._async.protobuf`
 
 3. **Use the async API.** The `confluent-kafka-python` library provides `AIOProducer` and `AIOConsumer` in `confluent_kafka.aio`. Use these with `asyncio` for non-blocking I/O. This is the modern recommended approach.
 
@@ -69,7 +73,7 @@ Use `references/producer.py` as the template. The producer must follow this stru
 Key points in the producer:
 - `produce()` takes a producer instance as a parameter — it never creates one
 - The producer is created once in `main()` and can be passed to multiple `produce()` calls
-- `AvroSerializer` is **synchronous** — call it directly (`serializer(message, ctx)`), do NOT `await` it
+- The async serializer (`AsyncAvroSerializer`, `AsyncJSONSerializer`, or `AsyncProtobufSerializer`) must be `await`ed when calling it on a message
 - `AIOProducer.produce()` is async and returns an `asyncio.Future`. You must `await` the method to get the Future, then `await` the Future to get the delivered `Message`: `future = await producer.produce(...); result = await future`
 - `AIOProducer.flush()` and `close()` are coroutines — they must be `await`ed in the `finally` block
 - Signal handlers set a shutdown event for graceful termination
@@ -80,12 +84,18 @@ Use `references/consumer.py` as the template.
 
 Key points in the consumer:
 - Signal-based graceful shutdown — `unsubscribe()` then `close()` to leave the consumer group cleanly
-- Avro deserialization via Schema Registry (no fallback to raw JSON — Schema Registry is required)
+- Deserialization via Schema Registry using the matching async deserializer (no fallback to raw JSON — Schema Registry is required)
 - Continuous polling loop until shutdown signal
 
-### schemas/value.avsc
+### schemas/
 
-Generate an Avro schema that matches the user's data domain. For example, if they're producing financial transactions:
+Generate a schema file matching the chosen format and the user's data domain. The file should be placed in `schemas/`:
+
+- **Avro:** `schemas/value.avsc`
+- **JSON Schema:** `schemas/value.json`
+- **Protobuf:** `schemas/value.proto`
+
+For example, if the user is producing financial transactions with Avro:
 
 ```json
 {
@@ -117,13 +127,13 @@ Generate the appropriate `.env.example` based on the target environment:
 **Confluent Cloud:**
 ```
 KAFKA_ENV=cloud
-CC_BOOTSTRAP_SERVER=pkc-xxxxx.us-east-1.aws.confluent.cloud:9092
-CC_API_KEY=your-api-key
-CC_API_SECRET=your-api-secret
-CC_TOPIC=demo-topic
-CC_SCHEMA_REGISTRY_URL=https://psrc-xxxxx.us-east-2.aws.confluent.cloud
-CC_SR_API_KEY=your-sr-api-key
-CC_SR_API_SECRET=your-sr-api-secret
+BOOTSTRAP_SERVER=pkc-xxxxx.us-east-1.aws.confluent.cloud:9092
+API_KEY=your-api-key
+API_SECRET=your-api-secret
+TOPIC=demo-topic
+SCHEMA_REGISTRY_URL=https://psrc-xxxxx.us-east-2.aws.confluent.cloud
+SR_API_KEY=your-sr-api-key
+SR_API_SECRET=your-sr-api-secret
 CLIENT_ID=python-client
 GROUP_ID=python-consumer-group
 ```
@@ -131,20 +141,33 @@ GROUP_ID=python-consumer-group
 **Local Docker:**
 ```
 KAFKA_ENV=local
-CC_BOOTSTRAP_SERVER=localhost:9092
-CC_TOPIC=demo-topic
-CC_SCHEMA_REGISTRY_URL=http://localhost:8081
+BOOTSTRAP_SERVER=localhost:9092
+TOPIC=demo-topic
+SCHEMA_REGISTRY_URL=http://localhost:8081
 CLIENT_ID=python-client
 GROUP_ID=python-consumer-group
 ```
 
 ### requirements.txt
 
+Install the extras matching the chosen schema format:
+
 ```
+# Avro (default)
 confluent-kafka[avro,schema_registry]>=2.13.2
+
+# JSON Schema
+confluent-kafka[json,schema_registry]>=2.13.2
+
+# Protobuf
+confluent-kafka[protobuf,schema_registry]>=2.13.2
+```
+
+Common dependencies (always include):
+
+```
 python-dotenv
 requests>=2.25.0
-fastavro
 httpx
 authlib
 cachetools
@@ -152,6 +175,8 @@ attrs
 pytest
 pytest-asyncio
 ```
+
+If using Avro, also include `fastavro`. If using Protobuf, also include `protobuf`.
 
 Every third-party package imported anywhere in the generated code (producer.py, consumer.py, common.py) must have a corresponding entry in requirements.txt. If the code does `from confluent_kafka import ...`, then `confluent-kafka` must be in requirements.txt. If it does `from dotenv import load_dotenv`, then `python-dotenv` must be listed. This includes transitive dependencies that aren't automatically installed — for example, the async Schema Registry client imports `httpx` and `authlib` at runtime, so both must be explicitly listed even though they aren't declared as dependencies of `confluent-kafka`. The user should be able to `pip install -r requirements.txt` and run the code with zero `ModuleNotFoundError`s.
 
