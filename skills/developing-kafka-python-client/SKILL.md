@@ -141,7 +141,7 @@ GROUP_ID=python-consumer-group
 ### requirements.txt
 
 ```
-confluent-kafka[schema_registry]>=2.13.0
+confluent-kafka[avro,schema_registry]>=2.13.2
 python-dotenv
 requests>=2.25.0
 fastavro
