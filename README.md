@@ -38,6 +38,7 @@ This repository includes the following skills:
 | Skill                          | Description |
 |--------------------------------|-------------|
 | **kafka-streams-programming**  | Architect, build, and debug Kafka Streams applications that run as a library inside your JVM with no separate cluster required. Handles topology design, pattern selection (joins, windows, aggregations), code generation for complete projects with proper Schema Registry integration, and troubleshooting production issues like rebalancing loops, state store problems, and performance tuning. |
+| **developing-kafka-python-client**  | Scaffold a Python Kafka producer/consumer project using confluent-kafka-python with Schema Registry serialization (Avro, JSON Schema, or Protobuf). Supports async (AIOProducer) and synchronous (Producer) modes, Confluent Cloud, and local Docker. |
 
 ## Repository layout
 
