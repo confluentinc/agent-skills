@@ -1,0 +1,654 @@
+{
+  "skill_name": "schema-registry-adopting",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "hey so i just inherited this java spring boot microservice (in ./mock-repos/payment-service) from a dev who left and my manager wants me to figure out if we're using schema registry properly. can you scan it and tell me what's going on? i think they're producing to some payment topics but i'm not sure if we have schemas registered anywhere. also if there's any pii in the data that would be good to know since we have a compliance audit coming up",
+      "expected_output": "Full schema-report.md identifying producers, extracting schemas from Java data models, tagging PII fields (credit card, email, etc.), generating Terraform configs, and providing upgrade recommendations",
+      "files": [],
+      "assertions": [
+        {
+          "name": "schema_report_exists",
+          "description": "schema-report.md file was created",
+          "check": "file_exists",
+          "path": "schema-report.md"
+        },
+        {
+          "name": "schemas_directory_exists",
+          "description": "schemas/ directory was created",
+          "check": "directory_exists",
+          "path": "schemas"
+        },
+        {
+          "name": "correct_number_of_schemas",
+          "description": "2 schema files generated (payment-events-value, payment-confirmations-value)",
+          "check": "file_count",
+          "path": "schemas/**",
+          "pattern": "*-value.json",
+          "expected": 2
+        },
+        {
+          "name": "terraform_directory_exists",
+          "description": "terraform/ directory was created",
+          "check": "directory_exists",
+          "path": "terraform"
+        },
+        {
+          "name": "terraform_files_present",
+          "description": "Core Terraform files present (providers.tf, variables.tf, schemas.tf, tags.tf, outputs.tf)",
+          "check": "files_exist",
+          "paths": ["terraform/providers.tf", "terraform/variables.tf", "terraform/schemas.tf", "terraform/tags.tf", "terraform/outputs.tf"]
+        },
+        {
+          "name": "pii_fields_tagged_email",
+          "description": "customer_email field tagged with PII in schema",
+          "check": "content_contains",
+          "path": "schemas/json/payment-events-value.json",
+          "pattern": "customer_email.*confluent:tags.*PII"
+        },
+        {
+          "name": "pii_fields_tagged_credit_card",
+          "description": "credit_card_number field tagged with PII and PRIVATE",
+          "check": "content_contains",
+          "path": "schemas/json/payment-events-value.json",
+          "pattern": "credit_card_number.*confluent:tags"
+        },
+        {
+          "name": "report_identifies_category_b",
+          "description": "Report correctly identifies Category B (schema in code, no SR)",
+          "check": "content_contains",
+          "path": "schema-report.md",
+          "pattern": "Category B|Category: B"
+        },
+        {
+          "name": "report_contains_pii_summary",
+          "description": "Report contains PII fields section with at least 3 PII fields",
+          "check": "content_contains",
+          "path": "schema-report.md",
+          "pattern": "PII.*email|email.*PII"
+        },
+        {
+          "name": "upgrade_recommendations_present",
+          "description": "Report contains upgrade recommendations for Spring JsonSerializer",
+          "check": "content_contains",
+          "path": "schema-report.md",
+          "pattern": "KafkaJsonSchemaSerializer|upgrade|recommendation"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "I need to analyze our order processing repo for Kafka usage. The path is ./mock-repos/order-processor and it's a Python app using confluent-kafka. We've been having issues where schema changes break consumers and I suspect someone enabled auto-registration. Can you scan the whole thing, extract any schemas you find, and generate terraform so we can manage schemas properly? We're using Confluent Cloud btw",
+      "expected_output": "Report identifying auto.register.schemas=true risks, Python data models (Pydantic/dataclasses), extracted schemas in schemas/json/, Terraform with flagged-auto-register.tf commented out, rollout ordering guidance",
+      "files": [],
+      "assertions": [
+        {
+          "name": "auto_register_risk_detected",
+          "description": "Report identifies auto.register.schemas=true as a risk",
+          "check": "content_contains",
+          "path": "schema-report.md",
+          "pattern": "auto.register.schemas.*true|auto-register"
+        },
+        {
+          "name": "auto_register_locations_found",
+          "description": "Report identifies both locations (config.yaml and producer.py)",
+          "check": "content_contains",
+          "path": "schema-report.md",
+          "pattern": "producer.py.*11|config.yaml"
+        },
+        {
+          "name": "schemas_extracted_from_pydantic",
+          "description": "2 schemas extracted from Pydantic models (OrderCreated, OrderUpdated)",
+          "check": "file_count",
+          "path": "schemas/**",
+          "pattern": "*.avsc",
+          "expected": 2
+        },
+        {
+          "name": "flagged_auto_register_tf_exists",
+          "description": "flagged-auto-register.tf file created",
+          "check": "file_exists",
+          "path": "terraform/flagged-auto-register.tf"
+        },
+        {
+          "name": "flagged_schemas_commented_out",
+          "description": "Schema resources in flagged-auto-register.tf are commented out",
+          "check": "content_contains",
+          "path": "terraform/flagged-auto-register.tf",
+          "pattern": "# resource \"confluent_schema\""
+        },
+        {
+          "name": "risk_section_in_report",
+          "description": "Report has RISKS section highlighting auto-registration",
+          "check": "content_contains",
+          "path": "schema-report.md",
+          "pattern": "RISK|Risk|auto.register.schemas=true"
+        },
+        {
+          "name": "category_c_identified",
+          "description": "Application categorized as Category C (auto-register)",
+          "check": "content_contains",
+          "path": "schema-report.md",
+          "pattern": "Category C|Category: C"
+        },
+        {
+          "name": "migration_steps_provided",
+          "description": "Report provides migration steps to disable auto-registration",
+          "check": "content_contains",
+          "path": "schema-report.md",
+          "pattern": "auto.register.schemas=false|disable.*auto"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "our main backend is at ./mock-repos/ecommerce-platform and it has kafka stuff in multiple languages - java for the order service, python for analytics, and some node.js microservices. I want to understand what topics we're producing to, what serializers we're using, and get everything into schema registry with terraform. also tag any customer data that might be PII since we need to be gdpr compliant",
+      "expected_output": "Multi-language analysis covering Java/Python/Node producers, categorizing each by serializer type, extracting schemas from different data models across languages, consolidated Terraform configs, PII tagging summary table",
+      "files": [],
+      "assertions": [
+        {
+          "name": "three_services_identified",
+          "description": "Report identifies 3 Kafka services (order, analytics, notification)",
+          "check": "content_contains",
+          "path": "schema-report.md",
+          "pattern": "3.*application|3.*service"
+        },
+        {
+          "name": "three_languages_detected",
+          "description": "Report identifies Java, Python, and Node.js/TypeScript",
+          "check": "content_contains_all",
+          "path": "schema-report.md",
+          "patterns": ["Java", "Python", "Node"]
+        },
+        {
+          "name": "three_schemas_extracted",
+          "description": "3 schemas extracted (orders, analytics-events, notifications)",
+          "check": "file_count_min",
+          "path": "schemas/**",
+          "pattern": "*-value.*",
+          "min_expected": 3
+        },
+        {
+          "name": "pii_fields_tagged",
+          "description": "At least 5 PII fields tagged across schemas (email, phone, address, ip)",
+          "check": "grep_count_min",
+          "path": "schemas",
+          "pattern": "confluent:tags.*PII",
+          "min_expected": 5
+        },
+        {
+          "name": "gdpr_compliance_mentioned",
+          "description": "Report mentions GDPR compliance",
+          "check": "content_contains",
+          "path": "schema-report.md",
+          "pattern": "GDPR"
+        },
+        {
+          "name": "consolidated_terraform",
+          "description": "Single Terraform config with all 3 schemas",
+          "check": "grep_count",
+          "path": "terraform/schemas.tf",
+          "pattern": "resource \"confluent_schema\"",
+          "expected": 3
+        },
+        {
+          "name": "per_service_categorization",
+          "description": "Report categorizes each service separately",
+          "check": "content_contains",
+          "path": "schema-report.md",
+          "pattern": "Category.*order|Category.*analytics|Category.*notification"
+        },
+        {
+          "name": "pii_summary_table",
+          "description": "Report contains PII summary table or section",
+          "check": "content_contains",
+          "path": "schema-report.md",
+          "pattern": "PII.*Field|PII.*Detect|PII.*Summary"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "ok so this is embarrassing but we have a legacy service (./mock-repos/legacy-event-publisher) that's using a custom json serializer - basically just calling json.dumps in python and sending raw bytes. no schema registry at all. we want to migrate to using proper confluent serializers but i need to know what schemas to extract first and how to do the migration without breaking our 5 consumer apps. can you analyze it?",
+      "expected_output": "Category E identification (custom serializer), schema extraction from inline dict structures, Terraform generation, detailed rollout ordering (consumers first with composite deserializer pattern), migration steps",
+      "files": [],
+      "assertions": [
+        {
+          "name": "category_e_identified",
+          "description": "Application categorized as Category E (custom serializer)",
+          "check": "content_contains",
+          "path": "schema-report.md",
+          "pattern": "Category E|Category: E"
+        },
+        {
+          "name": "custom_serializer_detected",
+          "description": "Report identifies json.dumps as custom serializer",
+          "check": "content_contains",
+          "path": "schema-report.md",
+          "pattern": "json.dumps|custom.*serializer"
+        },
+        {
+          "name": "schemas_extracted_from_dicts",
+          "description": "2 schemas extracted from dict structures (user-events, product-events)",
+          "check": "file_count",
+          "path": "schemas/**",
+          "pattern": "*-value.json",
+          "expected": 2
+        },
+        {
+          "name": "consumers_first_rollout",
+          "description": "Report specifies consumers-first rollout ordering",
+          "check": "content_contains",
+          "path": "schema-report.md",
+          "pattern": "consumer.*first|upgrade.*consumer.*before|Consumer.*before"
+        },
+        {
+          "name": "composite_deserializer_mentioned",
+          "description": "Report mentions composite/dual-read deserializer pattern for migration",
+          "check": "content_contains",
+          "path": "schema-report.md",
+          "pattern": "composite.*deserializer|dual.*read|dual-mode|both.*format"
+        },
+        {
+          "name": "breaking_change_warning",
+          "description": "Report warns about breaking changes to 5 consumer apps",
+          "check": "content_contains",
+          "path": "schema-report.md",
+          "pattern": "5.*consumer|breaking|break.*consumer"
+        },
+        {
+          "name": "migration_steps_detailed",
+          "description": "Report provides detailed migration steps",
+          "check": "content_contains",
+          "path": "schema-report.md",
+          "pattern": "Step 1|Phase 1|migration.*step|Week 1"
+        },
+        {
+          "name": "terraform_generated",
+          "description": "Terraform schemas.tf generated for both topics",
+          "check": "grep_count",
+          "path": "terraform/schemas.tf",
+          "pattern": "resource \"confluent_schema\"",
+          "expected": 2
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "We're already using schema registry for our kafka streams app in ./mock-repos/streams-processor but we want to move the schema IDs from the message payload to kafka headers to save bandwidth. Can you scan the repo and figure out what we need to change? I think we're on a recent version of confluent platform",
+      "expected_output": "Category A→Header scenario, report showing current SR integration, recommendation to add HeaderSchemaIdSerializer to producers, verification that consumers are on supported versions (automatic dual-read), no schema extraction needed",
+      "files": [],
+      "assertions": [
+        {
+          "name": "current_sr_integration_detected",
+          "description": "Report confirms Schema Registry is already configured",
+          "check": "content_contains",
+          "path": "schema-report.md",
+          "pattern": "schema.registry.url|Schema Registry.*configured|already.*using"
+        },
+        {
+          "name": "header_serializer_recommended",
+          "description": "Report recommends HeaderSchemaIdSerializer",
+          "check": "content_contains",
+          "path": "schema-report.md",
+          "pattern": "HeaderSchemaIdSerializer|header.*schema.*id|use.schema.id"
+        },
+        {
+          "name": "version_check_mentioned",
+          "description": "Report mentions version requirements (CP 8.1.1+ or similar)",
+          "check": "content_contains",
+          "path": "schema-report.md",
+          "pattern": "7.6|8.1|version|supported.*version"
+        },
+        {
+          "name": "automatic_dual_read_explained",
+          "description": "Report explains automatic dual-read behavior of deserializers",
+          "check": "content_contains",
+          "path": "schema-report.md",
+          "pattern": "automatic.*dual|header.*first.*payload|check.*header.*fall.*back"
+        },
+        {
+          "name": "no_consumer_changes_needed",
+          "description": "Report states consumers don't need changes",
+          "check": "content_contains",
+          "path": "schema-report.md",
+          "pattern": "no.*consumer.*change|consumer.*automatic|consumer.*support"
+        },
+        {
+          "name": "bandwidth_savings_mentioned",
+          "description": "Report mentions bandwidth savings (5 bytes per message)",
+          "check": "content_contains",
+          "path": "schema-report.md",
+          "pattern": "5 byte|bandwidth|save"
+        },
+        {
+          "name": "no_schemas_directory",
+          "description": "No schemas/ directory created (not needed for this scenario)",
+          "check": "directory_not_exists",
+          "path": "schemas"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "analyze the repo at ./mock-repos/notification-service - it's a .NET app using Confluent.Kafka and i know for sure it's sending user emails, phone numbers, and maybe ssns to kafka topics. i need to extract all the schemas, tag the pii fields properly for our data governance team, and get terraform set up. also check if we're using schema registry correctly",
+      "expected_output": "C# data models analyzed, extensive PII tagging (email, phone, ssn with PRIVATE tag), JSON schemas generated with confluent:tags, terraform/tags.tf with confluent_tag resources, depends_on relationships in schemas.tf",
+      "files": [],
+      "assertions": [
+        {
+          "name": "email_pii_tagged",
+          "description": "Email field tagged with PII",
+          "check": "grep_count_min",
+          "path": "schemas",
+          "pattern": "\"email\"|\"PII\"",
+          "min_expected": 2
+        },
+        {
+          "name": "phone_pii_tagged",
+          "description": "Phone number field tagged with PII",
+          "check": "grep_count_min",
+          "path": "schemas",
+          "pattern": "\"phone\"|\"PII\"",
+          "min_expected": 2
+        },
+        {
+          "name": "ssn_private_tagged",
+          "description": "SSN field tagged with both PII and PRIVATE",
+          "check": "content_contains",
+          "path": "schemas/json/user-notifications-value.json",
+          "pattern": "ssn.*PRIVATE|ssn.*PII.*PRIVATE"
+        },
+        {
+          "name": "at_least_8_pii_fields",
+          "description": "At least 8 PII fields tagged across schemas",
+          "check": "grep_count_min",
+          "path": "schemas",
+          "pattern": "confluent:tags.*PII",
+          "min_expected": 8
+        },
+        {
+          "name": "terraform_tags_tf_exists",
+          "description": "terraform/tags.tf file created with tag resources",
+          "check": "file_exists",
+          "path": "terraform/tags.tf"
+        },
+        {
+          "name": "pii_tag_resource_defined",
+          "description": "confluent_tag resource for PII defined",
+          "check": "content_contains",
+          "path": "terraform/tags.tf",
+          "pattern": "resource \"confluent_tag\" \"pii\""
+        },
+        {
+          "name": "private_tag_resource_defined",
+          "description": "confluent_tag resource for PRIVATE defined",
+          "check": "content_contains",
+          "path": "terraform/tags.tf",
+          "pattern": "resource \"confluent_tag\" \"private\""
+        },
+        {
+          "name": "depends_on_tags",
+          "description": "Schema resources have depends_on for tags",
+          "check": "content_contains",
+          "path": "terraform/schemas.tf",
+          "pattern": "depends_on.*confluent_tag"
+        },
+        {
+          "name": "not_using_sr_correctly",
+          "description": "Report identifies that SR is NOT being used (JsonConvert)",
+          "check": "content_contains",
+          "path": "schema-report.md",
+          "pattern": "not.*using.*Schema Registry|JsonConvert|no.*SR|NO.*Schema Registry"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "i have this monorepo at ./mock-repos/acme-services with like 12 different microservices and i think 4 or 5 of them use kafka. can you scan the whole thing, identify which services are producing/consuming, what topics they use, extract schemas for each one, and organize everything so i can see which services need to be upgraded to use schema registry? we're trying to get governance in place before our series B",
+      "expected_output": "Monorepo analysis with app catalog showing all Kafka services, per-service categorization, deduplicated schemas where same model is used across services, organized Terraform with comments showing which service each schema comes from, prioritized upgrade plan",
+      "files": [],
+      "assertions": [
+        {
+          "name": "kafka_services_identified",
+          "description": "Report identifies 3-4 Kafka services (user, billing, inventory, reporting)",
+          "check": "grep_count_min",
+          "path": "schema-report.md",
+          "pattern": "user-service|billing-service|inventory-service|reporting-service",
+          "min_expected": 3
+        },
+        {
+          "name": "app_catalog_table",
+          "description": "Report contains application catalog table",
+          "check": "content_contains",
+          "path": "schema-report.md",
+          "pattern": "Application.*Discover|App.*Language.*Role|Service.*Language"
+        },
+        {
+          "name": "per_service_categories",
+          "description": "Each service has a category assigned",
+          "check": "grep_count_min",
+          "path": "schema-report.md",
+          "pattern": "Category [A-E]",
+          "min_expected": 3
+        },
+        {
+          "name": "schemas_extracted",
+          "description": "At least 3 schemas extracted",
+          "check": "file_count_min",
+          "path": "schemas/**",
+          "pattern": "*-value.*",
+          "min_expected": 3
+        },
+        {
+          "name": "terraform_with_service_comments",
+          "description": "Terraform schemas.tf has comments identifying which service each schema comes from",
+          "check": "grep_count_min",
+          "path": "terraform/schemas.tf",
+          "pattern": "# .*service|App:|Source:",
+          "min_expected": 3
+        },
+        {
+          "name": "upgrade_priority_plan",
+          "description": "Report provides prioritized upgrade plan or phased rollout",
+          "check": "content_contains",
+          "path": "schema-report.md",
+          "pattern": "priority|Phase|Week|rollout.*order|upgrade.*plan"
+        },
+        {
+          "name": "series_b_readiness",
+          "description": "Report mentions Series B or governance readiness",
+          "check": "content_contains",
+          "path": "schema-report.md",
+          "pattern": "Series B|governance|compliance|audit"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "check out ./mock-repos/go-kafka-producer - it's a golang service that's doing json.Marshal right before producing to kafka. no schema registry. i want to know what the schema looks like based on the structs being serialized, get terraform to register it, and understand what i need to change in the code to use confluent serializers. also we have some sensitive customer data in there",
+      "expected_output": "Go struct analysis with json:\"field\" tags, schema inference from struct types, Category B/E classification, Terraform with Go-specific upgrade instructions, PII tagging based on field names, dependency addition guidance (confluent-kafka-go)",
+      "files": [],
+      "assertions": [
+        {
+          "name": "go_structs_analyzed",
+          "description": "Report identifies CustomerEvent and OrderEvent structs",
+          "check": "content_contains_all",
+          "path": "schema-report.md",
+          "patterns": ["CustomerEvent", "OrderEvent"]
+        },
+        {
+          "name": "schemas_inferred_from_structs",
+          "description": "2 schemas generated (customer-events, order-events)",
+          "check": "file_count",
+          "path": "schemas/**",
+          "pattern": "*-value.json",
+          "expected": 2
+        },
+        {
+          "name": "json_tags_preserved",
+          "description": "Schema field names match json struct tags (snake_case)",
+          "check": "content_contains",
+          "path": "schemas/json/customer-events-value.json",
+          "pattern": "customer_id|email|phone_number"
+        },
+        {
+          "name": "pii_fields_tagged_go",
+          "description": "At least 4 PII fields tagged (email, phone_number, first_name, last_name, account_number)",
+          "check": "grep_count_min",
+          "path": "schemas",
+          "pattern": "confluent:tags.*PII",
+          "min_expected": 4
+        },
+        {
+          "name": "json_marshal_detected",
+          "description": "Report identifies json.Marshal as custom serialization",
+          "check": "content_contains",
+          "path": "schema-report.md",
+          "pattern": "json.Marshal|Category E|custom.*serial"
+        },
+        {
+          "name": "go_upgrade_instructions",
+          "description": "Report provides Go-specific upgrade instructions",
+          "check": "content_contains",
+          "path": "schema-report.md",
+          "pattern": "confluent-kafka-go|Go.*upgrade|golang"
+        },
+        {
+          "name": "dependency_guidance",
+          "description": "Report mentions adding confluent-kafka-go dependency",
+          "check": "content_contains",
+          "path": "schema-report.md",
+          "pattern": "confluent-kafka-go.*2\\.13|go get.*confluent"
+        },
+        {
+          "name": "sensitive_data_identified",
+          "description": "Report acknowledges sensitive customer data",
+          "check": "content_contains",
+          "path": "schema-report.md",
+          "pattern": "sensitive|customer.*data|PII"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "prompt": "so we have this weird situation where the same kafka topic (transaction-events) is getting two completely different event types from different services - OrderCreatedEvent from the order service and PaymentProcessedEvent from the payment service. can you scan ./mock-repos/transaction-system and figure out how to handle this with schema registry? i heard something about wrapper schemas",
+      "expected_output": "Multi-schema topic detection, individual event schema extraction, wrapper schema generation using oneOf (JSON Schema) or union (Avro), Terraform with schema_reference blocks, cross-reference table in report showing which events go to which topics",
+      "files": [],
+      "assertions": [
+        {
+          "name": "multi_schema_topic_detected",
+          "description": "Report identifies transaction-events as multi-schema topic",
+          "check": "content_contains",
+          "path": "schema-report.md",
+          "pattern": "multi-schema.*topic|multiple.*event.*type|transaction-events"
+        },
+        {
+          "name": "two_event_types_identified",
+          "description": "Report identifies OrderCreatedEvent and PaymentProcessedEvent",
+          "check": "content_contains_all",
+          "path": "schema-report.md",
+          "patterns": ["OrderCreatedEvent", "PaymentProcessedEvent"]
+        },
+        {
+          "name": "individual_schemas_extracted",
+          "description": "Individual event schemas created (not just wrapper)",
+          "check": "file_count_min",
+          "path": "schemas/**",
+          "pattern": "*event*.json",
+          "min_expected": 2
+        },
+        {
+          "name": "wrapper_schema_generated",
+          "description": "Wrapper/envelope schema created",
+          "check": "file_exists_pattern",
+          "path": "schemas",
+          "pattern": "*wrapper*|*envelope*|transaction-event*"
+        },
+        {
+          "name": "union_or_oneof_used",
+          "description": "Wrapper schema uses union (Avro) or oneOf (JSON Schema)",
+          "check": "grep_count_min",
+          "path": "schemas",
+          "pattern": "oneOf|union",
+          "min_expected": 1
+        },
+        {
+          "name": "schema_references_in_terraform",
+          "description": "Terraform has schema_reference blocks",
+          "check": "content_contains",
+          "path": "terraform/schemas.tf",
+          "pattern": "schema_reference"
+        },
+        {
+          "name": "cross_reference_table",
+          "description": "Report contains cross-reference table showing event types and topics",
+          "check": "content_contains",
+          "path": "schema-report.md",
+          "pattern": "Multi-Schema.*Topic|Event Type.*Topic|wrapper.*schema"
+        },
+        {
+          "name": "wrapper_pattern_explained",
+          "description": "Report explains wrapper schema pattern",
+          "check": "content_contains",
+          "path": "schema-report.md",
+          "pattern": "wrapper.*schema|envelope|oneOf|union.*type"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "prompt": "please analyze the repo at ./mock-repos/api-gateway - i don't think it uses kafka at all but my manager asked me to check. just scan it and let me know if there are any kafka producers or consumers and if we need to do anything with schema registry",
+      "expected_output": "Report showing no Kafka dependencies found in build files, no producer/consumer patterns detected, executive summary showing 0 applications/producers/consumers, recommendation that no Schema Registry action is needed",
+      "files": [],
+      "assertions": [
+        {
+          "name": "no_kafka_dependencies_found",
+          "description": "Report states no Kafka dependencies found",
+          "check": "content_contains",
+          "path": "schema-report.md",
+          "pattern": "no.*Kafka.*depend|No Kafka|0.*application|zero.*Kafka"
+        },
+        {
+          "name": "no_producers_found",
+          "description": "Report confirms no producers found",
+          "check": "content_contains",
+          "path": "schema-report.md",
+          "pattern": "no.*producer|0.*producer|zero.*producer"
+        },
+        {
+          "name": "no_consumers_found",
+          "description": "Report confirms no consumers found",
+          "check": "content_contains",
+          "path": "schema-report.md",
+          "pattern": "no.*consumer|0.*consumer|zero.*consumer"
+        },
+        {
+          "name": "no_action_needed",
+          "description": "Report recommends no Schema Registry action needed",
+          "check": "content_contains",
+          "path": "schema-report.md",
+          "pattern": "no.*action|not.*required|no.*Schema Registry.*needed|No SR"
+        },
+        {
+          "name": "no_schemas_generated",
+          "description": "No schemas/ directory created",
+          "check": "directory_not_exists",
+          "path": "schemas"
+        },
+        {
+          "name": "no_terraform_generated",
+          "description": "No terraform/ directory created",
+          "check": "directory_not_exists",
+          "path": "terraform"
+        },
+        {
+          "name": "express_axios_only",
+          "description": "Report identifies only express/axios dependencies (HTTP/REST)",
+          "check": "content_contains",
+          "path": "schema-report.md",
+          "pattern": "express|axios|HTTP|REST"
+        }
+      ]
+    }
+  ]
+}
