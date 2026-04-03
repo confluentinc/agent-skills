@@ -160,11 +160,16 @@ CREATE USER '<connector_user>'@'%' IDENTIFIED BY '<password>';
 GRANT SELECT, RELOAD, SHOW DATABASES, REPLICATION SLAVE, REPLICATION CLIENT
   ON *.* TO '<connector_user>'@'%';
 
+-- Grant LOCK TABLES (required for managed MySQL — see note below)
+GRANT LOCK TABLES ON <database>.* TO '<connector_user>'@'%';
+
 -- Grant permissions on specific database/tables
 GRANT SELECT ON <database>.* TO '<connector_user>'@'%';
 
 FLUSH PRIVILEGES;
 ```
+
+**Why LOCK TABLES is needed on managed MySQL:** Debezium's default snapshot behavior tries `FLUSH TABLES WITH READ LOCK` first (a global read lock requiring the `SUPER` or `RELOAD` privilege). On self-managed MySQL where the user has `SUPER`, this works fine. But managed services (RDS, Aurora, Cloud SQL, Azure MySQL) don't grant `SUPER`, so the global lock fails and Debezium falls back to per-table `LOCK TABLES` — which requires the `LOCK TABLES` privilege explicitly. Without it, the connector fails during the initial snapshot with: *"The database user does not have the 'LOCK TABLES' privilege required to obtain a consistent snapshot."*
 
 ### Cloud-Specific Notes
 
@@ -173,16 +178,19 @@ FLUSH PRIVILEGES;
 - Set `binlog_format = ROW` in parameter group
 - Enable automated backups (required for binlog)
 - User needs `mysql.rds_set_configuration` for binlog retention
+- **Grant `LOCK TABLES`** — RDS does not grant `SUPER`, so Debezium needs per-table locks for snapshots
 
 **Google Cloud SQL:**
 - Enable binary logging in flags
 - Set `binlog_format = ROW`
 - Set retention period in days
+- **Grant `LOCK TABLES`** — Cloud SQL restricts `SUPER`, same as RDS
 
 **Azure Database for MySQL:**
 - Enable binary logging in server parameters
 - Set `binlog_format = ROW`
 - Configure binlog retention
+- **Grant `LOCK TABLES`** — Azure restricts `SUPER`, same as RDS
 
 ### Verification
 

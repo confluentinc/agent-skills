@@ -119,6 +119,20 @@ This guide covers common issues when setting up and running CDC pipelines with D
 
    **Solution:** Check connector class name, verify all required fields, ensure table names use `schema.table` format
 
+### MySQL Connector Fails: "LOCK TABLES privilege required"
+
+**Symptom:** Connector fails during initial snapshot with: *"The database user does not have the 'LOCK TABLES' privilege required to obtain a consistent snapshot by preventing concurrent writes to tables."*
+
+**Cause:** This happens on all managed MySQL services (AWS RDS/Aurora, Google Cloud SQL, Azure Database for MySQL). Debezium first tries `FLUSH TABLES WITH READ LOCK` (requires `SUPER`), but managed services don't grant `SUPER`. Debezium then falls back to per-table `LOCK TABLES`, which requires an explicit `LOCK TABLES` grant. On self-managed MySQL where the user has `SUPER`, this error doesn't occur because the global lock succeeds.
+
+**Solution:**
+```sql
+GRANT LOCK TABLES ON <database>.* TO '<connector_user>'@'%';
+FLUSH PRIVILEGES;
+```
+
+Then restart or recreate the connector.
+
 ### Connector Runs but No Messages
 
 **Symptom:** Connector has tasks assigned but no topics/schemas appear.
@@ -261,6 +275,22 @@ mcp__confluent__list-schemas(subjectPrefix: "<topic-prefix>")
 2. Check subject naming: `<topic-name>-value` and `<topic-name>-key`
 3. Schema compatibility violation — add optional fields, don't remove required ones
 
+### Stale Schema IDs After Deleting and Recreating Schemas
+
+**Symptom:** After deleting schemas and recreating a CDC connector, Flink goes DEGRADED with errors like `"Schema ID 100001 not found"` or `"Could not find schema for subject"`.
+
+**Cause:** Old messages still on the CDC source topics reference schema IDs that were deleted from Schema Registry. When Flink tries to deserialize these messages, it fails because the schema IDs no longer exist.
+
+**Solution:** When doing a clean reset of a CDC pipeline, you must delete resources in this order:
+1. Delete the Flink INSERT statements
+2. Delete the CDC connector
+3. Delete the CDC source topics (not just schemas) — topics like `{topic.prefix}.{schema}.{table}` and any heartbeat topics
+4. Hard-delete all associated schemas from Schema Registry (both `-key` and `-value` subjects)
+5. Drop the replication slot in PostgreSQL: `SELECT pg_drop_replication_slot('<slot_name>');`
+6. Recreate the connector fresh — it will create new topics, register new schemas, and do a clean initial snapshot
+
+**Important:** Simply deleting schemas without deleting the topics does NOT work. The old messages with stale schema IDs remain on the topics and will cause Flink failures.
+
 ### Schema Evolution
 
 When database schemas change:
@@ -288,6 +318,40 @@ Check latency at each stage:
 ---
 
 ## Data Quality Issues
+
+### DECIMAL/NUMERIC Columns Show Garbled Data
+
+**Symptom:** Price or other DECIMAL columns appear as garbled bytes (e.g., `"N\u001f"` instead of `"199.99"`) in Flink output or consumed messages.
+
+**Cause:** By default, Debezium serializes PostgreSQL DECIMAL/NUMERIC columns as raw bytes (Java BigDecimal unscaled value). This is the default `decimal.handling.mode = precise` behavior.
+
+**Solution:** Add `"decimal.handling.mode": "string"` to the Debezium connector config. This outputs human-readable decimal values like `"1299.99"`. This must be fixed at the connector level — Flink cannot CAST VARBINARY to DECIMAL, so there is no workaround in Flink SQL.
+
+**Note:** After changing this setting, you need to recreate the connector. If existing messages on the topic already have bytes-encoded decimals, follow the "Stale Schema IDs" cleanup procedure above for a clean reset.
+
+### INTERVAL Columns Produce Wrong Values
+
+**Symptom:** PostgreSQL `INTERVAL` or Oracle `INTERVAL YEAR TO MONTH` / `INTERVAL DAY TO SECOND` columns produce large integer values instead of human-readable intervals.
+
+**Cause:** Default `interval.handling.mode = numeric` approximates intervals as microseconds, using lossy conversions (1 month = 30 days, 1 year = 365.25 days). An interval of `1 year` becomes `31557600000000` microseconds.
+
+**Solution:** Add `"interval.handling.mode": "string"` to the connector config. Outputs ISO 8601 format like `P1Y2M3DT4H5M6.78S`.
+
+### Binary Columns Produce Garbled JSON
+
+**Symptom:** BYTEA (PostgreSQL), VARBINARY/BLOB (MySQL), BINARY/IMAGE (SQL Server), or RAW/BLOB (Oracle) columns produce garbled or inconsistent output in consumed messages.
+
+**Cause:** Default `binary.handling.mode = bytes` produces raw byte arrays that break JSON serialization.
+
+**Solution:** Add `"binary.handling.mode": "base64"` to the connector config. Outputs base64-encoded strings that are JSON-safe.
+
+### Oracle NUMBER Without Precision Produces Struct
+
+**Symptom:** Oracle `NUMBER` (no precision/scale) or `FLOAT` columns produce a nested struct instead of a simple value, breaking Flink schemas.
+
+**Cause:** Debezium serializes these as `VariableScaleDecimal` — a struct of `{scale: INT32, value: BYTES}` — because the precision is unknown at schema time.
+
+**Solution:** Add `"decimal.handling.mode": "string"` to the connector config. Converts all numeric types to human-readable strings.
 
 ### Duplicate Records
 
