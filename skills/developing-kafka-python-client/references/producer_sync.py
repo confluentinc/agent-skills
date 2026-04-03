@@ -3,14 +3,14 @@ import signal
 
 from confluent_kafka import Producer
 from confluent_kafka.schema_registry import SchemaRegistryClient, Schema
-from confluent_kafka.schema_registry.avro import AvroSerializer
+from confluent_kafka.schema_registry.json_schema import JSONSerializer
 from confluent_kafka.serialization import MessageField, SerializationContext
 
 import common
 
 
-def create_avro_serializer(topic, sr_url, sr_key, sr_secret):
-    schema_file = os.path.join(os.path.dirname(__file__), "schemas", "value.avsc")
+def create_json_serializer(topic, sr_url, sr_key, sr_secret):
+    schema_file = os.path.join(os.path.dirname(__file__), "schemas", "value.schema.json")
     with open(schema_file) as f:
         schema_str = f.read()
 
@@ -22,11 +22,11 @@ def create_avro_serializer(topic, sr_url, sr_key, sr_secret):
     try:
         sr_client.get_latest_version(subject)
     except Exception:
-        avro_schema = Schema(schema_str, schema_type="AVRO")
-        schema_id = sr_client.register_schema(subject, avro_schema)
+        json_schema = Schema(schema_str, schema_type="JSON")
+        schema_id = sr_client.register_schema(subject, json_schema)
         print(f"Registered schema (ID: {schema_id}) for subject {subject}")
 
-    return AvroSerializer(sr_client, schema_str)
+    return JSONSerializer(sr_client, schema_str)
 
 
 def delivery_callback(err, msg):
@@ -66,7 +66,7 @@ def main():
         raise RuntimeError("Failed to connect to Schema Registry")
     print(f"Connected to Schema Registry ({config['sr_url']})")
 
-    serializer = create_avro_serializer(
+    serializer = create_json_serializer(
         config["topic"], config["sr_url"], config["sr_key"], config["sr_secret"]
     )
 

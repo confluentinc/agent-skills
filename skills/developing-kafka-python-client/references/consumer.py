@@ -5,16 +5,16 @@ import signal
 from confluent_kafka import KafkaError
 from confluent_kafka.aio import AIOConsumer
 from confluent_kafka.schema_registry import AsyncSchemaRegistryClient
-from confluent_kafka.schema_registry._async.avro import AsyncAvroDeserializer
+from confluent_kafka.schema_registry._async.json_schema import AsyncJSONDeserializer
 from confluent_kafka.serialization import MessageField, SerializationContext
 
 import common
 
 
-async def create_avro_deserializer(sr_url, sr_key, sr_secret):
+async def create_json_deserializer(sr_url, sr_key, sr_secret):
     sr_conf = {"url": sr_url, "basic.auth.user.info": f"{sr_key}:{sr_secret}"}
     sr_client = AsyncSchemaRegistryClient(sr_conf)
-    return await AsyncAvroDeserializer(sr_client)
+    return await AsyncJSONDeserializer(sr_client)
 
 
 async def consume(consumer, topic, deserializer):
@@ -68,7 +68,7 @@ async def main():
         raise RuntimeError("Failed to connect to Schema Registry")
     print(f"Connected to Schema Registry ({config['sr_url']})")
 
-    deserializer = await create_avro_deserializer(
+    deserializer = await create_json_deserializer(
         config["sr_url"], config["sr_key"], config["sr_secret"]
     )
 
