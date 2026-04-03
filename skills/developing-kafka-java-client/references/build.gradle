@@ -29,20 +29,32 @@ dependencies {
     testImplementation 'org.mockito:mockito-core:5.14.2'
 }
 
-application {
-    mainClass = 'examples.ProducerExample'
+def producerMainClass = 'examples.ProducerExample'
+def consumerMainClass = 'examples.ConsumerExample'
+def producerExampleFile = file('src/main/java/examples/ProducerExample.java')
+def consumerExampleFile = file('src/main/java/examples/ConsumerExample.java')
+def defaultMainClass = producerExampleFile.exists() ? producerMainClass : (consumerExampleFile.exists() ? consumerMainClass : null)
+
+if (defaultMainClass != null) {
+    application {
+        mainClass = defaultMainClass
+    }
 }
 
 // Task to run the producer
-tasks.register('runProducer', JavaExec) {
-    classpath = sourceSets.main.runtimeClasspath
-    mainClass = 'examples.ProducerExample'
+if (producerExampleFile.exists()) {
+    tasks.register('runProducer', JavaExec) {
+        classpath = sourceSets.main.runtimeClasspath
+        mainClass = producerMainClass
+    }
 }
 
 // Task to run the consumer
-tasks.register('runConsumer', JavaExec) {
-    classpath = sourceSets.main.runtimeClasspath
-    mainClass = 'examples.ConsumerExample'
+if (consumerExampleFile.exists()) {
+    tasks.register('runConsumer', JavaExec) {
+        classpath = sourceSets.main.runtimeClasspath
+        mainClass = consumerMainClass
+    }
 }
 
 shadowJar {

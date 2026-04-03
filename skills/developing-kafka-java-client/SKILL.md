@@ -74,7 +74,7 @@ These principles matter because they prevent the most common production issues w
 This class handles configuration loading from a `.properties` file and building Kafka client configs. Use `references/KafkaConfig.java` as the template.
 
 Key points:
-- Loads from a `kafka.properties` file on the classpath (or a path passed as argument)
+- Loads from a `kafka.properties` file on the classpath
 - Detects environment (cloud vs local) from the `kafka.env` property
 - For cloud: sets `security.protocol=SASL_SSL`, `sasl.mechanism=PLAIN`, `sasl.jaas.config` with credentials
 - For local: sets `security.protocol=PLAINTEXT`

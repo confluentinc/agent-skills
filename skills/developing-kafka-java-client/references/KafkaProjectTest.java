@@ -1,11 +1,9 @@
 package examples;
 
 import org.apache.avro.Schema;
-import org.apache.avro.generic.GenericRecord;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.junit.Test;
 
-import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.nio.file.Files;
@@ -76,9 +74,18 @@ public class KafkaProjectTest {
 
     @Test
     public void testProduceAcceptsProducerParameter() throws Exception {
-        // Verify that produce() takes a KafkaProducer as its first parameter
+        // Use reflection to avoid compile-time dependency on ProducerExample
+        // (which may not exist in consumer-only scaffolds)
+        Class<?> producerClass;
+        try {
+            producerClass = Class.forName("examples.ProducerExample");
+        } catch (ClassNotFoundException e) {
+            // ProducerExample not generated (consumer-only scaffold) — skip test
+            return;
+        }
+
         Method produceMethod = null;
-        for (Method m : ProducerExample.class.getDeclaredMethods()) {
+        for (Method m : producerClass.getDeclaredMethods()) {
             if (m.getName().equals("produce")) {
                 produceMethod = m;
                 break;

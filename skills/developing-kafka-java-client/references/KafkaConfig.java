@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Properties;
 import java.util.Set;
@@ -50,7 +51,13 @@ public class KafkaConfig {
         } else {
             kafkaProps.put("security.protocol", config.getProperty("security.protocol", "SASL_SSL"));
             kafkaProps.put("sasl.mechanism", config.getProperty("sasl.mechanism", "PLAIN"));
-            kafkaProps.put("sasl.jaas.config", config.getProperty("sasl.jaas.config"));
+            String jaasConfig = config.getProperty("sasl.jaas.config");
+            if (jaasConfig == null || jaasConfig.isEmpty()) {
+                throw new IllegalArgumentException(
+                    "sasl.jaas.config is required for cloud environments. " +
+                    "Set it in kafka.properties with your API key and secret.");
+            }
+            kafkaProps.put("sasl.jaas.config", jaasConfig);
         }
 
         // Schema Registry config
@@ -96,7 +103,11 @@ public class KafkaConfig {
                 return false;
             }
             return true;
-        } catch (InterruptedException | ExecutionException | TimeoutException e) {
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            System.out.println("Kafka connection error: " + e.getMessage());
+            return false;
+        } catch (ExecutionException | TimeoutException e) {
             System.out.println("Kafka connection error: " + e.getMessage());
             return false;
         }
@@ -115,7 +126,7 @@ public class KafkaConfig {
 
             if (srKey != null && !srKey.isEmpty()) {
                 String auth = srKey + ":" + srSecret;
-                String encoded = Base64.getEncoder().encodeToString(auth.getBytes());
+                String encoded = Base64.getEncoder().encodeToString(auth.getBytes(StandardCharsets.UTF_8));
                 conn.setRequestProperty("Authorization", "Basic " + encoded);
             }
 

@@ -17,6 +17,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Properties;
+import java.util.UUID;
 
 public class ProducerExample {
 
@@ -47,8 +48,14 @@ public class ProducerExample {
                                String topic,
                                List<GenericRecord> messages) {
         for (GenericRecord record : messages) {
+            String key;
+            if (record.getSchema().getField("id") != null && record.get("id") != null) {
+                key = record.get("id").toString();
+            } else {
+                key = UUID.randomUUID().toString();
+            }
             ProducerRecord<String, GenericRecord> producerRecord =
-                new ProducerRecord<>(topic, record.get("id") != null ? record.get("id").toString() : null, record);
+                new ProducerRecord<>(topic, key, record);
 
             producer.send(producerRecord, new Callback() {
                 @Override
