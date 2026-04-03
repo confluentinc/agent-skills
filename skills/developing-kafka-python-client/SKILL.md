@@ -17,9 +17,10 @@ Generate a production-ready Python project for producing to and/or consuming fro
    - **AsyncIO Producer** (`AIOProducer`): Use when code runs under an event loop — FastAPI/Starlette, aiohttp, Sanic, asyncio workers — and must not block.
    - **Synchronous Producer** (`Producer`): Use for scripts, batch jobs, and highest-throughput pipelines where the user controls threads/processes and can call `poll()`/`flush()` directly.
    If the user mentions an async framework (FastAPI, aiohttp, Sanic) or uses `asyncio`, default to **AsyncIO**. If they mention scripts, batch, ETL, or don't have a preference, default to **Synchronous**.
-4. **What kind of data are you producing?** (Get field names and types so you can generate a matching JSON Schema and sample data.)
-5. **Topic name?** (Default: `demo-topic`)
-6. **Consumer group ID?** (Only if consumer; default: `python-consumer-group`)
+4. **Do you have an existing schema you'd like to use?** If yes, ask the user to paste it or provide the file path, then use it as the `schemas/value.schema.json` instead of generating one. If no, proceed to ask about their data fields.
+5. **What kind of data are you producing?** (Only if the user doesn't have an existing schema. Get field names and types so you can generate a matching JSON Schema and sample data.)
+6. **Topic name?** (Default: `demo-topic`)
+7. **Consumer group ID?** (Only if consumer; default: `python-consumer-group`)
 
 Don't ask about Schema Registry — always include it.
 
