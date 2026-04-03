@@ -26,7 +26,14 @@ queue:
 global_job_config:
   prologue:
     commands:
+      - sem-version go 1.25.8
       - checkout
+      - make show-args
+      - make init-ci
+  epilogue:
+    always:
+      commands:
+        - make epilogue-ci
 
 blocks:
   - name: "Validate Skills"
