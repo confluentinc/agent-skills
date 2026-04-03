@@ -28,6 +28,9 @@ All connectors share these common settings:
   "output.data.format": "JSON_SR",
   "output.key.format": "JSON_SR",
 
+  "decimal.handling.mode": "string",
+  "binary.handling.mode": "base64",
+
   "tasks.max": "1"
 }
 ```
@@ -81,12 +84,21 @@ All connectors share these common settings:
   "heartbeat.interval.ms": "30000",
   "heartbeat.action.query": "INSERT INTO heartbeat (ts) VALUES (NOW())",
 
+  "decimal.handling.mode": "string",
+  "binary.handling.mode": "base64",
+  "interval.handling.mode": "string",
+  "hstore.handling.mode": "map",
+
   "tasks.max": "1"
 }
 ```
 
 **Key Parameters:**
 - `topic.prefix`: **REQUIRED** — Controls topic naming (e.g., `postgres-cdc`)
+- `decimal.handling.mode`: **Always set to `string`.** Without it, Debezium serializes DECIMAL/NUMERIC/MONEY columns as raw bytes (Java BigDecimal unscaled value), producing garbled data like `"N\u001f"` instead of `"199.99"`. Flink cannot CAST BYTES to DECIMAL, so this must be fixed at the connector level.
+- `interval.handling.mode`: Set to `string` for PostgreSQL INTERVAL columns. Default `numeric` approximates intervals as microseconds (months = 30 days, years = 365.25 days), which is lossy. `string` outputs ISO 8601 format like `P1Y2M3DT4H5M6.78S`.
+- `hstore.handling.mode`: Set to `map` if using PostgreSQL HSTORE columns. Default `json` serializes as a JSON string inside a STRING field; `map` produces a native Kafka Connect MAP type.
+- `binary.handling.mode`: Set to `base64` if using BYTEA columns. Default `bytes` can break JSON serialization.
 - `database.server.name`: Logical name for this database server
 - `table.include.list`: Comma-separated list of tables (format: `schema.table`)
 - `plugin.name`: Use `pgoutput` (native PostgreSQL logical replication)
@@ -141,6 +153,9 @@ https://docs.confluent.io/cloud/current/connectors/cc-postgresql-cdc-source-v2-d
 
   "gtid.source.includes": ".*",
 
+  "decimal.handling.mode": "string",
+  "binary.handling.mode": "base64",
+
   "tasks.max": "1"
 }
 ```
@@ -148,6 +163,8 @@ https://docs.confluent.io/cloud/current/connectors/cc-postgresql-cdc-source-v2-d
 **Key Parameters:**
 - `database.server.id`: Unique numeric ID for this connector (5-10 digits)
 - `topic.prefix`: **REQUIRED** — Controls topic naming
+- `decimal.handling.mode`: **Always set to `string`.** Same raw bytes issue as PostgreSQL for DECIMAL/NUMERIC columns.
+- `binary.handling.mode`: Set to `base64` if using BINARY/VARBINARY/BLOB columns. Default `bytes` breaks JSON serialization.
 - `database.server.name`: Logical name for this database server
 - `database.include.list`: Comma-separated list of databases
 - `table.include.list`: Comma-separated list of tables (format: `database.table`)
@@ -195,12 +212,17 @@ https://docs.confluent.io/cloud/current/connectors/cc-mysql-cdc-source-v2-debezi
 
   "include.schema.changes": "false",
 
+  "decimal.handling.mode": "string",
+  "binary.handling.mode": "base64",
+
   "tasks.max": "1"
 }
 ```
 
 **Key Parameters:**
 - `topic.prefix`: **REQUIRED** — Controls topic naming
+- `decimal.handling.mode`: **Always set to `string`.** Affects DECIMAL, NUMERIC, MONEY, and SMALLMONEY columns — same raw bytes issue as PostgreSQL.
+- `binary.handling.mode`: Set to `base64` if using BINARY/VARBINARY/IMAGE columns.
 - `database.names`: Comma-separated list of databases
 - `database.server.name`: Logical name for this database server
 - `table.include.list`: Comma-separated list of tables (format: `schema.table`, use `dbo` for default schema)
@@ -248,11 +270,18 @@ https://docs.confluent.io/cloud/current/connectors/cc-microsoft-sql-server-cdc-s
 
   "tombstones.on.delete": "true",
 
+  "decimal.handling.mode": "string",
+  "binary.handling.mode": "base64",
+  "interval.handling.mode": "string",
+
   "tasks.max": "1"
 }
 ```
 
 **Key Parameters:**
+- `decimal.handling.mode`: **Always set to `string`.** Affects `NUMBER(p,s)` columns. Oracle `NUMBER` and `FLOAT` without explicit precision are especially problematic — Debezium serializes them as `VariableScaleDecimal`, a struct containing a bytes field, which breaks differently than regular decimals.
+- `interval.handling.mode`: Set to `string` for `INTERVAL YEAR TO MONTH` and `INTERVAL DAY TO SECOND` columns. Default `numeric` approximates as microseconds, which is lossy for month/year intervals.
+- `binary.handling.mode`: Set to `base64` if using RAW or BLOB columns.
 - `database.dbname`: Oracle service name or SID
 - `database.connection.adapter`: Use `xstream` for XStream
 - `database.out.server.name`: XStream outbound server name (created in Oracle)
@@ -314,6 +343,31 @@ https://docs.confluent.io/cloud/current/connectors/cc-amazon-dynamodb-source.htm
 ---
 
 ## Configuration Best Practices
+
+### Data Type Serialization
+
+Debezium's default serialization modes can produce raw bytes, lossy approximations, or unexpected types that break downstream consumers (Flink, ksqlDB, etc.). Always include these settings for maximum interoperability:
+
+**All connectors:**
+```json
+{
+  "decimal.handling.mode": "string",
+  "binary.handling.mode": "base64"
+}
+```
+
+| Setting | Default | Problem | Recommended | Affected Types |
+|---|---|---|---|---|
+| `decimal.handling.mode` | `precise` | DECIMAL/NUMERIC serialized as raw bytes | `string` | PG: DECIMAL, NUMERIC, MONEY. MySQL: DECIMAL, NUMERIC. SQL Server: DECIMAL, NUMERIC, MONEY, SMALLMONEY. Oracle: NUMBER(p,s), NUMBER, FLOAT |
+| `binary.handling.mode` | `bytes` | Binary data breaks JSON serialization | `base64` | PG: BYTEA. MySQL: BINARY, VARBINARY, BLOB. SQL Server: BINARY, VARBINARY, IMAGE. Oracle: RAW, BLOB |
+| `interval.handling.mode` | `numeric` | Intervals approximated as microseconds (lossy) | `string` | PG: INTERVAL. Oracle: INTERVAL YEAR TO MONTH, INTERVAL DAY TO SECOND |
+| `hstore.handling.mode` | `json` | HSTORE as JSON string, not native MAP | `map` | PG: HSTORE |
+
+**Database-specific quirks with no config toggle:**
+- **MySQL `TINYINT(1)`**: Serialized as INT16, not BOOLEAN. Fix: add `converters=bool` with `TinyIntOneToBooleanConverter` (note: may not be available on all managed connector versions).
+- **MySQL `BIGINT UNSIGNED`**: Default `long` silently overflows for values > 2^63. Setting `bigint.unsigned.handling.mode = precise` avoids overflow but produces bytes (same issue as decimals).
+- **SQL Server `DATETIMEOFFSET`**: Serialized as STRING with timezone offset. Flink may not auto-parse — requires explicit cast.
+- **Oracle `NUMBER` (no precision)**: Serialized as `VariableScaleDecimal` (a struct containing bytes), not plain bytes. `decimal.handling.mode = string` fixes this.
 
 ### Secrets Management
 

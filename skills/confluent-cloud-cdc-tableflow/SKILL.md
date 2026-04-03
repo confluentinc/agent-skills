@@ -178,6 +178,8 @@ Based on the database type, generate the connector configuration. See `reference
 - `output.key.format`: `JSON_SR`
 - `snapshot.mode`: `initial` (snapshot + stream), `never` (stream only)
 - `tombstones.on.delete`: `true`
+- `decimal.handling.mode`: `string` — **Always include for all connectors.** Without it, Debezium serializes DECIMAL/NUMERIC columns as raw bytes, producing garbled data in Flink and other downstream consumers. Affects PostgreSQL (DECIMAL, NUMERIC, MONEY), MySQL (DECIMAL, NUMERIC), SQL Server (DECIMAL, NUMERIC, MONEY, SMALLMONEY), and Oracle (NUMBER, FLOAT).
+- `binary.handling.mode`: `base64` — Include if tables have binary columns (BYTEA, VARBINARY, BLOB, RAW). Default `bytes` breaks JSON serialization.
 - `tasks.max`: `1` (recommended for CDC)
 
 **Topic Naming Pattern:**
@@ -224,6 +226,9 @@ FROM `postgres-cdc.public.customers`;
 | `MicroTimestamp` | BIGINT (microseconds) | TIMESTAMP_LTZ(3) | `TO_TIMESTAMP_LTZ(col / 1000, 3)` |
 | `Timestamp` | BIGINT (milliseconds) | TIMESTAMP_LTZ(3) | `TO_TIMESTAMP_LTZ(col, 3)` |
 | `Date` | INT (days since epoch) | DATE | Direct or cast |
+| `DECIMAL`/`NUMERIC` | STRING (with `decimal.handling.mode=string`) | DECIMAL or STRING | Direct; without `string` mode, arrives as BYTES which Flink cannot cast |
+| `INTERVAL` (PG/Oracle) | STRING (with `interval.handling.mode=string`) | STRING | Direct; default `numeric` mode is lossy |
+| Binary (BYTEA, BLOB, etc.) | STRING (with `binary.handling.mode=base64`) | STRING | Base64-encoded; default `bytes` breaks JSON |
 | Numeric/String | Direct mapping | Same | No conversion needed |
 
 For detailed patterns, see `references/flink-sql-patterns.md`.
@@ -279,6 +284,7 @@ mcp__confluent__create-connector(
     "slot.name": "debezium_slot",
     "snapshot.mode": "initial",
     "tombstones.on.delete": "true",
+    "decimal.handling.mode": "string",
     "heartbeat.interval.ms": "30000",
     "tasks.max": "1"
   }
@@ -423,10 +429,16 @@ For detailed troubleshooting, see `references/troubleshooting.md`.
 | Connector creation fails: "topic.prefix is required" | Missing required field | Add `"topic.prefix"` to connector config |
 | Connector tasks stay empty | Still provisioning | Wait 2-5 minutes, retry |
 | No schemas after 5 min | DB connectivity or credentials | Check host, port, user, password; verify DB CDC config |
+| MySQL: "LOCK TABLES privilege required" | Managed MySQL lacks SUPER privilege | `GRANT LOCK TABLES ON db.* TO 'user'@'%';` — required for RDS, Aurora, Cloud SQL, Azure MySQL |
 | SHOW TABLES missing CDC table | Connector not producing yet | Verify schemas exist first, then wait |
 | CREATE TABLE: "Unsupported format" | Explicit format specs | Remove all `'value.format'`, `'connector'` properties |
 | INSERT: "Incompatible types" | Debezium type mismatch | Use TIMESTAMP_LTZ(3) + TO_TIMESTAMP_LTZ conversion |
 | Tableflow: "topic not found" | MCP cluster mismatch | Update MCP `.env` file or use Cloud UI |
+| DECIMAL columns show garbled bytes | Missing `decimal.handling.mode` | Add `"decimal.handling.mode": "string"` to connector config; must fix at connector level, not Flink |
+| INTERVAL columns show large integers | Missing `interval.handling.mode` | Add `"interval.handling.mode": "string"` for PG/Oracle; default is lossy microseconds |
+| Binary columns break JSON | Missing `binary.handling.mode` | Add `"binary.handling.mode": "base64"` for BYTEA/VARBINARY/BLOB/RAW columns |
+| Oracle NUMBER produces struct not scalar | Oracle NUMBER without precision | Add `"decimal.handling.mode": "string"` — default produces VariableScaleDecimal struct |
+| Flink DEGRADED: "Schema ID not found" | Stale schema IDs on topics after schema deletion | Delete CDC source topics + hard-delete schemas + drop replication slot, then recreate connector fresh |
 | consume-messages returns 0 | Consumer at latest offset | Insert a new row in DB, or MCP targets wrong cluster |
 
 ### Phase 5: Documentation

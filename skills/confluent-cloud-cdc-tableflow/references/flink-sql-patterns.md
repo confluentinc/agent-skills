@@ -37,7 +37,9 @@ Debezium uses specific logical types that map to Flink types differently than yo
 | `io.debezium.time.Date` | `INT` | Days since epoch | Use as-is or convert |
 | `io.debezium.time.MicroTime` | `BIGINT` | Microseconds since midnight | Use as-is or convert |
 | Regular `INT`, `BIGINT`, `STRING`, etc. | Direct mapping | Standard types | No conversion needed |
-| `DECIMAL` / `NUMERIC` | `DECIMAL` or `BYTES` | Precision-dependent | Check schema |
+| `DECIMAL` / `NUMERIC` | `STRING` (with `decimal.handling.mode=string`) or `BYTES` (default) | DECIMAL or STRING | Set `decimal.handling.mode: string` on the connector — without it, DECIMAL arrives as raw BYTES that Flink cannot cast. With `string` mode, values arrive as human-readable strings like `"1299.99"` |
+| `INTERVAL` (PG/Oracle) | `STRING` (with `interval.handling.mode=string`) or `INT64` (default, lossy micros) | STRING | Set `interval.handling.mode: string` on the connector for lossless ISO 8601 format |
+| Binary (`BYTEA`, `BLOB`, etc.) | `STRING` (with `binary.handling.mode=base64`) or `BYTES` (default) | STRING | Set `binary.handling.mode: base64` on the connector for JSON-safe base64 encoding |
 
 ---
 
@@ -227,7 +229,23 @@ Use `mcp__confluent__create-flink-statement` with:
 - **Problem:** `TO_TIMESTAMP_LTZ()` returns `TIMESTAMP_LTZ(3)`, incompatible with `TIMESTAMP(3)`.
 - **Solution:** Define target columns as `TIMESTAMP_LTZ(3)`.
 
-**Pitfall 5: CDC source table not in SHOW TABLES**
+**Pitfall 5: DECIMAL columns appear as garbled BYTES**
+- **Problem:** DECIMAL/NUMERIC columns show as raw bytes (e.g., `"N\u001f"` instead of `"199.99"`). Flink cannot CAST VARBINARY to DECIMAL.
+- **Solution:** This must be fixed at the connector level, not in Flink. Set `"decimal.handling.mode": "string"` in the Debezium connector config. This outputs decimal values as human-readable strings which Flink can handle directly.
+
+**Pitfall 6: INTERVAL columns produce lossy microsecond values**
+- **Problem:** PostgreSQL `INTERVAL` or Oracle `INTERVAL YEAR TO MONTH` columns arrive as INT64 microseconds, approximating months as 30 days and years as 365.25 days.
+- **Solution:** Set `"interval.handling.mode": "string"` on the connector. Values arrive as ISO 8601 strings (e.g., `P1Y2M3DT4H5M6.78S`).
+
+**Pitfall 7: Binary columns break JSON serialization**
+- **Problem:** BYTEA, VARBINARY, BLOB, or RAW columns serialized as raw bytes produce garbled or inconsistent JSON output.
+- **Solution:** Set `"binary.handling.mode": "base64"` on the connector. Values arrive as base64-encoded strings.
+
+**Pitfall 8: Oracle NUMBER without precision produces struct, not scalar**
+- **Problem:** Oracle `NUMBER` (no precision/scale) and `FLOAT` columns are serialized as `VariableScaleDecimal` — a struct of `{scale: INT32, value: BYTES}`, not a simple value. This breaks differently than regular DECIMAL bytes.
+- **Solution:** Set `"decimal.handling.mode": "string"` on the connector. Converts to human-readable string values.
+
+**Pitfall 9: CDC source table not in SHOW TABLES**
 - **Problem:** Connector just created, table not visible yet.
 - **Solution:** Wait 2-5 minutes for connector provisioning. Verify schemas exist via `mcp__confluent__list-schemas`.
 
