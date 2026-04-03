@@ -1,0 +1,459 @@
+{
+  "skill_name": "developing-kafka-java-client",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "I need a Java Kafka producer for Confluent Cloud that sends user signup events with fields: user_id (string), email (string), plan_type (string), signed_up_at (string). I'm building a Spring Boot microservice.",
+      "expected_output": "A Java/Gradle project with ProducerExample.java using KafkaProducer<String, GenericRecord>, KafkaConfig.java, schemas/value.avsc with user signup fields, KafkaProjectTest.java, build.gradle with kafka-clients and kafka-avro-serializer, kafka.properties for Confluent Cloud with SASL_SSL, .env.example, README.md. Producer reuses a single instance, uses Schema Registry with Avro, has graceful shutdown. Tests pass with gradle test.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "producer-exists",
+          "type": "file_exists",
+          "description": "ProducerExample.java is generated",
+          "path": "src/main/java/examples/ProducerExample.java"
+        },
+        {
+          "id": "config-exists",
+          "type": "file_exists",
+          "description": "KafkaConfig.java is generated",
+          "path": "src/main/java/examples/KafkaConfig.java"
+        },
+        {
+          "id": "schema-exists",
+          "type": "file_exists",
+          "description": "Avro schema is generated",
+          "path": "schemas/value.avsc"
+        },
+        {
+          "id": "tests-exist",
+          "type": "file_exists",
+          "description": "Unit tests are generated",
+          "path": "src/test/java/examples/KafkaProjectTest.java"
+        },
+        {
+          "id": "build-gradle-exists",
+          "type": "file_exists",
+          "description": "build.gradle is generated",
+          "path": "build.gradle"
+        },
+        {
+          "id": "env-example-exists",
+          "type": "file_exists",
+          "description": ".env.example is generated",
+          "path": ".env.example"
+        },
+        {
+          "id": "kafka-properties-exists",
+          "type": "file_exists",
+          "description": "kafka.properties template is generated",
+          "path": "src/main/resources/kafka.properties"
+        },
+        {
+          "id": "build-has-kafka-clients",
+          "type": "file_contains",
+          "description": "build.gradle includes kafka-clients dependency",
+          "path": "build.gradle",
+          "contains": "kafka-clients"
+        },
+        {
+          "id": "build-has-avro-serializer",
+          "type": "file_contains",
+          "description": "build.gradle includes kafka-avro-serializer",
+          "path": "build.gradle",
+          "contains": "kafka-avro-serializer"
+        },
+        {
+          "id": "build-has-confluent-repo",
+          "type": "file_contains",
+          "description": "build.gradle includes Confluent Maven repository",
+          "path": "build.gradle",
+          "contains": "packages.confluent.io"
+        },
+        {
+          "id": "producer-uses-avro",
+          "type": "file_contains",
+          "description": "Producer uses KafkaAvroSerializer",
+          "path": "src/main/java/examples/ProducerExample.java",
+          "contains": "KafkaAvroSerializer"
+        },
+        {
+          "id": "producer-reuses-instance",
+          "type": "file_contains",
+          "description": "produce() method exists and accepts producer parameter",
+          "path": "src/main/java/examples/ProducerExample.java",
+          "contains": "produce(KafkaProducer"
+        },
+        {
+          "id": "producer-has-flush",
+          "type": "file_contains",
+          "description": "Producer calls flush() for delivery",
+          "path": "src/main/java/examples/ProducerExample.java",
+          "contains": "flush()"
+        },
+        {
+          "id": "schema-has-user-fields",
+          "type": "file_contains",
+          "description": "Avro schema includes user_id field",
+          "path": "schemas/value.avsc",
+          "contains": "user_id"
+        },
+        {
+          "id": "properties-has-sasl",
+          "type": "file_contains",
+          "description": "kafka.properties targets Confluent Cloud with SASL_SSL",
+          "path": "src/main/resources/kafka.properties",
+          "contains": "SASL_SSL"
+        },
+        {
+          "id": "tests-pass",
+          "type": "command",
+          "description": "All unit tests pass with gradle test",
+          "command": "cd {{output_dir}} && gradle test --no-daemon 2>&1",
+          "expect_exit_code": 0
+        }
+      ]
+    },
+    {
+      "id": 1,
+      "prompt": "Create a Java consumer that reads order events from my Confluent Cloud topic. I just need the consumer, not a producer.",
+      "expected_output": "A Java/Gradle project with ConsumerExample.java, KafkaConfig.java, schemas/value.avsc, KafkaProjectTest.java, build.gradle, kafka.properties for Confluent Cloud, .env.example, README.md. Consumer uses KafkaAvroDeserializer, has graceful shutdown with wakeup/close. Tests pass.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "consumer-exists",
+          "type": "file_exists",
+          "description": "ConsumerExample.java is generated",
+          "path": "src/main/java/examples/ConsumerExample.java"
+        },
+        {
+          "id": "config-exists",
+          "type": "file_exists",
+          "description": "KafkaConfig.java is generated",
+          "path": "src/main/java/examples/KafkaConfig.java"
+        },
+        {
+          "id": "tests-exist",
+          "type": "file_exists",
+          "description": "Unit tests are generated",
+          "path": "src/test/java/examples/KafkaProjectTest.java"
+        },
+        {
+          "id": "consumer-uses-avro",
+          "type": "file_contains",
+          "description": "Consumer uses KafkaAvroDeserializer",
+          "path": "src/main/java/examples/ConsumerExample.java",
+          "contains": "KafkaAvroDeserializer"
+        },
+        {
+          "id": "consumer-has-wakeup",
+          "type": "file_contains",
+          "description": "Consumer uses wakeup() for graceful shutdown",
+          "path": "src/main/java/examples/ConsumerExample.java",
+          "contains": "wakeup()"
+        },
+        {
+          "id": "consumer-catches-wakeup-exception",
+          "type": "file_contains",
+          "description": "Consumer catches WakeupException",
+          "path": "src/main/java/examples/ConsumerExample.java",
+          "contains": "WakeupException"
+        },
+        {
+          "id": "consumer-calls-close",
+          "type": "file_contains",
+          "description": "Consumer calls close()",
+          "path": "src/main/java/examples/ConsumerExample.java",
+          "contains": "close()"
+        },
+        {
+          "id": "build-has-kafka-clients",
+          "type": "file_contains",
+          "description": "build.gradle includes kafka-clients",
+          "path": "build.gradle",
+          "contains": "kafka-clients"
+        },
+        {
+          "id": "tests-pass",
+          "type": "command",
+          "description": "All unit tests pass with gradle test",
+          "command": "cd {{output_dir}} && gradle test --no-daemon 2>&1",
+          "expect_exit_code": 0
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Scaffold a Java project with both a producer and consumer for IoT sensor readings (device_id, temperature, humidity, timestamp) on Confluent Cloud.",
+      "expected_output": "A Java/Gradle project with ProducerExample.java, ConsumerExample.java, KafkaConfig.java, schemas/value.avsc with IoT fields, KafkaProjectTest.java, build.gradle, kafka.properties, .env.example, README.md. Both use Schema Registry with Avro, Confluent Cloud config, graceful shutdown. Tests pass.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "producer-exists",
+          "type": "file_exists",
+          "description": "ProducerExample.java is generated",
+          "path": "src/main/java/examples/ProducerExample.java"
+        },
+        {
+          "id": "consumer-exists",
+          "type": "file_exists",
+          "description": "ConsumerExample.java is generated",
+          "path": "src/main/java/examples/ConsumerExample.java"
+        },
+        {
+          "id": "config-exists",
+          "type": "file_exists",
+          "description": "KafkaConfig.java is generated",
+          "path": "src/main/java/examples/KafkaConfig.java"
+        },
+        {
+          "id": "tests-exist",
+          "type": "file_exists",
+          "description": "Unit tests are generated",
+          "path": "src/test/java/examples/KafkaProjectTest.java"
+        },
+        {
+          "id": "schema-has-device-fields",
+          "type": "file_contains",
+          "description": "Avro schema includes device_id field",
+          "path": "schemas/value.avsc",
+          "contains": "device_id"
+        },
+        {
+          "id": "schema-has-temperature",
+          "type": "file_contains",
+          "description": "Avro schema includes temperature field",
+          "path": "schemas/value.avsc",
+          "contains": "temperature"
+        },
+        {
+          "id": "producer-uses-avro",
+          "type": "file_contains",
+          "description": "Producer uses KafkaAvroSerializer",
+          "path": "src/main/java/examples/ProducerExample.java",
+          "contains": "KafkaAvroSerializer"
+        },
+        {
+          "id": "consumer-uses-avro",
+          "type": "file_contains",
+          "description": "Consumer uses KafkaAvroDeserializer",
+          "path": "src/main/java/examples/ConsumerExample.java",
+          "contains": "KafkaAvroDeserializer"
+        },
+        {
+          "id": "build-has-junit",
+          "type": "file_contains",
+          "description": "build.gradle includes JUnit for testing",
+          "path": "build.gradle",
+          "contains": "junit"
+        },
+        {
+          "id": "tests-pass",
+          "type": "command",
+          "description": "All unit tests pass with gradle test",
+          "command": "cd {{output_dir}} && gradle test --no-daemon 2>&1",
+          "expect_exit_code": 0
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "I want to try Kafka locally with Docker. Set up a Java producer and consumer for order events (order_id, customer_id, product, quantity, price).",
+      "expected_output": "A Java/Gradle project with ProducerExample.java, ConsumerExample.java, KafkaConfig.java, docker-compose.yml, schemas/value.avsc with order fields, KafkaProjectTest.java, build.gradle, kafka.properties for local Docker with PLAINTEXT, .env.example, README.md. Tests pass.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "producer-exists",
+          "type": "file_exists",
+          "description": "ProducerExample.java is generated",
+          "path": "src/main/java/examples/ProducerExample.java"
+        },
+        {
+          "id": "consumer-exists",
+          "type": "file_exists",
+          "description": "ConsumerExample.java is generated",
+          "path": "src/main/java/examples/ConsumerExample.java"
+        },
+        {
+          "id": "config-exists",
+          "type": "file_exists",
+          "description": "KafkaConfig.java is generated",
+          "path": "src/main/java/examples/KafkaConfig.java"
+        },
+        {
+          "id": "docker-compose-exists",
+          "type": "file_exists",
+          "description": "docker-compose.yml is generated for local Docker",
+          "path": "docker-compose.yml"
+        },
+        {
+          "id": "tests-exist",
+          "type": "file_exists",
+          "description": "Unit tests are generated",
+          "path": "src/test/java/examples/KafkaProjectTest.java"
+        },
+        {
+          "id": "properties-has-local",
+          "type": "file_contains",
+          "description": "kafka.properties sets kafka.env=local",
+          "path": "src/main/resources/kafka.properties",
+          "contains": "kafka.env=local"
+        },
+        {
+          "id": "properties-has-plaintext",
+          "type": "file_contains",
+          "description": "kafka.properties uses PLAINTEXT protocol",
+          "path": "src/main/resources/kafka.properties",
+          "contains": "PLAINTEXT"
+        },
+        {
+          "id": "schema-has-order-fields",
+          "type": "file_contains",
+          "description": "Avro schema includes order_id field",
+          "path": "schemas/value.avsc",
+          "contains": "order_id"
+        },
+        {
+          "id": "docker-compose-has-schema-registry",
+          "type": "file_contains",
+          "description": "docker-compose.yml includes Schema Registry",
+          "path": "docker-compose.yml",
+          "contains": "schema-registry"
+        },
+        {
+          "id": "build-has-shadow-plugin",
+          "type": "file_contains",
+          "description": "build.gradle includes shadow plugin for fat JARs",
+          "path": "build.gradle",
+          "contains": "shadow"
+        },
+        {
+          "id": "tests-pass",
+          "type": "command",
+          "description": "All unit tests pass with gradle test",
+          "command": "cd {{output_dir}} && gradle test --no-daemon 2>&1",
+          "expect_exit_code": 0
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "I need a Java Kafka producer app",
+      "expected_output": "The skill should prompt the user about target environment (Confluent Cloud vs local Docker) and data fields before generating. It should not assume either without asking. After gathering requirements, generates a complete project with ProducerExample.java, KafkaConfig.java, schema, tests, build.gradle, kafka.properties, .env.example.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "producer-exists",
+          "type": "file_exists",
+          "description": "ProducerExample.java is generated",
+          "path": "src/main/java/examples/ProducerExample.java"
+        },
+        {
+          "id": "config-exists",
+          "type": "file_exists",
+          "description": "KafkaConfig.java is generated",
+          "path": "src/main/java/examples/KafkaConfig.java"
+        },
+        {
+          "id": "tests-exist",
+          "type": "file_exists",
+          "description": "Unit tests are generated",
+          "path": "src/test/java/examples/KafkaProjectTest.java"
+        },
+        {
+          "id": "build-gradle-exists",
+          "type": "file_exists",
+          "description": "build.gradle is generated",
+          "path": "build.gradle"
+        },
+        {
+          "id": "env-example-exists",
+          "type": "file_exists",
+          "description": ".env.example is generated",
+          "path": ".env.example"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "I need a Java Kafka producer for a batch ETL job on Confluent Cloud. It ingests CSV rows with fields: employee_id, department, salary, hire_date.",
+      "expected_output": "A Java/Gradle project with ProducerExample.java using KafkaProducer<String, GenericRecord>, KafkaConfig.java, schemas/value.avsc with employee fields, KafkaProjectTest.java, build.gradle, kafka.properties for Confluent Cloud, .env.example, README.md. Producer uses KafkaAvroSerializer, calls flush(), has Callback for delivery reports. Tests pass.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "producer-exists",
+          "type": "file_exists",
+          "description": "ProducerExample.java is generated",
+          "path": "src/main/java/examples/ProducerExample.java"
+        },
+        {
+          "id": "config-exists",
+          "type": "file_exists",
+          "description": "KafkaConfig.java is generated",
+          "path": "src/main/java/examples/KafkaConfig.java"
+        },
+        {
+          "id": "schema-exists",
+          "type": "file_exists",
+          "description": "Avro schema is generated",
+          "path": "schemas/value.avsc"
+        },
+        {
+          "id": "tests-exist",
+          "type": "file_exists",
+          "description": "Unit tests are generated",
+          "path": "src/test/java/examples/KafkaProjectTest.java"
+        },
+        {
+          "id": "producer-uses-avro",
+          "type": "file_contains",
+          "description": "Producer uses KafkaAvroSerializer",
+          "path": "src/main/java/examples/ProducerExample.java",
+          "contains": "KafkaAvroSerializer"
+        },
+        {
+          "id": "producer-has-flush",
+          "type": "file_contains",
+          "description": "Producer calls flush()",
+          "path": "src/main/java/examples/ProducerExample.java",
+          "contains": "flush()"
+        },
+        {
+          "id": "producer-has-callback",
+          "type": "file_contains",
+          "description": "Producer uses Callback for delivery reports",
+          "path": "src/main/java/examples/ProducerExample.java",
+          "contains": "Callback"
+        },
+        {
+          "id": "producer-reuses-instance",
+          "type": "file_contains",
+          "description": "produce() method accepts KafkaProducer parameter",
+          "path": "src/main/java/examples/ProducerExample.java",
+          "contains": "produce(KafkaProducer"
+        },
+        {
+          "id": "schema-has-employee-fields",
+          "type": "file_contains",
+          "description": "Avro schema includes employee_id field",
+          "path": "schemas/value.avsc",
+          "contains": "employee_id"
+        },
+        {
+          "id": "build-has-avro",
+          "type": "file_contains",
+          "description": "build.gradle includes avro dependency",
+          "path": "build.gradle",
+          "contains": "avro"
+        },
+        {
+          "id": "tests-pass",
+          "type": "command",
+          "description": "All unit tests pass with gradle test",
+          "command": "cd {{output_dir}} && gradle test --no-daemon 2>&1",
+          "expect_exit_code": 0
+        }
+      ]
+    }
+  ]
+}
