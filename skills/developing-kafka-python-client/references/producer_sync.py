@@ -26,7 +26,7 @@ def create_json_serializer(topic, sr_url, sr_key, sr_secret):
         schema_id = sr_client.register_schema(subject, json_schema)
         print(f"Registered schema (ID: {schema_id}) for subject {subject}")
 
-    return JSONSerializer(sr_client, schema_str)
+    return JSONSerializer(schema_str, sr_client)
 
 
 def delivery_callback(err, msg):

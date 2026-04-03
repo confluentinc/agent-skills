@@ -1,6 +1,6 @@
 ---
 name: developing-kafka-python-client
-description: "Create a Python Kafka producer/consumer project using confluent-kafka-python with Schema Registry JSON Schema serialization. Supports async (AIOProducer) and synchronous (Producer) modes, Confluent Cloud, and local Docker."
+description: "Create a Python Kafka producer/consumer project using confluent-kafka-python with Schema Registry JSON Schema serialization. Supports async (AIOProducer) and synchronous (Producer) modes, Confluent Cloud, Confluent Platform, open-source Apache Kafka, and local Docker for development."
 ---
 
 # Confluent Kafka Python Client Creation
