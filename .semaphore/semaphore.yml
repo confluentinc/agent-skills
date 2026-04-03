@@ -27,6 +27,11 @@ global_job_config:
   prologue:
     commands:
       - checkout
+      - make init-ci
+  epilogue:
+    always:
+      commands:
+        - make epilogue-ci
 
 blocks:
   - name: "Validate Skills"
