@@ -1,0 +1,71 @@
+plugins {
+    id 'java'
+    id 'application'
+    id 'com.github.johnrengelman.shadow' version '8.1.1'
+}
+
+group = 'com.example'
+version = '1.0.0'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
+}
+
+repositories {
+    mavenCentral()
+    maven {
+        url = "https://packages.confluent.io/maven/"
+    }
+}
+
+dependencies {
+    implementation 'org.apache.kafka:kafka-clients:3.9.0'
+    implementation 'io.confluent:kafka-avro-serializer:7.9.0'
+    implementation 'org.apache.avro:avro:1.12.0'
+    implementation 'org.slf4j:slf4j-simple:2.0.16'
+
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.mockito:mockito-core:5.14.2'
+}
+
+def producerMainClass = 'examples.ProducerExample'
+def consumerMainClass = 'examples.ConsumerExample'
+def producerExampleFile = file('src/main/java/examples/ProducerExample.java')
+def consumerExampleFile = file('src/main/java/examples/ConsumerExample.java')
+def defaultMainClass = producerExampleFile.exists() ? producerMainClass : (consumerExampleFile.exists() ? consumerMainClass : null)
+
+if (defaultMainClass != null) {
+    application {
+        mainClass = defaultMainClass
+    }
+}
+
+// Task to run the producer
+if (producerExampleFile.exists()) {
+    tasks.register('runProducer', JavaExec) {
+        classpath = sourceSets.main.runtimeClasspath
+        mainClass = producerMainClass
+    }
+}
+
+// Task to run the consumer
+if (consumerExampleFile.exists()) {
+    tasks.register('runConsumer', JavaExec) {
+        classpath = sourceSets.main.runtimeClasspath
+        mainClass = consumerMainClass
+    }
+}
+
+shadowJar {
+    archiveBaseName.set('kafka-java-client')
+    archiveVersion.set(version)
+    mergeServiceFiles()
+}
+
+test {
+    testLogging {
+        events "passed", "failed", "skipped"
+        showStandardStreams = true
+    }
+}
