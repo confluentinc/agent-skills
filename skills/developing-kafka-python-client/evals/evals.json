@@ -67,9 +67,9 @@
         {
           "id": "producer-uses-json-schema",
           "type": "file_contains",
-          "description": "Producer uses JSONSerializer",
+          "description": "Async producer uses AsyncJSONSerializer",
           "path": "producer.py",
-          "contains": "JSONSerializer"
+          "contains": "AsyncJSONSerializer"
         },
         {
           "id": "producer-is-async",
