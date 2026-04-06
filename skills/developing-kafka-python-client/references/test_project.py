@@ -241,11 +241,11 @@ class TestConsumer:
     """Verify consumer subscribes, deserializes, and shuts down cleanly."""
 
     def test_consumer_uses_schema_registry(self):
-        """Consumer must use AvroDeserializer, not raw JSON."""
+        """Consumer must use JSONDeserializer, not raw JSON parsing."""
         import consumer as cons
         source = open(cons.__file__).read()
-        assert "AvroDeserializer" in source or "AsyncAvroDeserializer" in source, (
-            "Consumer must use AvroDeserializer from Schema Registry"
+        assert "JSONDeserializer" in source or "AsyncJSONDeserializer" in source, (
+            "Consumer must use JSONDeserializer from Schema Registry"
         )
         assert "json.loads" not in source or "json.dumps" in source, (
             "Consumer should not fall back to raw json.loads for deserialization"
@@ -269,40 +269,39 @@ class TestConsumer:
 # Schema tests
 # ---------------------------------------------------------------------------
 
-class TestAvroSchema:
-    """Verify the Avro schema is valid."""
+class TestJsonSchema:
+    """Verify the JSON Schema is valid."""
 
-    def test_schema_is_valid_json(self):
+    def test_schema_is_valid_json_schema(self):
         schema_path = os.path.join(
-            os.path.dirname(__file__), "..", "schemas", "value.avsc"
+            os.path.dirname(__file__), "..", "schemas", "value.schema.json"
         )
         # Adjust path if tests/ is a subdirectory
         if not os.path.exists(schema_path):
             schema_path = os.path.join(
-                os.path.dirname(__file__), "schemas", "value.avsc"
+                os.path.dirname(__file__), "schemas", "value.schema.json"
             )
         with open(schema_path) as f:
             schema = json.load(f)
 
-        assert schema["type"] == "record"
-        assert "name" in schema
-        assert "fields" in schema
-        assert len(schema["fields"]) > 0
+        assert schema["type"] == "object"
+        assert "title" in schema
+        assert "properties" in schema
+        assert len(schema["properties"]) > 0
 
-    def test_schema_fields_have_name_and_type(self):
+    def test_schema_properties_have_type(self):
         schema_path = os.path.join(
-            os.path.dirname(__file__), "..", "schemas", "value.avsc"
+            os.path.dirname(__file__), "..", "schemas", "value.schema.json"
         )
         if not os.path.exists(schema_path):
             schema_path = os.path.join(
-                os.path.dirname(__file__), "schemas", "value.avsc"
+                os.path.dirname(__file__), "schemas", "value.schema.json"
             )
         with open(schema_path) as f:
             schema = json.load(f)
 
-        for field in schema["fields"]:
-            assert "name" in field, f"Field missing 'name': {field}"
-            assert "type" in field, f"Field missing 'type': {field}"
+        for prop_name, prop_def in schema["properties"].items():
+            assert "type" in prop_def, f"Property '{prop_name}' missing 'type': {prop_def}"
 
 
 # ---------------------------------------------------------------------------
