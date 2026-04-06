@@ -1,5 +1,6 @@
 import asyncio
 import json
+import os
 import signal
 
 from confluent_kafka import KafkaError
@@ -12,9 +13,13 @@ import common
 
 
 async def create_json_deserializer(sr_url, sr_key, sr_secret):
+    schema_file = os.path.join(os.path.dirname(__file__), "schemas", "value.schema.json")
+    with open(schema_file) as f:
+        schema_str = f.read()
+
     sr_conf = {"url": sr_url, "basic.auth.user.info": f"{sr_key}:{sr_secret}"}
     sr_client = AsyncSchemaRegistryClient(sr_conf)
-    return await AsyncJSONDeserializer(sr_client)
+    return await AsyncJSONDeserializer(schema_str, schema_registry_client=sr_client)
 
 
 async def consume(consumer, topic, deserializer):
