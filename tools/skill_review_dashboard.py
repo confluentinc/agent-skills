@@ -155,10 +155,7 @@ def parse_session(session_path: Path) -> dict:
     for i, msg in enumerate(human_messages):
         if i == 0:
             continue  # first message is the prompt, not a correction
-        if msg["is_interruption"]:
-            corrections += 1
-            msg["is_correction"] = True
-        elif correction_patterns.search(msg["text"]):
+        if correction_patterns.search(msg["text"]):
             corrections += 1
             msg["is_correction"] = True
 
