@@ -147,8 +147,8 @@ def parse_session(session_path: Path) -> dict:
     # Common patterns: "no", "actually", "instead", "don't", "wrong", "fix", "change"
     correction_patterns = re.compile(
         r'\b(no[,.]?\s|actually|instead|don\'t|wrong|fix\s|change\s|not\s+what|'
-        r'that\'s\s+not|stop|wait|cancel|undo|revert|should\s+be|'
-        r'make\s+it|directly\s+in)\b',
+        r'that\'s\s+not|stop|wait|cancel|undo|revert|'
+        r'make\s+it)\b',
         re.IGNORECASE,
     )
     corrections = 0
