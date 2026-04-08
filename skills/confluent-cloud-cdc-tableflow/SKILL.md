@@ -82,7 +82,7 @@ Ask the user to provide the following Confluent Cloud details:
 | Flink Catalog Name | `my_environment` | `catalogName` in Flink statements |
 | Flink Database Name | `cluster_0` | `databaseName` in Flink statements |
 
-**Credentials:** Ask the user to either provide credentials directly or point to a file containing them. The following credentials are needed:
+**Credentials:** Do NOT ask the user to paste credentials in the terminal. Instead, generate a credentials file (e.g., `cdc-credentials.properties`) with placeholder values for the required credentials below, and ask the user to populate it in their editor. When needed for connector creation, read the file to populate the connector config. Ensure the file is added to `.gitignore`. If the user prefers that Claude not read the credentials file, fall back to the Confluent CLI: generate a `connector-config.json` with the credentials as placeholders, let the user fill it in, then run `confluent connect cluster create --config-file connector-config.json` so the CLI reads the file directly. The following credentials are needed:
 
 | Credential | Purpose | Notes |
 |---|---|---|
@@ -121,12 +121,12 @@ Ask the user:
 **Database Configuration:**
 - Database type (SQL Server, MySQL, PostgreSQL, Oracle, or DynamoDB)
 - Connection details (hostname, port, database name)
-- Credentials (username, password)
+- Credentials (populated by the user in the credentials file)
 - Specific tables to capture (format: `schema.table`)
 
 **Kafka & Database Credentials:**
 - The CDC connector needs Kafka API keys scoped to the target cluster and database credentials
-- Ask the user to provide these directly or point to a file containing them
+- Credentials should be populated by the user in the generated credentials file — read the file when needed for connector creation, or fall back to CLI if the user prefers Claude not read credentials
 - See Phase 0.2 for the full list of required credentials and supported authentication modes
 
 **Tableflow Destination:**
@@ -416,7 +416,7 @@ After successful setup, provide the user with:
 - **Scaling**: Increase Flink compute pool CFU for higher throughput
 - **Cost**: CDC connectors, Flink CFUs, and Tableflow all incur costs
 - **Tableflow works with any cluster type** — Basic, Standard, Dedicated, and Enterprise clusters all support Tableflow
-- **Ask the user for credentials** — Request Kafka API keys and database credentials directly or ask for a file reference containing them. Supports `SERVICE_ACCOUNT` and `KAFKA_API_KEY` auth modes for Kafka, and password or Google Service Account impersonation for databases.
+- **Generate a credentials file** — Create a sample credentials file with placeholders for Kafka API keys and database credentials. Ask the user to fill it in. Do NOT ask the user to paste credentials in the terminal. Read the file when needed for connector creation via MCP. If the user prefers Claude not read credentials, fall back to the Confluent CLI (`confluent connect cluster create --config-file connector-config.json`). Supports `SERVICE_ACCOUNT` and `KAFKA_API_KEY` auth modes for Kafka, and password or Google Service Account impersonation for databases.
 
 ## References
 
