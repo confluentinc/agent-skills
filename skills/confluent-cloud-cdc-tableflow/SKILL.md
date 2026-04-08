@@ -1,6 +1,6 @@
 ---
 name: confluent-cloud-cdc-tableflow
-description: Set up end-to-end Change Data Capture (CDC) pipelines on Confluent Cloud using Debezium source connectors, Flink for transformation, and Tableflow for data lake integration. This skill handles the complete workflow from database to Iceberg/Delta tables. Use this skill whenever users mention CDC, Debezium, Tableflow, streaming database changes, replication to data lakes, real-time data pipelines from databases, or want to stream changes from SQL Server, MySQL, PostgreSQL, Oracle, or DynamoDB to Iceberg or Delta Lake. Also trigger for phrases like "set up database replication", "stream database to data lake", "capture database changes", "sync database to Iceberg/Delta", or any mention of connecting databases to Confluent Cloud with Schema Registry.
+description: Set up end-to-end Change Data Capture (CDC) pipelines on Confluent Cloud using Debezium source connectors, Flink for transformation, and Tableflow for data lake integration. This skill handles the complete workflow from database to Iceberg/Delta tables. Use this skill when users want to capture database changes and materialize them into Iceberg or Delta Lake tables via Confluent Cloud Tableflow. Trigger phrases include "CDC to Tableflow", "database to Iceberg", "database to Delta Lake", "stream database changes to data lake", or "set up Tableflow pipeline". Do NOT trigger for general CDC, Debezium, or database replication requests that do not involve Tableflow or Iceberg/Delta Lake as the destination.
 ---
 
 # Confluent Cloud CDC to Tableflow Pipeline
@@ -70,42 +70,28 @@ confluent kafka topic list --cluster <cluster-id> --environment <env-id>
 confluent schema-registry subject list --environment <env-id>
 ```
 
-#### 0.2 Read MCP Environment File for Defaults (CRITICAL)
+#### 0.2 Gather Confluent Cloud Details from the User
 
-**Before asking the user for environment/cluster details, read the MCP server's `.env` file to extract defaults.** The `.env` file path is specified in the project's `.mcp.json` (look for the `-e` flag in the `args` array). If not found there, check `~/.config/claude/mcp.json` for an `envFile` field.
+Ask the user to provide the following Confluent Cloud details:
 
-Read the `.env` file and extract these defaults:
-
-| .env Variable | Purpose | Use As Default For |
+| Detail | Example | Used For |
 |---|---|---|
-| `KAFKA_ENV_ID` | Environment ID | `environmentId` in all MCP calls |
-| `KAFKA_CLUSTER_ID` | Kafka cluster ID | `clusterId` in all MCP calls |
-| `BOOTSTRAP_SERVERS` | Kafka bootstrap endpoint | MCP cluster targeting |
-| `KAFKA_API_KEY` / `KAFKA_API_SECRET` | Cluster-scoped Kafka API keys | Connector `kafka.api.key` / `kafka.api.secret` |
-| `FLINK_COMPUTE_POOL_ID` | Flink compute pool | `computePoolId` in Flink statements |
-| `FLINK_ENV_NAME` | Flink catalog name | `catalogName` in Flink statements |
-| `FLINK_DATABASE_NAME` | Flink database name | `databaseName` in Flink statements |
-| `FLINK_REST_ENDPOINT` | Flink API base URL | `baseUrl` for Flink MCP calls |
-| `FLINK_ORG_ID` | Organization ID | `organizationId` in Flink MCP calls |
-| `SCHEMA_REGISTRY_ENDPOINT` | Schema Registry URL | Verification only |
+| Environment ID | `env-0ypxv6` | `environmentId` in all MCP calls |
+| Kafka Cluster ID | `lkc-qo5k36` | `clusterId` in all MCP calls |
+| Flink Compute Pool ID | `lfcp-3v39xw` | `computePoolId` in Flink statements |
+| Flink Catalog Name | `my_environment` | `catalogName` in Flink statements |
+| Flink Database Name | `cluster_0` | `databaseName` in Flink statements |
 
-**If the `.env` file contains these values**, present them to the user and ask for confirmation before proceeding. For example:
+**Credentials:** Ask the user to either provide credentials directly or point to a file containing them. The following credentials are needed:
 
-> "I found the following targets in your MCP `.env` file:
-> - **Environment:** `env-0ypxv6`
-> - **Cluster:** `lkc-qo5k36` (bootstrap: `pkc-921jm.us-east-2.aws.confluent.cloud:9092`)
-> - **Flink Compute Pool:** `lfcp-3v39xw` (catalog: `erick_cdc_tableflow_test`, database: `cluster_0`)
-> - **Schema Registry:** `psrc-19262jq.us-east-2.aws.confluent.cloud`
->
-> Should I use these for the pipeline, or would you like to target a different environment/cluster?"
-
-If the user confirms, use these values throughout the pipeline. If they want different targets, ask them to specify.
-
-**If the `.env` file is not found or missing key variables**, ask the user which environment and cluster to use, then fall back to discovering via `mcp__confluent__list-environments` and `mcp__confluent__list-clusters`.
+| Credential | Purpose | Notes |
+|---|---|---|
+| Kafka API Key | Connector authentication to Kafka cluster | `kafka.auth.mode` supports both `SERVICE_ACCOUNT` and `KAFKA_API_KEY` ([docs](https://docs.confluent.io/cloud/current/connectors/cc-postgresql-cdc-source-v2-debezium/cc-postgresql-cdc-source-v2-debezium.html#kafka-cluster-credentials)) |
+| Kafka API Secret | Connector authentication to Kafka cluster | Paired with the API key above |
+| Database Username | Connector authentication to source database | For database authentication via password |
+| Database Password | Connector authentication to source database | Also supports Google Service Account impersonation for GCP-hosted databases |
 
 #### 0.3 Verify MCP Cluster Targeting
-
-The MCP server's `BOOTSTRAP_SERVERS` and `KAFKA_API_KEY` from the `.env` file determine which cluster it targets for Kafka operations (consume, list-topics, create-tableflow-topic).
 
 **Quick verification:**
 1. Run `mcp__confluent__list-topics` to confirm the MCP server is connected to the expected cluster
@@ -138,10 +124,10 @@ Ask the user:
 - Credentials (username, password)
 - Specific tables to capture (format: `schema.table`)
 
-**Kafka API Keys:**
-- The CDC connector needs Kafka API keys scoped to the target cluster
-- If the MCP `.env` file contains `KAFKA_API_KEY` and `KAFKA_API_SECRET`, use those as defaults
-- Only ask the user for Kafka API keys if they are not present in the `.env` file
+**Kafka & Database Credentials:**
+- The CDC connector needs Kafka API keys scoped to the target cluster and database credentials
+- Ask the user to provide these directly or point to a file containing them
+- See Phase 0.2 for the full list of required credentials and supported authentication modes
 
 **Tableflow Destination:**
 - Target format: Iceberg or Delta Lake
@@ -168,19 +154,7 @@ Generate the complete configuration plan and present it to the user for approval
 
 #### 2.1 Connector Configuration
 
-Based on the database type, generate the connector configuration. See `references/connector-configs.md` for templates.
-
-**Required fields for ALL CDC V2 connectors:**
-- `connector.class`: The connector class (e.g., `PostgresCdcSourceV2`)
-- `topic.prefix`: **REQUIRED** — Controls topic naming. Topics will be named `{topic.prefix}.{schema}.{table}`
-- `kafka.api.key` / `kafka.api.secret`: Kafka API keys for the target cluster
-- `output.data.format`: `JSON_SR` (default, recommended — uses JSON serializer with schema ID in header, safer for downstream consumers)
-- `output.key.format`: `JSON_SR`
-- `snapshot.mode`: `initial` (snapshot + stream), `never` (stream only)
-- `tombstones.on.delete`: `true`
-- `decimal.handling.mode`: `string` — **Always include for all connectors.** Without it, Debezium serializes DECIMAL/NUMERIC columns as raw bytes, producing garbled data in Flink and other downstream consumers. Affects PostgreSQL (DECIMAL, NUMERIC, MONEY), MySQL (DECIMAL, NUMERIC), SQL Server (DECIMAL, NUMERIC, MONEY, SMALLMONEY), and Oracle (NUMBER, FLOAT).
-- `binary.handling.mode`: `base64` — Include if tables have binary columns (BYTEA, VARBINARY, BLOB, RAW). Default `bytes` breaks JSON serialization.
-- `tasks.max`: `1` (recommended for CDC)
+Based on the database type, generate the connector configuration using the appropriate template from `references/connector-configs.md`. The templates include all required fields (`name`, `connector.class`, `topic.prefix`, `kafka.api.key`, `output.data.format`, `decimal.handling.mode`, etc.) and database-specific settings.
 
 **Topic Naming Pattern:**
 `{topic.prefix}.{schema}.{table}`
@@ -189,6 +163,8 @@ Example with `topic.prefix = "postgres-cdc"`: `postgres-cdc.public.customers`
 #### 2.2 Flink SQL Statements
 
 In Confluent Cloud Flink, the CDC source table is **auto-discovered** from the Kafka topic. You only need to:
+
+**Note:** The examples below use a `customers` table with illustrative column names. Substitute the user's actual table name, columns, and types based on the schema discovered from their CDC topic.
 
 1. **Create a target table** (for plain JSON_SR output to Tableflow):
 ```sql
@@ -260,34 +236,15 @@ Execute step-by-step using MCP tools, checking status after each component.
 
 #### 3.1 Create CDC Source Connector
 
+Build the connector configuration using the template for the user's database type from `references/connector-configs.md`. Each template includes all required fields, including the `name` field.
+
 **Using MCP:**
 ```
 mcp__confluent__create-connector(
-  connectorName: "cdc-pipeline-skill-postgres-20260323-connector",
+  connectorName: "<connector-name>",
   environmentId: "<env-id>",
   clusterId: "<cluster-id>",
-  connectorConfig: {
-    "connector.class": "PostgresCdcSourceV2",
-    "topic.prefix": "postgres-cdc",
-    "database.hostname": "<host>",
-    "database.port": "5432",
-    "database.user": "<user>",
-    "database.password": "<password>",
-    "database.dbname": "<dbname>",
-    "table.include.list": "public.customers",
-    "kafka.api.key": "<KAFKA_API_KEY>",
-    "kafka.api.secret": "<KAFKA_API_SECRET>",
-    "output.data.format": "JSON_SR",
-    "output.key.format": "JSON_SR",
-    "plugin.name": "pgoutput",
-    "publication.name": "dbz_publication",
-    "slot.name": "debezium_slot",
-    "snapshot.mode": "initial",
-    "tombstones.on.delete": "true",
-    "decimal.handling.mode": "string",
-    "heartbeat.interval.ms": "30000",
-    "tasks.max": "1"
-  }
+  connectorConfig: { <config from references/connector-configs.md> }
 )
 ```
 
@@ -372,11 +329,10 @@ mcp__confluent__create-tableflow-topic(
 )
 ```
 
-**KNOWN LIMITATION:** The MCP `create-tableflow-topic` tool does NOT accept `environmentId` or `clusterId` parameters. It defaults to the cluster configured in the MCP server's `BOOTSTRAP_SERVERS` (from the `.env` file). If the MCP server points to a different cluster than where the target topic exists, this will fail with "topic not found".
+**KNOWN LIMITATION:** The MCP `create-tableflow-topic` tool does NOT accept `environmentId` or `clusterId` parameters. It defaults to the cluster configured in the MCP server. If the MCP server points to a different cluster than where the target topic exists, this will fail with "topic not found".
 
-**Workarounds if MCP Tableflow creation fails:**
-1. **Update the MCP `.env` file** to point to the correct cluster, reconnect with `/mcp`, then retry
-2. **Use the Confluent Cloud UI**: Environment → Cluster → Topics → `target_customers` → Tableflow tab → Enable
+**Workaround if MCP Tableflow creation fails:**
+- **Use the Confluent Cloud UI**: Environment → Cluster → Topics → `target_customers` → Tableflow tab → Enable
 
 **Verify Tableflow is enabled:**
 ```
@@ -412,7 +368,7 @@ mcp__confluent__consume-messages(
 
 Note: The consumer starts at the latest offset. If the initial snapshot already completed, you may see 0 messages until a new database change occurs.
 
-**Test real-time CDC by inserting a row in the source database:**
+**Test real-time CDC by inserting a row in the source database** (adapt table name and columns to match the user's actual schema):
 ```sql
 INSERT INTO public.customers (name, email, created_at)
 VALUES ('Test User', 'test@example.com', NOW());
@@ -433,7 +389,7 @@ For detailed troubleshooting, see `references/troubleshooting.md`.
 | SHOW TABLES missing CDC table | Connector not producing yet | Verify schemas exist first, then wait |
 | CREATE TABLE: "Unsupported format" | Explicit format specs | Remove all `'value.format'`, `'connector'` properties |
 | INSERT: "Incompatible types" | Debezium type mismatch | Use TIMESTAMP_LTZ(3) + TO_TIMESTAMP_LTZ conversion |
-| Tableflow: "topic not found" | MCP cluster mismatch | Update MCP `.env` file or use Cloud UI |
+| Tableflow: "topic not found" | MCP cluster mismatch | Use Confluent Cloud UI to enable Tableflow |
 | DECIMAL columns show garbled bytes | Missing `decimal.handling.mode` | Add `"decimal.handling.mode": "string"` to connector config; must fix at connector level, not Flink |
 | INTERVAL columns show large integers | Missing `interval.handling.mode` | Add `"interval.handling.mode": "string"` for PG/Oracle; default is lossy microseconds |
 | Binary columns break JSON | Missing `binary.handling.mode` | Add `"binary.handling.mode": "base64"` for BYTEA/VARBINARY/BLOB/RAW columns |
@@ -449,7 +405,6 @@ After successful setup, provide the user with:
 2. **Topic Names**: Source CDC topic and target JSON_SR topic
 3. **Monitoring**: Check connector, Flink job, and Tableflow status in Confluent Cloud UI
 4. **Test Command**: SQL INSERT to verify real-time CDC
-5. **MCP `.env` Config**: Note which `.env` file was used and the environment/cluster defaults extracted from it
 
 ## Important Notes
 
@@ -461,8 +416,7 @@ After successful setup, provide the user with:
 - **Scaling**: Increase Flink compute pool CFU for higher throughput
 - **Cost**: CDC connectors, Flink CFUs, and Tableflow all incur costs
 - **Tableflow works with any cluster type** — Basic, Standard, Dedicated, and Enterprise clusters all support Tableflow
-- **MCP `.env` file is the source of truth** — Read the `.env` file referenced in `.mcp.json` for default environment, cluster, Flink, and Schema Registry config
-- **MCP cluster targeting**: The MCP server targets the cluster specified in the `.env` file's `BOOTSTRAP_SERVERS`
+- **Ask the user for credentials** — Request Kafka API keys and database credentials directly or ask for a file reference containing them. Supports `SERVICE_ACCOUNT` and `KAFKA_API_KEY` auth modes for Kafka, and password or Google Service Account impersonation for databases.
 
 ## References
 
