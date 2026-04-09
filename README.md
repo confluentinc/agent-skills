@@ -39,6 +39,7 @@ This repository includes the following skills:
 |--------------------------------|-------------|
 | **kafka-streams-programming**  | Architect, build, and debug Kafka Streams applications that run as a library inside your JVM with no separate cluster required. Handles topology design, pattern selection (joins, windows, aggregations), code generation for complete projects with proper Schema Registry integration, and troubleshooting production issues like rebalancing loops, state store problems, and performance tuning. |
 | **developing-kafka-python-client**  | Scaffold a Python Kafka producer/consumer project using confluent-kafka-python with Schema Registry serialization (Avro, JSON Schema, or Protobuf). Supports async (AIOProducer) and synchronous (Producer) modes, Confluent Cloud, and local Docker. |
+| **confluent-cloud-cdc-tableflow** | Set up end-to-end Change Data Capture (CDC) pipelines on Confluent Cloud using Debezium source connectors, Flink for transformation, and Tableflow for data lake integration. Supports SQL Server, MySQL, PostgreSQL, Oracle, and DynamoDB to Iceberg or Delta Lake tables. |
 
 ## Repository layout
 
