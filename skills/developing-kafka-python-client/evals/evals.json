@@ -86,13 +86,6 @@
           "contains": "flush"
         },
         {
-          "id": "producer-has-schema-id-header",
-          "type": "file_contains",
-          "description": "Producer includes schema ID in message headers",
-          "path": "producer.py",
-          "contains": "confluent.value.schemaId"
-        },
-        {
           "id": "schema-has-user-fields",
           "type": "file_contains",
           "description": "JSON Schema includes user_id field",
@@ -191,13 +184,6 @@
           "type": "file_exists",
           "description": "Unit tests are generated",
           "path": "tests/test_project.py"
-        },
-        {
-          "id": "producer-has-schema-id-header",
-          "type": "file_contains",
-          "description": "Producer includes schema ID in message headers",
-          "path": "producer.py",
-          "contains": "confluent.value.schemaId"
         },
         {
           "id": "schema-has-device-fields",

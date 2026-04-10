@@ -80,7 +80,8 @@ Key points:
 - `AIOProducer.produce()` is async and returns an `asyncio.Future`. You must `await` the method to get the Future, then `await` the Future to get the delivered `Message`: `future = await producer.produce(...); result = await future`
 - `AIOProducer.flush()` and `close()` are coroutines — they must be `await`ed in the `finally` block
 - Signal handlers set a shutdown event for graceful termination
-- `create_json_serializer()` returns both the serializer and the schema ID. The schema ID is passed as a Kafka record header (`confluent.value.schemaId`) on every produced message so that consumers and downstream systems can identify the schema without parsing the wire-format prefix
+- `create_json_serializer()` returns both the serializer and the schema ID. The serializer's constructor signature is `AsyncJSONSerializer(schema_str, schema_registry_client=sr_client)` — the schema string is the first positional argument, and the client is a keyword argument
+- **Headers are NOT supported with `AIOProducer` batch mode.** Do not pass `headers=` to `AIOProducer.produce()` — it will raise `NotImplementedError`. Schema identification is handled automatically by the JSON Schema serializer's wire format prefix. Headers with `confluent.value.schemaId` should only be used with the synchronous `Producer`
 
 ### producer.py Pattern (Synchronous)
 

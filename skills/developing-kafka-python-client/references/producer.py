@@ -24,7 +24,7 @@ async def create_json_serializer(topic, sr_url, sr_key, sr_secret):
     schema_id = await sr_client.register_schema(subject, json_schema)
     print(f"Schema ID: {schema_id} for subject {subject}")
 
-    serializer = await AsyncJSONSerializer(sr_client, schema_str)
+    serializer = await AsyncJSONSerializer(schema_str, schema_registry_client=sr_client)
     return serializer, schema_id
 
 
@@ -34,13 +34,12 @@ async def produce(producer, topic, serializer, schema_id, messages):
     The producer is passed in — never create a new producer per call.
     This function can be called multiple times with the same producer.
     """
-    headers = {"confluent.value.schemaId": str(schema_id)}
     futures = []
     for i, value in enumerate(messages):
         serialized = await serializer(
             value, SerializationContext(topic, MessageField.VALUE)
         )
-        future = await producer.produce(topic, value=serialized, headers=headers)
+        future = await producer.produce(topic, value=serialized)
         futures.append(future)
 
     results = await asyncio.gather(*futures, return_exceptions=True)
