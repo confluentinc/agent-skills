@@ -80,6 +80,7 @@ Key points:
 - `AIOProducer.produce()` is async and returns an `asyncio.Future`. You must `await` the method to get the Future, then `await` the Future to get the delivered `Message`: `future = await producer.produce(...); result = await future`
 - `AIOProducer.flush()` and `close()` are coroutines — they must be `await`ed in the `finally` block
 - Signal handlers set a shutdown event for graceful termination
+- `create_json_serializer()` returns both the serializer and the schema ID. The schema ID is passed as a Kafka record header (`confluent.value.schemaId`) on every produced message so that consumers and downstream systems can identify the schema without parsing the wire-format prefix
 
 ### producer.py Pattern (Synchronous)
 
@@ -94,6 +95,7 @@ Key points:
 - Use a `delivery_callback(err, msg)` function to handle per-message delivery reports
 - Signal handlers set a flag for graceful termination
 - `flush()` in the `finally` block ensures no buffered messages are lost
+- `create_json_serializer()` returns both the serializer and the schema ID. The schema ID is passed as a Kafka record header (`confluent.value.schemaId`) on every produced message so that consumers and downstream systems can identify the schema without parsing the wire-format prefix
 
 ### consumer.py Pattern
 
@@ -210,7 +212,7 @@ The tests should verify these properties of the generated code:
 
 1. **common.py**: `load_config()` returns all required keys and uses correct defaults. `get_kafka_config()` produces a config with `SASL_SSL` and `PLAIN` when `KAFKA_ENV=cloud`, or `PLAINTEXT` with no SASL when `KAFKA_ENV=local`. `verify_kafka_setup()` and `verify_schema_registry()` return the right booleans when mocked to succeed or fail.
 
-2. **producer.py** (if generated): `produce()` accepts a producer instance as a parameter (never creates one). The producer class (`AIOProducer` for async, `Producer` for sync) is instantiated exactly once in the module. Messages are passed through the serializer before producing. For synchronous producers, verify `flush()` is called after producing.
+2. **producer.py** (if generated): `produce()` accepts a producer instance and a `schema_id` as parameters (never creates a producer). The producer class (`AIOProducer` for async, `Producer` for sync) is instantiated exactly once in the module. Messages are passed through the serializer before producing. The schema ID is included as a `confluent.value.schemaId` Kafka record header on every produced message. For synchronous producers, verify `flush()` is called after producing.
 
 3. **consumer.py** (if generated): Uses `JSONDeserializer` or `AsyncJSONDeserializer` (no raw JSON parsing fallback). Calls `unsubscribe()` before `close()` for graceful shutdown.
 

@@ -196,15 +196,59 @@ class TestProducer:
             mock_serializer = AsyncMock(return_value=b"serialized")
 
             asyncio.run(
-                prod.produce(mock_producer, "test-topic", mock_serializer, messages)
+                prod.produce(mock_producer, "test-topic", mock_serializer, 1, messages)
             )
         else:
             # Synchronous producer path
             mock_producer = MagicMock()
             mock_serializer = MagicMock(return_value=b"serialized")
-            prod.produce(mock_producer, "test-topic", mock_serializer, messages)
+            prod.produce(mock_producer, "test-topic", mock_serializer, 1, messages)
 
         mock_producer.produce.assert_called_once()
+
+    def test_produce_includes_schema_id_in_headers(self):
+        """produce() must pass the schema ID as a Kafka record header."""
+        import producer as prod
+        import asyncio
+        import inspect
+
+        messages = [{"id": "1", "type": "test"}]
+        schema_id = 42
+
+        if inspect.iscoroutinefunction(prod.produce):
+            mock_result = MagicMock()
+            mock_result.error.return_value = None
+            mock_result.partition.return_value = 0
+            mock_result.offset.return_value = 1
+
+            mock_producer = AsyncMock()
+            mock_future = AsyncMock(return_value=mock_result)
+            mock_producer.produce.return_value = mock_future()
+
+            mock_serializer = AsyncMock(return_value=b"serialized")
+
+            asyncio.run(
+                prod.produce(mock_producer, "test-topic", mock_serializer, schema_id, messages)
+            )
+            call_kwargs = mock_producer.produce.call_args
+            assert "headers" in call_kwargs.kwargs or (
+                len(call_kwargs.args) > 2
+            ), "produce() must pass headers to producer.produce()"
+            headers = call_kwargs.kwargs.get("headers", {})
+            assert "confluent.value.schemaId" in headers, (
+                "Headers must include 'confluent.value.schemaId'"
+            )
+            assert headers["confluent.value.schemaId"] == str(schema_id)
+        else:
+            mock_producer = MagicMock()
+            mock_serializer = MagicMock(return_value=b"serialized")
+            prod.produce(mock_producer, "test-topic", mock_serializer, schema_id, messages)
+            call_kwargs = mock_producer.produce.call_args
+            headers = call_kwargs.kwargs.get("headers", {})
+            assert "confluent.value.schemaId" in headers, (
+                "Headers must include 'confluent.value.schemaId'"
+            )
+            assert headers["confluent.value.schemaId"] == str(schema_id)
 
     def test_main_creates_single_producer(self):
         """main() should create the producer once, not per-message."""
