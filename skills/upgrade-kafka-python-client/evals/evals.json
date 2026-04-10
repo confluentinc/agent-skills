@@ -1,0 +1,162 @@
+{
+  "skill_name": "upgrade-kafka-python-client",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I need to update my confluent-kafka-python from 2.13.0 to the latest version. My project is a simple sensor data producer using the sync Producer API with Avro serialization. Can you upgrade it?",
+      "expected_output": "Updates requirements.txt version pin to latest (2.14.0), reviews producer.py for breaking changes, reports what changed",
+      "files": [
+        "evals/fixtures/eval-1-patch-bump/requirements.txt",
+        "evals/fixtures/eval-1-patch-bump/producer.py"
+      ],
+      "assertions": [
+        {
+          "name": "version_pin_updated",
+          "type": "file_contains",
+          "description": "requirements.txt contains a version >= 2.14.0",
+          "file": "requirements.txt",
+          "pattern": "confluent-kafka.*2\\.14"
+        },
+        {
+          "name": "extras_preserved",
+          "type": "file_contains",
+          "description": "The [avro] extras are preserved in the dependency pin",
+          "file": "requirements.txt",
+          "pattern": "confluent-kafka\\[avro\\]"
+        },
+        {
+          "name": "producer_code_intact",
+          "type": "file_contains",
+          "description": "Producer import and usage are still present and correct",
+          "file": "producer.py",
+          "pattern": "from confluent_kafka import Producer"
+        },
+        {
+          "name": "explained_changes",
+          "type": "output_contains",
+          "description": "The output explains what changed between versions",
+          "pattern": "(changelog|breaking|change|type hint|upgrade)"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "We're on confluent-kafka 2.11.0 and need to upgrade to 2.14.0. Our order processing app has a producer and consumer. I'm worried about breaking changes — can you handle the upgrade and fix anything that breaks?",
+      "expected_output": "Updates version pin, identifies config values passed as int/bool that will break with v2.13.0 type hint enforcement, fixes them, checks consumer for issues",
+      "files": [
+        "evals/fixtures/eval-2-breaking-type-hints/requirements.txt",
+        "evals/fixtures/eval-2-breaking-type-hints/producer.py",
+        "evals/fixtures/eval-2-breaking-type-hints/consumer.py"
+      ],
+      "assertions": [
+        {
+          "name": "version_updated_to_target",
+          "type": "file_contains",
+          "description": "requirements.txt updated to 2.14.0",
+          "file": "requirements.txt",
+          "pattern": "confluent-kafka.*2\\.14"
+        },
+        {
+          "name": "producer_config_types_fixed",
+          "type": "file_not_contains",
+          "description": "Producer config no longer has bare int values for message.max.bytes — should be quoted strings or otherwise corrected",
+          "file": "producer.py",
+          "pattern": "\"message\\.max\\.bytes\": 1048576[^\"']"
+        },
+        {
+          "name": "consumer_config_reviewed",
+          "type": "output_contains",
+          "description": "Output mentions reviewing or fixing the consumer config types",
+          "pattern": "(consumer|enable\\.auto\\.commit|config|type)"
+        },
+        {
+          "name": "breaking_changes_explained",
+          "type": "output_contains",
+          "description": "Output explains the type hinting enforcement in 2.13.0",
+          "pattern": "(type hint|type enforcement|TypeError|2\\.13)"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "I have a FastAPI app that uses confluent-kafka-python for producing events. We're pinned to >=2.6.0,<2.12.0 in pyproject.toml. I want to upgrade to the latest version. The current producer is synchronous but since we're on FastAPI, it'd be great to switch to the async API if the new version supports it.",
+      "expected_output": "Updates pyproject.toml version pin, migrates producer from sync Producer to AIOProducer with AsyncAvroSerializer, updates imports",
+      "files": [
+        "evals/fixtures/eval-3-async-migration/pyproject.toml",
+        "evals/fixtures/eval-3-async-migration/producer.py"
+      ],
+      "assertions": [
+        {
+          "name": "pyproject_version_updated",
+          "type": "file_contains",
+          "description": "pyproject.toml dependency updated to allow 2.14.x",
+          "file": "pyproject.toml",
+          "pattern": "confluent-kafka.*2\\.14"
+        },
+        {
+          "name": "async_producer_import",
+          "type": "file_contains",
+          "description": "producer.py now imports AIOProducer from confluent_kafka.aio",
+          "file": "producer.py",
+          "pattern": "from confluent_kafka\\.aio import.*AIOProducer"
+        },
+        {
+          "name": "async_serializer_import",
+          "type": "file_contains",
+          "description": "producer.py uses the async Avro serializer",
+          "file": "producer.py",
+          "pattern": "AsyncAvroSerializer|async.*avro"
+        },
+        {
+          "name": "async_migration_explained",
+          "type": "output_contains",
+          "description": "Output explains the sync-to-async migration and why it fits FastAPI",
+          "pattern": "(async|AIOProducer|FastAPI|event loop)"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "We upgraded our payment producer to confluent-kafka 2.13.0 last week and it's now throwing TypeErrors in production on the config values. We need this fixed ASAP — either roll back to 2.12.0 or fix the code, whatever gets us stable fastest. We're also on Python 3.7 which I know might be an issue. Here's the producer code and requirements.",
+      "expected_output": "Recognizes the type hint enforcement issue in 2.13.0 AND the Python 3.7 incompatibility with 2.12.1+. Recommends downgrading to 2.12.0 (last version supporting Python 3.7 without type enforcement) OR fixing config types AND upgrading Python. Explains the tradeoffs.",
+      "files": [
+        "evals/fixtures/eval-4-downgrade-breaking/requirements.txt",
+        "evals/fixtures/eval-4-downgrade-breaking/producer.py",
+        "evals/fixtures/eval-4-downgrade-breaking/setup.py"
+      ],
+      "assertions": [
+        {
+          "name": "identifies_type_error_cause",
+          "type": "output_contains",
+          "description": "Explains that the TypeError is from 2.13.0's type hint enforcement on config values",
+          "pattern": "(type hint|type enforcement|TypeError|config.*type|2\\.13)"
+        },
+        {
+          "name": "identifies_python37_issue",
+          "type": "output_contains",
+          "description": "Flags that Python 3.7 is incompatible with 2.12.1+ and factors this into the recommendation",
+          "pattern": "(Python 3\\.7|python_requires|dropped.*3\\.7|3\\.7.*support)"
+        },
+        {
+          "name": "offers_downgrade_option",
+          "type": "output_contains",
+          "description": "Suggests downgrading to 2.12.0 as a viable quick fix given the Python 3.7 constraint",
+          "pattern": "(2\\.12\\.0|downgrade|roll back|rollback|revert)"
+        },
+        {
+          "name": "version_changed_in_requirements",
+          "type": "file_contains",
+          "description": "requirements.txt version is changed — either downgraded to 2.12.0 or updated with a fix path",
+          "file": "requirements.txt",
+          "pattern": "confluent-kafka.*(2\\.12\\.0|2\\.14)"
+        },
+        {
+          "name": "explains_tradeoffs",
+          "type": "output_contains",
+          "description": "Discusses the tradeoff between downgrading (quick fix, stays on 3.7) vs fixing forward (fix types + upgrade Python)",
+          "pattern": "(tradeoff|trade-off|option|alternatively|recommend|either)"
+        }
+      ]
+    }
+  ]
+}

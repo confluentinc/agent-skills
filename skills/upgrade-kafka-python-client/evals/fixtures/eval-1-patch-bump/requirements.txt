@@ -1,0 +1,5 @@
+confluent-kafka[avro]==2.13.0
+fastavro
+python-dotenv
+requests>=2.25.0
+pytest
