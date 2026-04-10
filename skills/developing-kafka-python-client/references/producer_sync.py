@@ -3,30 +3,28 @@ import signal
 
 from confluent_kafka import Producer
 from confluent_kafka.schema_registry import SchemaRegistryClient, Schema
-from confluent_kafka.schema_registry.avro import AvroSerializer
+from confluent_kafka.schema_registry.json_schema import JSONSerializer
 from confluent_kafka.serialization import MessageField, SerializationContext
 
 import common
 
 
-def create_avro_serializer(topic, sr_url, sr_key, sr_secret):
-    schema_file = os.path.join(os.path.dirname(__file__), "schemas", "value.avsc")
+def create_json_serializer(topic, sr_url, sr_key, sr_secret):
+    schema_file = os.path.join(os.path.dirname(__file__), "schemas", "value.schema.json")
     with open(schema_file) as f:
         schema_str = f.read()
 
     sr_conf = {"url": sr_url, "basic.auth.user.info": f"{sr_key}:{sr_secret}"}
     sr_client = SchemaRegistryClient(sr_conf)
 
-    # Register schema if it doesn't exist
+    # Register schema and retrieve the schema ID
     subject = f"{topic}-value"
-    try:
-        sr_client.get_latest_version(subject)
-    except Exception:
-        avro_schema = Schema(schema_str, schema_type="AVRO")
-        schema_id = sr_client.register_schema(subject, avro_schema)
-        print(f"Registered schema (ID: {schema_id}) for subject {subject}")
+    json_schema = Schema(schema_str, schema_type="JSON")
+    schema_id = sr_client.register_schema(subject, json_schema)
+    print(f"Schema ID: {schema_id} for subject {subject}")
 
-    return AvroSerializer(sr_client, schema_str)
+    serializer = JSONSerializer(schema_str, sr_client)
+    return serializer, schema_id
 
 
 def delivery_callback(err, msg):
@@ -36,17 +34,18 @@ def delivery_callback(err, msg):
         print(f"Produced: partition={msg.partition()}, offset={msg.offset()}")
 
 
-def produce(producer, topic, serializer, messages):
+def produce(producer, topic, serializer, schema_id, messages):
     """Produce messages using an existing producer instance.
 
     The producer is passed in — never create a new producer per call.
     This function can be called multiple times with the same producer.
     """
+    headers = {"confluent.value.schemaId": str(schema_id)}
     for value in messages:
         serialized = serializer(
             value, SerializationContext(topic, MessageField.VALUE)
         )
-        producer.produce(topic, value=serialized, on_delivery=delivery_callback)
+        producer.produce(topic, value=serialized, headers=headers, on_delivery=delivery_callback)
         # Serve delivery callbacks; keeps the internal queue from filling up
         producer.poll(0)
 
@@ -66,7 +65,7 @@ def main():
         raise RuntimeError("Failed to connect to Schema Registry")
     print(f"Connected to Schema Registry ({config['sr_url']})")
 
-    serializer = create_avro_serializer(
+    serializer, schema_id = create_json_serializer(
         config["topic"], config["sr_url"], config["sr_key"], config["sr_secret"]
     )
 
@@ -90,7 +89,7 @@ def main():
         # For continuous production, wrap in `while not shutdown:` and call
         # produce() with each batch.
         messages = [...]  # Replace with domain-specific sample data
-        produce(producer, config["topic"], serializer, messages)
+        produce(producer, config["topic"], serializer, schema_id, messages)
     finally:
         producer.flush()
         print("Producer closed")
