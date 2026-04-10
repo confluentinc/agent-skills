@@ -1,0 +1,95 @@
+{
+  "skill_name": "confluent-cdc-tableflow",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I need to set up a CDC pipeline from our PostgreSQL production database to an Iceberg table in S3. We have a 'users' table in the 'public' schema and an 'orders' table that I want to replicate. I don't have anything set up yet in Confluent Cloud - no connectors, no Flink pools, nothing. The PostgreSQL database is already configured for logical replication. Can you help me set this up? The database is at pg-prod.example.com:5432, database name is 'ecommerce'. For the S3 destination, use bucket 'my-data-lake' with path '/iceberg/tables/'.",
+      "expected_output": "Complete setup plan including: (1) PostgreSQL CDC connector configuration with correct table.include.list, (2) Flink compute pool creation, (3) Flink SQL statements for both tables (source tables with Debezium format, target tables with JSON_SR, INSERT statements to decode), (4) Tableflow sink configuration for Iceberg. Should ask for credentials before execution and present plan for approval.",
+      "files": [],
+      "assertions": [
+        {"name": "Creates PostgreSQL CDC connector configuration", "description": "Should generate a PostgreSQL CDC V2 connector config file (JSON)"},
+        {"name": "Includes both tables in connector config", "description": "Connector config should have table.include.list with 'public.users' and 'public.orders'"},
+        {"name": "Uses JSON_SR format", "description": "Connector config should specify output.data.format = JSON_SR"},
+        {"name": "Creates Flink compute pool", "description": "Should include commands or plan to create a Flink compute pool"},
+        {"name": "Generates Flink SQL for both tables", "description": "Should create source and target table DDL plus INSERT statements for users and orders"},
+        {"name": "Creates Tableflow sink configuration", "description": "Should generate Tableflow connector config for Iceberg with S3 path"},
+        {"name": "Presents plan for approval", "description": "Should present a complete plan and wait for user confirmation before executing"}
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "hey so i already have a flink compute pool running (pool id is 'lfcp-abc123') and i want to add CDC from my mysql database. it's an RDS instance at mysql-prod.us-east-1.rds.amazonaws.com, database is 'inventory', and i want to capture the 'products' and 'categories' tables. i need this going to a delta lake table, not iceberg. also i don't have a naming convention preference so just use whatever makes sense. the mysql binlog is already configured correctly.",
+      "expected_output": "Setup plan that: (1) Uses existing Flink compute pool lfcp-abc123 (no new pool creation), (2) Creates MySQL CDC connector with appropriate RDS configuration, (3) Generates Flink SQL for 2 tables, (4) Configures Tableflow for Delta Lake (not Iceberg), (5) Uses auto-generated naming convention like 'cdc-pipeline-skill-mysql-{timestamp}'. Should verify MySQL prerequisites and ask for credentials.",
+      "files": [],
+      "assertions": [
+        {"name": "Uses existing Flink pool", "description": "Should reference pool id 'lfcp-abc123' and NOT create a new Flink compute pool"},
+        {"name": "Creates MySQL CDC connector configuration", "description": "Should generate a MySQL CDC V2 connector config file (JSON)"},
+        {"name": "Includes both tables in connector config", "description": "Connector config should have table.include.list with 'inventory.products' and 'inventory.categories'"},
+        {"name": "Configures Tableflow for Delta Lake", "description": "Tableflow sink config should specify table.format = 'delta' (not iceberg)"},
+        {"name": "Generates auto naming convention", "description": "Should create consistent naming like 'cdc-pipeline-skill-mysql-*' since user has no preference"}
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "my postgres cdc connector keeps failing with status FAILED. the connector name is 'postgres-cdc-users' and it was working yesterday but now it's broken. when i check the logs it says something about 'replication slot does not exist'. can you help me troubleshoot this?",
+      "expected_output": "Troubleshooting guidance that: (1) Identifies likely cause as replication slot deletion/cleanup, (2) Provides commands to check PostgreSQL replication slots, (3) Suggests either recreating the slot or updating connector config with new slot name, (4) Explains how to verify the fix, (5) References troubleshooting.md for additional context. Should check connector logs and guide user through diagnosis steps.",
+      "files": [],
+      "assertions": [
+        {"name": "Identifies replication slot issue", "description": "Should correctly diagnose the problem as a missing/deleted replication slot"},
+        {"name": "Provides PostgreSQL diagnostic commands", "description": "Should give SQL commands to check replication slots (e.g., SELECT * FROM pg_replication_slots)"},
+        {"name": "Suggests fix for missing slot", "description": "Should provide steps to recreate the replication slot or update connector config"},
+        {"name": "Explains verification steps", "description": "Should explain how to verify the fix (check connector status, verify messages flowing)"}
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "We need to set up change data capture from our SQL Server 2019 database on Azure. The database name is 'SalesDB' and we want to capture changes from the 'dbo.Customers', 'dbo.Invoices', and 'dbo.LineItems' tables. CDC is already enabled on the database and all three tables. The server is at salesdb.database.windows.net port 1433. We want the data to end up in Iceberg format in our Azure Data Lake Storage Gen2 account at abfss://analytics@mycompany.dfs.core.windows.net/cdc/sales/. I'd prefer to use JSON with Schema Registry instead of Avro if that's possible. We already have naming conventions - use prefix 'sales-cdc-' for everything.",
+      "expected_output": "Setup plan that: (1) Creates SQL Server CDC V2 connector with dbo.Customers, dbo.Invoices, dbo.LineItems in table.include.list, (2) Uses JSON_SR format instead of Avro, (3) Flink compute pool creation, (4) Flink SQL for all 3 tables with JSON format, (5) Tableflow sink for Iceberg with ADLS Gen2 configuration, (6) Uses 'sales-cdc-' naming prefix throughout. Should verify SQL Server Agent is running and ask for Azure credentials.",
+      "files": [],
+      "assertions": [
+        {"name": "Creates SQL Server CDC V2 connector configuration", "description": "Should generate a SQL Server CDC V2 connector config file (JSON)"},
+        {"name": "Includes all three tables", "description": "Connector config should have table.include.list with 'dbo.Customers', 'dbo.Invoices', 'dbo.LineItems'"},
+        {"name": "Uses JSON_SR format", "description": "Connector config should specify output.data.format = JSON_SR (not AVRO)"},
+        {"name": "Configures Tableflow for ADLS Gen2", "description": "Tableflow sink should use Azure Data Lake Storage Gen2 path (abfss:// format)"},
+        {"name": "Uses sales-cdc naming prefix", "description": "All component names should start with 'sales-cdc-' as requested"}
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "I'm trying to replicate our Oracle 19c database to a data lake using XStream. The database has supplemental logging and archivelog mode enabled, and we've already created the XStream outbound server called 'dbz_outbound'. We want to capture the HR.EMPLOYEES and HR.DEPARTMENTS tables. The Oracle instance is at oracle-prod.internal:1521, service name is PRODDB. Target is S3 bucket 'enterprise-datalake' path '/oracle/hr/' using Iceberg. We have a Flink pool already (lfcp-xyz789). Can you generate the configs needed?",
+      "expected_output": "Setup plan that: (1) Creates Oracle XStream CDC connector referencing existing outbound server 'dbz_outbound', (2) Correctly formats table names as HR.EMPLOYEES and HR.DEPARTMENTS (uppercase), (3) Uses existing Flink pool lfcp-xyz789, (4) Generates Flink SQL for Oracle-specific setup, (5) Tableflow sink for Iceberg/S3. Should verify Oracle prerequisites (archivelog, supplemental logging) are met and ask for Oracle credentials.",
+      "files": [],
+      "assertions": [
+        {"name": "Creates Oracle XStream connector configuration", "description": "Should generate an Oracle XStream CDC connector config file (JSON)"},
+        {"name": "References existing outbound server", "description": "Connector config should reference 'dbz_outbound' as the XStream outbound server"},
+        {"name": "Uses uppercase table names", "description": "Connector config should use uppercase table names: 'HR.EMPLOYEES', 'HR.DEPARTMENTS'"},
+        {"name": "Uses existing Flink pool", "description": "Should reference pool id 'lfcp-xyz789' and NOT create a new Flink compute pool"}
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "need help setting up cdc from dynamodb. we have a table called 'user-sessions' in us-west-2 that has streams enabled (NEW_AND_OLD_IMAGES). want to push this to delta lake in s3://analytics-bucket/dynamodb-cdc/sessions/. pretty straightforward setup, no flink pool exists yet. use whatever defaults make sense.",
+      "expected_output": "Setup plan that: (1) Creates DynamoDB CDC connector for 'user-sessions' table, (2) Configures for us-west-2 region, (3) Verifies streams are enabled with NEW_AND_OLD_IMAGES, (4) Creates Flink compute pool, (5) Flink SQL to process DynamoDB streams format, (6) Tableflow sink for Delta Lake. Should ask for AWS credentials (IAM user/role with DynamoDB Streams permissions) and generate auto naming convention.",
+      "files": [],
+      "assertions": [
+        {"name": "Creates DynamoDB CDC connector configuration", "description": "Should generate a DynamoDB CDC connector config file (JSON)"},
+        {"name": "Configures for us-west-2 region", "description": "Connector config should specify aws.dynamodb.region = us-west-2"},
+        {"name": "Includes user-sessions table", "description": "Connector config should have table.include.list with 'user-sessions'"},
+        {"name": "Configures Tableflow for Delta Lake", "description": "Tableflow sink should specify table.format = 'delta' with S3 path"}
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "We have an existing CDC pipeline running from PostgreSQL to Iceberg that's been working great for 3 months. The connector is 'postgres-cdc-customers', Flink pool is 'lfcp-customers-001', and it's capturing the public.customers table. Now the database team just added a new column 'loyalty_tier' (varchar 20, nullable) to the customers table in PostgreSQL. The column is already there in production. What do I need to do to update the pipeline to include this new column? I want to make sure we don't lose any data or break the existing pipeline.",
+      "expected_output": "Schema evolution guidance that: (1) Explains the column is nullable so it's a compatible change, (2) Steps to update Flink source table DDL to include new column, (3) Steps to update Flink target table DDL, (4) How to stop and restart the Flink INSERT statement, (5) Verification steps to ensure new column data flows through, (6) Notes about Schema Registry compatibility and Tableflow handling the new column automatically. Should reference flink-sql-patterns.md Pattern 5 for schema evolution.",
+      "files": [],
+      "assertions": [
+        {"name": "Identifies compatible schema change", "description": "Should recognize that adding a nullable column is a compatible/safe schema change"},
+        {"name": "Provides steps to update Flink source table", "description": "Should explain how to drop and recreate the source table DDL with new column"},
+        {"name": "Provides steps to update Flink target table", "description": "Should explain how to drop and recreate the target table DDL with new column"},
+        {"name": "Explains how to restart INSERT statement", "description": "Should provide commands to stop existing INSERT statement and start new one"},
+        {"name": "References schema evolution pattern", "description": "Should mention or reference Pattern 5 from flink-sql-patterns.md"}
+      ]
+    }
+  ]
+}
