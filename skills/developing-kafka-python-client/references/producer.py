@@ -4,33 +4,31 @@ import signal
 
 from confluent_kafka.aio import AIOProducer
 from confluent_kafka.schema_registry import AsyncSchemaRegistryClient, Schema
-from confluent_kafka.schema_registry._async.avro import AsyncAvroSerializer
+from confluent_kafka.schema_registry._async.json_schema import AsyncJSONSerializer
 from confluent_kafka.serialization import MessageField, SerializationContext
 
 import common
 
 
-async def create_avro_serializer(topic, sr_url, sr_key, sr_secret):
-    schema_file = os.path.join(os.path.dirname(__file__), "schemas", "value.avsc")
+async def create_json_serializer(topic, sr_url, sr_key, sr_secret):
+    schema_file = os.path.join(os.path.dirname(__file__), "schemas", "value.schema.json")
     with open(schema_file) as f:
         schema_str = f.read()
 
     sr_conf = {"url": sr_url, "basic.auth.user.info": f"{sr_key}:{sr_secret}"}
     sr_client = AsyncSchemaRegistryClient(sr_conf)
 
-    # Register schema if it doesn't exist
+    # Register schema and retrieve the schema ID
     subject = f"{topic}-value"
-    try:
-        await sr_client.get_latest_version(subject)
-    except Exception:
-        avro_schema = Schema(schema_str, schema_type="AVRO")
-        schema_id = await sr_client.register_schema(subject, avro_schema)
-        print(f"Registered schema (ID: {schema_id}) for subject {subject}")
+    json_schema = Schema(schema_str, schema_type="JSON")
+    schema_id = await sr_client.register_schema(subject, json_schema)
+    print(f"Schema ID: {schema_id} for subject {subject}")
 
-    return await AsyncAvroSerializer(sr_client, schema_str)
+    serializer = await AsyncJSONSerializer(schema_str, schema_registry_client=sr_client)
+    return serializer, schema_id
 
 
-async def produce(producer, topic, serializer, messages):
+async def produce(producer, topic, serializer, schema_id, messages):
     """Produce messages using an existing producer instance.
 
     The producer is passed in — never create a new producer per call.
@@ -66,7 +64,7 @@ async def main():
         raise RuntimeError("Failed to connect to Schema Registry")
     print(f"Connected to Schema Registry ({config['sr_url']})")
 
-    serializer = await create_avro_serializer(
+    serializer, schema_id = await create_json_serializer(
         config["topic"], config["sr_url"], config["sr_key"], config["sr_secret"]
     )
 
@@ -90,7 +88,7 @@ async def main():
     try:
         # -- Generate sample messages here, adapted to the user's domain --
         messages = [...]  # Replace with domain-specific sample data
-        await produce(producer, config["topic"], serializer, messages)
+        await produce(producer, config["topic"], serializer, schema_id, messages)
     finally:
         await producer.flush()
         await producer.close()
