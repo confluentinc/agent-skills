@@ -196,15 +196,57 @@ class TestProducer:
             mock_serializer = AsyncMock(return_value=b"serialized")
 
             asyncio.run(
-                prod.produce(mock_producer, "test-topic", mock_serializer, messages)
+                prod.produce(mock_producer, "test-topic", mock_serializer, 1, messages)
             )
         else:
             # Synchronous producer path
             mock_producer = MagicMock()
             mock_serializer = MagicMock(return_value=b"serialized")
-            prod.produce(mock_producer, "test-topic", mock_serializer, messages)
+            prod.produce(mock_producer, "test-topic", mock_serializer, 1, messages)
 
         mock_producer.produce.assert_called_once()
+
+    def test_produce_serializes_and_headers(self):
+        """Async: verify serializer is called (headers not supported in AIOProducer batch mode).
+        Sync: verify schema ID is included in message headers."""
+        import producer as prod
+        import asyncio
+        import inspect
+
+        messages = [{"id": "1", "type": "test"}]
+        schema_id = 42
+
+        if inspect.iscoroutinefunction(prod.produce):
+            # AIOProducer does not support headers in batch mode.
+            # Verify the serializer is called to ensure schema handling works.
+            mock_result = MagicMock()
+            mock_result.error.return_value = None
+            mock_result.partition.return_value = 0
+            mock_result.offset.return_value = 1
+
+            mock_producer = AsyncMock()
+            mock_future = AsyncMock(return_value=mock_result)
+            mock_producer.produce.return_value = mock_future()
+
+            mock_serializer = AsyncMock(return_value=b"serialized")
+
+            asyncio.run(
+                prod.produce(mock_producer, "test-topic", mock_serializer, schema_id, messages)
+            )
+            mock_serializer.assert_called_once()
+            call_kwargs = mock_producer.produce.call_args
+            assert call_kwargs.kwargs.get("value") == b"serialized"
+        else:
+            # Synchronous Producer supports headers — verify schema ID header.
+            mock_producer = MagicMock()
+            mock_serializer = MagicMock(return_value=b"serialized")
+            prod.produce(mock_producer, "test-topic", mock_serializer, schema_id, messages)
+            call_kwargs = mock_producer.produce.call_args
+            headers = call_kwargs.kwargs.get("headers", {})
+            assert "confluent.value.schemaId" in headers, (
+                "Headers must include 'confluent.value.schemaId'"
+            )
+            assert headers["confluent.value.schemaId"] == str(schema_id)
 
     def test_main_creates_single_producer(self):
         """main() should create the producer once, not per-message."""
@@ -241,11 +283,11 @@ class TestConsumer:
     """Verify consumer subscribes, deserializes, and shuts down cleanly."""
 
     def test_consumer_uses_schema_registry(self):
-        """Consumer must use AvroDeserializer, not raw JSON."""
+        """Consumer must use JSONDeserializer, not raw JSON parsing."""
         import consumer as cons
         source = open(cons.__file__).read()
-        assert "AvroDeserializer" in source or "AsyncAvroDeserializer" in source, (
-            "Consumer must use AvroDeserializer from Schema Registry"
+        assert "JSONDeserializer" in source or "AsyncJSONDeserializer" in source, (
+            "Consumer must use JSONDeserializer from Schema Registry"
         )
         assert "json.loads" not in source or "json.dumps" in source, (
             "Consumer should not fall back to raw json.loads for deserialization"
@@ -269,40 +311,94 @@ class TestConsumer:
 # Schema tests
 # ---------------------------------------------------------------------------
 
-class TestAvroSchema:
-    """Verify the Avro schema is valid."""
+class TestJsonSchema:
+    """Verify the JSON Schema is valid."""
 
-    def test_schema_is_valid_json(self):
+    def test_schema_is_valid_json_schema(self):
         schema_path = os.path.join(
-            os.path.dirname(__file__), "..", "schemas", "value.avsc"
+            os.path.dirname(__file__), "..", "schemas", "value.schema.json"
         )
         # Adjust path if tests/ is a subdirectory
         if not os.path.exists(schema_path):
             schema_path = os.path.join(
-                os.path.dirname(__file__), "schemas", "value.avsc"
+                os.path.dirname(__file__), "schemas", "value.schema.json"
             )
         with open(schema_path) as f:
             schema = json.load(f)
 
-        assert schema["type"] == "record"
-        assert "name" in schema
-        assert "fields" in schema
-        assert len(schema["fields"]) > 0
+        assert schema["type"] == "object"
+        assert "title" in schema
+        assert "properties" in schema
+        assert len(schema["properties"]) > 0
 
-    def test_schema_fields_have_name_and_type(self):
+    def test_schema_has_description(self):
+        """Top-level schema must have a description for governance."""
         schema_path = os.path.join(
-            os.path.dirname(__file__), "..", "schemas", "value.avsc"
+            os.path.dirname(__file__), "..", "schemas", "value.schema.json"
         )
         if not os.path.exists(schema_path):
             schema_path = os.path.join(
-                os.path.dirname(__file__), "schemas", "value.avsc"
+                os.path.dirname(__file__), "schemas", "value.schema.json"
             )
         with open(schema_path) as f:
             schema = json.load(f)
 
-        for field in schema["fields"]:
-            assert "name" in field, f"Field missing 'name': {field}"
-            assert "type" in field, f"Field missing 'type': {field}"
+        assert "description" in schema, "Schema must have a top-level 'description'"
+
+    def test_schema_properties_have_descriptions(self):
+        """Every property must have a description for discoverability."""
+        schema_path = os.path.join(
+            os.path.dirname(__file__), "..", "schemas", "value.schema.json"
+        )
+        if not os.path.exists(schema_path):
+            schema_path = os.path.join(
+                os.path.dirname(__file__), "schemas", "value.schema.json"
+            )
+        with open(schema_path) as f:
+            schema = json.load(f)
+
+        for prop_name, prop_def in schema["properties"].items():
+            assert "description" in prop_def, (
+                f"Property '{prop_name}' missing 'description': {prop_def}"
+            )
+
+    def test_schema_properties_have_type(self):
+        schema_path = os.path.join(
+            os.path.dirname(__file__), "..", "schemas", "value.schema.json"
+        )
+        if not os.path.exists(schema_path):
+            schema_path = os.path.join(
+                os.path.dirname(__file__), "schemas", "value.schema.json"
+            )
+        with open(schema_path) as f:
+            schema = json.load(f)
+
+        for prop_name, prop_def in schema["properties"].items():
+            has_type = "type" in prop_def or "enum" in prop_def or "oneOf" in prop_def
+            assert has_type, (
+                f"Property '{prop_name}' must have 'type', 'enum', or 'oneOf': {prop_def}"
+            )
+
+    def test_timestamp_fields_use_format(self):
+        """Timestamp fields typed as string must use format: date-time."""
+        schema_path = os.path.join(
+            os.path.dirname(__file__), "..", "schemas", "value.schema.json"
+        )
+        if not os.path.exists(schema_path):
+            schema_path = os.path.join(
+                os.path.dirname(__file__), "schemas", "value.schema.json"
+            )
+        with open(schema_path) as f:
+            schema = json.load(f)
+
+        timestamp_indicators = ("timestamp", "_at", "_date", "_time")
+        for prop_name, prop_def in schema["properties"].items():
+            if any(prop_name.endswith(ind) or ind in prop_name for ind in timestamp_indicators):
+                if prop_def.get("type") == "string":
+                    assert prop_def.get("format") == "date-time", (
+                        f"Timestamp property '{prop_name}' must have "
+                        f"'format': 'date-time', got: {prop_def}"
+                    )
 
 
 # ---------------------------------------------------------------------------
