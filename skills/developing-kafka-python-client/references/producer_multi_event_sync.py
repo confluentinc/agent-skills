@@ -10,10 +10,10 @@ import common
 
 
 def register_schema(sr_client, topic, schema_str):
-    """Register the schema as a separate explicit step.
+    """Register the union schema under the default TopicNameStrategy subject.
 
-    Errors (auth failures, network errors, permission denials) propagate
-    immediately — never wrap this in a bare try/except.
+    The oneOf union schema is registered as a single subject (<topic>-value).
+    No strategy change is needed — TopicNameStrategy is the default.
     """
     subject = f"{topic}-value"
     json_schema = Schema(schema_str, schema_type="JSON")
@@ -25,7 +25,8 @@ def register_schema(sr_client, topic, schema_str):
 def create_json_serializer(sr_client, schema_str):
     """Create the serializer with auto-registration disabled.
 
-    Schema must already be registered via register_schema().
+    The oneOf in the schema handles validation — the serializer checks each
+    message against the matching sub-schema at serialization time.
     """
     serializer = JSONSerializer(
         schema_str,
@@ -43,10 +44,11 @@ def delivery_callback(err, msg):
 
 
 def produce(producer, topic, serializer, schema_id, messages):
-    """Produce messages using an existing producer instance.
+    """Produce messages of varying event types using an existing producer.
 
-    The producer is passed in — never create a new producer per call.
-    This function can be called multiple times with the same producer.
+    Each message must include an event_type field that matches one of the
+    oneOf discriminators in the union schema. The serializer validates the
+    message against the matching sub-schema at serialization time.
     """
     headers = {"confluent.value.schemaId": str(schema_id)}
     for value in messages:
@@ -54,10 +56,8 @@ def produce(producer, topic, serializer, schema_id, messages):
             value, SerializationContext(topic, MessageField.VALUE)
         )
         producer.produce(topic, value=serialized, headers=headers, on_delivery=delivery_callback)
-        # Serve delivery callbacks; keeps the internal queue from filling up
         producer.poll(0)
 
-    # Block until all in-flight messages are delivered
     producer.flush()
 
 
@@ -86,9 +86,6 @@ def main():
     # Create producer ONCE and reuse
     producer = Producer(kafka_config)
 
-    # Handle graceful shutdown for continuous-produce loops.
-    # For one-shot batch scripts the signal handler ensures flush() still
-    # runs if the user hits Ctrl-C mid-batch.
     shutdown = False
 
     def _handle_signal(signum, frame):
@@ -99,10 +96,31 @@ def main():
     signal.signal(signal.SIGTERM, _handle_signal)
 
     try:
-        # -- Generate sample messages here, adapted to the user's domain --
-        # For continuous production, wrap in `while not shutdown:` and call
-        # produce() with each batch.
-        messages = [...]  # Replace with domain-specific sample data
+        # -- Multiple event types on the same topic --
+        messages = [
+            {
+                "event_type": "OrderCreated",
+                "order_id": "ORD-001",
+                "customer_id": "CUST-42",
+                "total": 99.95,
+                "currency": "USD",
+                "timestamp": "2026-04-13T10:00:00Z",
+            },
+            {
+                "event_type": "OrderUpdated",
+                "order_id": "ORD-001",
+                "updated_fields": ["total"],
+                "new_total": 89.95,
+                "timestamp": "2026-04-13T10:05:00Z",
+            },
+            {
+                "event_type": "OrderCancelled",
+                "order_id": "ORD-001",
+                "reason": "Customer requested",
+                "cancelled_by": "CUST-42",
+                "timestamp": "2026-04-13T10:10:00Z",
+            },
+        ]
         produce(producer, config["topic"], serializer, schema_id, messages)
     finally:
         producer.flush()

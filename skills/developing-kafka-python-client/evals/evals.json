@@ -4,7 +4,7 @@
     {
       "id": 0,
       "prompt": "I need a Python Kafka producer for Confluent Cloud that sends user signup events with fields: user_id, email, plan_type, signed_up_at. I'm using FastAPI so I need async.",
-      "expected_output": "A Python project with an async producer.py using AIOProducer, common.py, schemas/value.avsc, tests/test_project.py, .env.example, requirements.txt. Producer reuses a single instance, uses Schema Registry with Avro, targets Confluent Cloud with SASL_SSL, has graceful shutdown. Tests pass with pytest.",
+      "expected_output": "A Python project with an async producer.py using AIOProducer, common.py, schemas/value.schema.json, tests/test_project.py, .env.example, requirements.txt. Producer reuses a single instance, uses Schema Registry with JSON Schema, targets Confluent Cloud with SASL_SSL, has graceful shutdown. Tests pass with pytest.",
       "files": [],
       "assertions": [
         {
@@ -22,8 +22,8 @@
         {
           "id": "schema-exists",
           "type": "file_exists",
-          "description": "Avro schema is generated",
-          "path": "schemas/value.avsc"
+          "description": "JSON Schema is generated",
+          "path": "schemas/value.schema.json"
         },
         {
           "id": "tests-exist",
@@ -65,11 +65,11 @@
           "contains": "def produce"
         },
         {
-          "id": "producer-uses-avro",
+          "id": "producer-uses-json-schema",
           "type": "file_contains",
-          "description": "Producer uses AvroSerializer",
+          "description": "Async producer uses AsyncJSONSerializer",
           "path": "producer.py",
-          "contains": "AvroSerializer"
+          "contains": "AsyncJSONSerializer"
         },
         {
           "id": "producer-is-async",
@@ -88,9 +88,23 @@
         {
           "id": "schema-has-user-fields",
           "type": "file_contains",
-          "description": "Avro schema includes user_id field",
-          "path": "schemas/value.avsc",
+          "description": "JSON Schema includes user_id field",
+          "path": "schemas/value.schema.json",
           "contains": "user_id"
+        },
+        {
+          "id": "schema-has-descriptions",
+          "type": "file_contains",
+          "description": "JSON Schema includes field descriptions",
+          "path": "schemas/value.schema.json",
+          "contains": "description"
+        },
+        {
+          "id": "timestamp-uses-format",
+          "type": "file_contains",
+          "description": "Timestamp field uses date-time format",
+          "path": "schemas/value.schema.json",
+          "contains": "date-time"
         },
         {
           "id": "tests-pass",
@@ -104,7 +118,7 @@
     {
       "id": 1,
       "prompt": "Create a Python consumer that reads order events from my Confluent Cloud topic",
-      "expected_output": "A Python project with consumer.py, common.py, schemas/value.avsc, tests/test_project.py, .env.example, requirements.txt. Consumer uses Schema Registry with Avro deserialization, targets Confluent Cloud, has graceful shutdown with unsubscribe/close. Tests pass with pytest.",
+      "expected_output": "A Python project with consumer.py, common.py, schemas/value.schema.json, tests/test_project.py, .env.example, requirements.txt. Consumer uses Schema Registry with JSON Schema deserialization, targets Confluent Cloud, has graceful shutdown with unsubscribe/close. Tests pass with pytest.",
       "files": [],
       "assertions": [
         {
@@ -126,11 +140,11 @@
           "path": "tests/test_project.py"
         },
         {
-          "id": "consumer-uses-avro",
+          "id": "consumer-uses-json-schema",
           "type": "file_contains",
-          "description": "Consumer uses AvroDeserializer",
+          "description": "Consumer uses JSONDeserializer",
           "path": "consumer.py",
-          "contains": "AvroDeserializer"
+          "contains": "JSONDeserializer"
         },
         {
           "id": "consumer-graceful-shutdown",
@@ -158,7 +172,7 @@
     {
       "id": 2,
       "prompt": "Scaffold a Python project with both a producer and consumer for IoT sensor readings (device_id, temperature, humidity, timestamp) on Confluent Cloud. I'm using aiohttp so I need async.",
-      "expected_output": "A Python project with async producer.py using AIOProducer, consumer.py, common.py, schemas/value.avsc, tests/test_project.py, .env.example, requirements.txt. Both use Schema Registry, Confluent Cloud config, graceful shutdown. Producer reuses single instance. Tests pass with pytest.",
+      "expected_output": "A Python project with async producer.py using AIOProducer, consumer.py, common.py, schemas/value.schema.json, tests/test_project.py, .env.example, requirements.txt. Both use Schema Registry, Confluent Cloud config, graceful shutdown. Producer reuses single instance. Tests pass with pytest.",
       "files": [],
       "assertions": [
         {
@@ -188,16 +202,30 @@
         {
           "id": "schema-has-device-fields",
           "type": "file_contains",
-          "description": "Avro schema includes device_id field",
-          "path": "schemas/value.avsc",
+          "description": "JSON Schema includes device_id field",
+          "path": "schemas/value.schema.json",
           "contains": "device_id"
         },
         {
           "id": "schema-has-temperature",
           "type": "file_contains",
-          "description": "Avro schema includes temperature field",
-          "path": "schemas/value.avsc",
+          "description": "JSON Schema includes temperature field",
+          "path": "schemas/value.schema.json",
           "contains": "temperature"
+        },
+        {
+          "id": "schema-has-descriptions",
+          "type": "file_contains",
+          "description": "JSON Schema includes field descriptions",
+          "path": "schemas/value.schema.json",
+          "contains": "description"
+        },
+        {
+          "id": "timestamp-uses-format",
+          "type": "file_contains",
+          "description": "Timestamp field uses date-time format",
+          "path": "schemas/value.schema.json",
+          "contains": "date-time"
         },
         {
           "id": "producer-is-async",
@@ -232,7 +260,7 @@
     {
       "id": 3,
       "prompt": "I want to try Kafka locally with Docker. Set up a Python producer and consumer for order events (order_id, customer_id, product, quantity, price). This is a batch script so synchronous producer is fine.",
-      "expected_output": "A Python project with synchronous producer.py using Producer (not AIOProducer), consumer.py, common.py, docker-compose.yml, schemas/value.avsc, tests/test_project.py, .env.example, requirements.txt. Uses PLAINTEXT for local Docker, docker-compose with Kafka and Schema Registry, graceful shutdown. Tests pass with pytest.",
+      "expected_output": "A Python project with synchronous producer.py using Producer (not AIOProducer), consumer.py, common.py, docker-compose.yml, schemas/value.schema.json, tests/test_project.py, .env.example, requirements.txt. Uses PLAINTEXT for local Docker, docker-compose with Kafka and Schema Registry, graceful shutdown. Tests pass with pytest.",
       "files": [],
       "assertions": [
         {
@@ -287,18 +315,32 @@
           "contains": "flush"
         },
         {
-          "id": "producer-uses-avro",
+          "id": "producer-uses-json-schema",
           "type": "file_contains",
-          "description": "Producer uses AvroSerializer",
+          "description": "Producer uses JSONSerializer",
           "path": "producer.py",
-          "contains": "AvroSerializer"
+          "contains": "JSONSerializer"
+        },
+        {
+          "id": "producer-has-schema-id-header",
+          "type": "file_contains",
+          "description": "Producer includes schema ID in message headers",
+          "path": "producer.py",
+          "contains": "confluent.value.schemaId"
         },
         {
           "id": "schema-has-order-fields",
           "type": "file_contains",
-          "description": "Avro schema includes order_id field",
-          "path": "schemas/value.avsc",
+          "description": "JSON Schema includes order_id field",
+          "path": "schemas/value.schema.json",
           "contains": "order_id"
+        },
+        {
+          "id": "schema-has-descriptions",
+          "type": "file_contains",
+          "description": "JSON Schema includes field descriptions",
+          "path": "schemas/value.schema.json",
+          "contains": "description"
         },
         {
           "id": "requirements-has-pytest",
@@ -364,7 +406,7 @@
     {
       "id": 5,
       "prompt": "I need a synchronous Python Kafka producer for a batch ETL job on Confluent Cloud. It ingests CSV rows with fields: employee_id, department, salary, hire_date",
-      "expected_output": "A Python project with synchronous producer.py using Producer (not AIOProducer), common.py, schemas/value.avsc, tests/test_project.py, .env.example, requirements.txt. Producer uses synchronous AvroSerializer and SchemaRegistryClient, calls poll()/flush(), has delivery callbacks. Tests pass with pytest.",
+      "expected_output": "A Python project with synchronous producer.py using Producer (not AIOProducer), common.py, schemas/value.schema.json, tests/test_project.py, .env.example, requirements.txt. Producer uses synchronous JSONSerializer and SchemaRegistryClient, calls poll()/flush(), has delivery callbacks. Tests pass with pytest.",
       "files": [],
       "assertions": [
         {
@@ -382,8 +424,8 @@
         {
           "id": "schema-exists",
           "type": "file_exists",
-          "description": "Avro schema is generated",
-          "path": "schemas/value.avsc"
+          "description": "JSON Schema is generated",
+          "path": "schemas/value.schema.json"
         },
         {
           "id": "tests-exist",
@@ -392,11 +434,11 @@
           "path": "tests/test_project.py"
         },
         {
-          "id": "producer-uses-sync-avro",
+          "id": "producer-uses-sync-json-schema",
           "type": "file_contains",
-          "description": "Producer uses synchronous AvroSerializer",
+          "description": "Producer uses synchronous JSONSerializer",
           "path": "producer.py",
-          "contains": "AvroSerializer"
+          "contains": "JSONSerializer"
         },
         {
           "id": "producer-has-flush",
@@ -420,11 +462,25 @@
           "contains": "def produce"
         },
         {
+          "id": "producer-has-schema-id-header",
+          "type": "file_contains",
+          "description": "Producer includes schema ID in message headers",
+          "path": "producer.py",
+          "contains": "confluent.value.schemaId"
+        },
+        {
           "id": "schema-has-employee-fields",
           "type": "file_contains",
-          "description": "Avro schema includes employee_id field",
-          "path": "schemas/value.avsc",
+          "description": "JSON Schema includes employee_id field",
+          "path": "schemas/value.schema.json",
           "contains": "employee_id"
+        },
+        {
+          "id": "schema-has-descriptions",
+          "type": "file_contains",
+          "description": "JSON Schema includes field descriptions",
+          "path": "schemas/value.schema.json",
+          "contains": "description"
         },
         {
           "id": "requirements-has-pytest",
@@ -439,6 +495,196 @@
           "description": "All unit tests pass with pytest",
           "command": "cd {{output_dir}} && pip install -r requirements.txt -q && python -m pytest tests/ -v --tb=short 2>&1",
           "expect_exit_code": 0
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "I have an order-events topic that carries three event types: OrderCreated, OrderUpdated, and OrderCancelled. I need an async Python producer on Confluent Cloud that can produce all three event types to the same topic.",
+      "expected_output": "A Python project with an async producer using AIOProducer that produces multiple event types to a single topic. The JSON Schema uses oneOf with $ref to define a union of event types, each with an event_type discriminator field. Uses TopicNameStrategy (default) — no RecordNameStrategy. Tests pass with pytest.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "producer-exists",
+          "type": "file_exists",
+          "description": "producer.py is generated",
+          "path": "producer.py"
+        },
+        {
+          "id": "common-exists",
+          "type": "file_exists",
+          "description": "common.py is generated",
+          "path": "common.py"
+        },
+        {
+          "id": "schema-exists",
+          "type": "file_exists",
+          "description": "JSON Schema is generated",
+          "path": "schemas/value.schema.json"
+        },
+        {
+          "id": "tests-exist",
+          "type": "file_exists",
+          "description": "Unit tests are generated",
+          "path": "tests/test_project.py"
+        },
+        {
+          "id": "schema-has-oneof",
+          "type": "file_contains",
+          "description": "Schema uses oneOf for union of event types",
+          "path": "schemas/value.schema.json",
+          "contains": "oneOf"
+        },
+        {
+          "id": "schema-has-ref",
+          "type": "file_contains",
+          "description": "Schema uses $ref to reference sub-schemas",
+          "path": "schemas/value.schema.json",
+          "contains": "$ref"
+        },
+        {
+          "id": "schema-has-defs",
+          "type": "file_contains",
+          "description": "Schema defines sub-schemas in $defs",
+          "path": "schemas/value.schema.json",
+          "contains": "$defs"
+        },
+        {
+          "id": "schema-has-event-type-discriminator",
+          "type": "file_contains",
+          "description": "Sub-schemas include event_type discriminator field",
+          "path": "schemas/value.schema.json",
+          "contains": "event_type"
+        },
+        {
+          "id": "schema-has-order-created",
+          "type": "file_contains",
+          "description": "Schema includes OrderCreated event type",
+          "path": "schemas/value.schema.json",
+          "contains": "OrderCreated"
+        },
+        {
+          "id": "schema-has-order-cancelled",
+          "type": "file_contains",
+          "description": "Schema includes OrderCancelled event type",
+          "path": "schemas/value.schema.json",
+          "contains": "OrderCancelled"
+        },
+        {
+          "id": "schema-has-descriptions",
+          "type": "file_contains",
+          "description": "JSON Schema includes field descriptions",
+          "path": "schemas/value.schema.json",
+          "contains": "description"
+        },
+        {
+          "id": "producer-is-async",
+          "type": "file_contains",
+          "description": "Producer uses AIOProducer for async",
+          "path": "producer.py",
+          "contains": "AIOProducer"
+        },
+        {
+          "id": "no-record-name-strategy",
+          "type": "file_not_contains",
+          "description": "Producer does NOT use RecordNameStrategy — uses default TopicNameStrategy with union schema",
+          "path": "producer.py",
+          "contains": "record_subject_name_strategy"
+        },
+        {
+          "id": "requirements-has-pytest",
+          "type": "file_contains",
+          "description": "requirements.txt includes pytest",
+          "path": "requirements.txt",
+          "contains": "pytest"
+        },
+        {
+          "id": "requirements-has-pytest-asyncio",
+          "type": "file_contains",
+          "description": "requirements.txt includes pytest-asyncio for async producer",
+          "path": "requirements.txt",
+          "contains": "pytest-asyncio"
+        },
+        {
+          "id": "tests-pass",
+          "type": "command",
+          "description": "All unit tests pass with pytest",
+          "command": "cd {{output_dir}} && pip install -r requirements.txt -q && python -m pytest tests/ -v --tb=short 2>&1",
+          "expect_exit_code": 0
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "I have an existing FastAPI app that produces JSON messages to Kafka without Schema Registry. Here's my current producer code:\n\n```python\n# app/kafka_producer.py\nfrom confluent_kafka import Producer\nimport json\nimport os\n\nproducer = Producer({'bootstrap.servers': os.environ['BOOTSTRAP_SERVER']})\n\ndef send_event(topic: str, event: dict):\n    producer.produce(topic, value=json.dumps(event).encode('utf-8'))\n    producer.poll(0)\n```\n\nI want to add Schema Registry integration. I'm on Confluent Cloud. My events look like: {\"user_id\": \"abc\", \"action\": \"page_view\", \"url\": \"/home\", \"timestamp\": \"2026-04-13T10:00:00Z\"}",
+      "expected_output": "The skill should NOT scaffold a brand new project. It should: (1) generate a JSON Schema from the existing message structure, (2) generate common.py and schemas/value.schema.json, (3) modify the existing producer code to use JSONSerializer with Schema Registry instead of raw json.dumps, (4) set auto.register.schemas=false. The modified producer should preserve the existing function signature as much as possible.",
+      "files": [
+        {
+          "path": "app/kafka_producer.py",
+          "content": "from confluent_kafka import Producer\nimport json\nimport os\n\nproducer = Producer({'bootstrap.servers': os.environ['BOOTSTRAP_SERVER']})\n\ndef send_event(topic: str, event: dict):\n    producer.produce(topic, value=json.dumps(event).encode('utf-8'))\n    producer.poll(0)\n"
+        }
+      ],
+      "assertions": [
+        {
+          "id": "original-file-modified",
+          "type": "file_contains",
+          "description": "Existing producer file is modified to use Schema Registry serialization",
+          "path": "app/kafka_producer.py",
+          "contains": "JSONSerializer"
+        },
+        {
+          "id": "no-raw-json-dumps",
+          "type": "file_not_contains",
+          "description": "Existing producer no longer uses raw json.dumps for serialization",
+          "path": "app/kafka_producer.py",
+          "contains": "json.dumps"
+        },
+        {
+          "id": "schema-generated",
+          "type": "file_exists",
+          "description": "JSON Schema is generated from the existing message structure",
+          "path": "schemas/value.schema.json"
+        },
+        {
+          "id": "schema-has-user-fields",
+          "type": "file_contains",
+          "description": "Generated schema includes user_id from existing message structure",
+          "path": "schemas/value.schema.json",
+          "contains": "user_id"
+        },
+        {
+          "id": "schema-has-action",
+          "type": "file_contains",
+          "description": "Generated schema includes action field",
+          "path": "schemas/value.schema.json",
+          "contains": "action"
+        },
+        {
+          "id": "schema-has-descriptions",
+          "type": "file_contains",
+          "description": "Generated schema includes descriptions",
+          "path": "schemas/value.schema.json",
+          "contains": "description"
+        },
+        {
+          "id": "timestamp-uses-format",
+          "type": "file_contains",
+          "description": "Timestamp field uses date-time format",
+          "path": "schemas/value.schema.json",
+          "contains": "date-time"
+        },
+        {
+          "id": "no-duplicate-producer-py",
+          "type": "file_not_exists",
+          "description": "Skill did NOT scaffold a new top-level producer.py (it should modify the existing one)",
+          "path": "producer.py"
+        },
+        {
+          "id": "auto-register-disabled",
+          "type": "file_contains",
+          "description": "Serializer has auto.register.schemas disabled",
+          "path": "app/kafka_producer.py",
+          "contains": "auto.register.schemas"
         }
       ]
     }
