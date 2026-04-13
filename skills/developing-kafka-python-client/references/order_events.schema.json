@@ -1,0 +1,129 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "OrderEvent",
+  "description": "Union of all event types on the order-events topic. Each event is discriminated by the event_type field.",
+  "oneOf": [
+    { "$ref": "#/$defs/OrderCreated" },
+    { "$ref": "#/$defs/OrderUpdated" },
+    { "$ref": "#/$defs/OrderCancelled" }
+  ],
+  "$defs": {
+    "OrderCreated": {
+      "type": "object",
+      "title": "OrderCreated",
+      "description": "Emitted when a new order is placed.",
+      "properties": {
+        "event_type": {
+          "type": "string",
+          "enum": ["OrderCreated"],
+          "description": "Discriminator field identifying this event type."
+        },
+        "order_id": {
+          "type": "string",
+          "description": "Unique order identifier."
+        },
+        "customer_id": {
+          "type": "string",
+          "description": "Customer who placed the order.",
+          "default": ""
+        },
+        "total": {
+          "type": "number",
+          "description": "Order total in the specified currency.",
+          "default": 0
+        },
+        "currency": {
+          "type": "string",
+          "description": "ISO 4217 currency code.",
+          "default": "USD"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the order was placed, in ISO 8601 format."
+        },
+        "metadata": {
+          "oneOf": [{"type": "null"}, {"type": "object"}],
+          "description": "Optional metadata associated with this event.",
+          "default": null
+        }
+      },
+      "required": ["event_type", "order_id", "timestamp"]
+    },
+    "OrderUpdated": {
+      "type": "object",
+      "title": "OrderUpdated",
+      "description": "Emitted when an existing order is modified.",
+      "properties": {
+        "event_type": {
+          "type": "string",
+          "enum": ["OrderUpdated"],
+          "description": "Discriminator field identifying this event type."
+        },
+        "order_id": {
+          "type": "string",
+          "description": "Unique order identifier."
+        },
+        "updated_fields": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "List of field names that changed.",
+          "default": []
+        },
+        "new_total": {
+          "type": "number",
+          "description": "Updated order total, if changed.",
+          "default": 0
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the update occurred, in ISO 8601 format."
+        },
+        "metadata": {
+          "oneOf": [{"type": "null"}, {"type": "object"}],
+          "description": "Optional metadata associated with this event.",
+          "default": null
+        }
+      },
+      "required": ["event_type", "order_id", "timestamp"]
+    },
+    "OrderCancelled": {
+      "type": "object",
+      "title": "OrderCancelled",
+      "description": "Emitted when an order is cancelled.",
+      "properties": {
+        "event_type": {
+          "type": "string",
+          "enum": ["OrderCancelled"],
+          "description": "Discriminator field identifying this event type."
+        },
+        "order_id": {
+          "type": "string",
+          "description": "Unique order identifier."
+        },
+        "reason": {
+          "type": "string",
+          "description": "Reason for cancellation.",
+          "default": ""
+        },
+        "cancelled_by": {
+          "type": "string",
+          "description": "User or system that initiated the cancellation.",
+          "default": ""
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the cancellation occurred, in ISO 8601 format."
+        },
+        "metadata": {
+          "oneOf": [{"type": "null"}, {"type": "object"}],
+          "description": "Optional metadata associated with this event.",
+          "default": null
+        }
+      },
+      "required": ["event_type", "order_id", "timestamp"]
+    }
+  }
+}
