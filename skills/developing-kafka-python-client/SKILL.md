@@ -9,18 +9,22 @@ Generate a production-ready Python project for producing to and/or consuming fro
 
 ## Step 1: Gather Requirements
 
-**Always** ask the user these questions before generating — do not assume defaults for #1 or #2:
+**Always** ask the user these questions before generating — do not assume defaults for #1, #2, or #3:
 
-1. **Target environment?** — Confluent Cloud or local Kafka (Docker). **Always prompt for this, even if the user didn't mention it.** If they mention "open source", "local", "docker", "self-hosted", or just want to try Kafka without a cloud account, choose **local Docker**. If they mention "Confluent Cloud", "CC", or have existing cloud credentials, choose **Confluent Cloud**. Default to Confluent Cloud if they confirm they don't have a preference, but always ask first.
-2. **Producer, consumer, or both?**
-3. **Async or synchronous producer?** (Only if producer is requested.) Help the user choose:
+1. **Are you adding Kafka to an existing application, or starting from scratch?**
+   - If the user has existing Python code (mentions an existing project, has a `main.py`, uses Flask/FastAPI/Django, etc.), do **not** scaffold a new project. Instead: (a) identify their existing producer or data-sending code, (b) ask whether they already have schemas registered in Schema Registry, (c) add Schema Registry integration to their existing code following the patterns in the reference files. Generate only the files they are missing (e.g., `common.py`, `schemas/value.schema.json`) and modify their existing code inline.
+   - If the user already produces to Kafka without Schema Registry (schemaless), help them migrate: (1) generate a JSON Schema from their existing message structure, (2) register it, and (3) replace their raw `producer.produce()` calls with serializer-backed calls. Do not discard their existing code.
+   - If starting from scratch, proceed with the full scaffold below.
+2. **Target environment?** — Confluent Cloud or local Kafka (Docker). **Always prompt for this, even if the user didn't mention it.** If they mention "open source", "local", "docker", "self-hosted", or just want to try Kafka without a cloud account, choose **local Docker**. If they mention "Confluent Cloud", "CC", or have existing cloud credentials, choose **Confluent Cloud**. Default to Confluent Cloud if they confirm they don't have a preference, but always ask first.
+3. **Producer, consumer, or both?**
+4. **Async or synchronous producer?** (Only if producer is requested.) Help the user choose:
    - **AsyncIO Producer** (`AIOProducer`): Use when code runs under an event loop — FastAPI/Starlette, aiohttp, Sanic, asyncio workers — and must not block.
    - **Synchronous Producer** (`Producer`): Use for scripts, batch jobs, and highest-throughput pipelines where the user controls threads/processes and can call `poll()`/`flush()` directly.
    If the user mentions an async framework (FastAPI, aiohttp, Sanic) or uses `asyncio`, default to **AsyncIO**. If they mention scripts, batch, ETL, or don't have a preference, default to **Synchronous**.
-4. **Do you have an existing schema you'd like to use?** If yes, ask the user to paste it or provide the file path, then use it as the `schemas/value.schema.json` instead of generating one. If no, proceed to ask about their data fields.
-5. **What kind of data are you producing?** (Only if the user doesn't have an existing schema. Get field names and types so you can generate a matching JSON Schema and sample data.)
-6. **Topic name?** (Default: `demo-topic`)
-7. **Consumer group ID?** (Only if consumer; default: `python-consumer-group`)
+5. **Do you have an existing schema you'd like to use?** If yes, ask the user to paste it or provide the file path, then use it as the `schemas/value.schema.json` instead of generating one. If no, proceed to ask about their data fields.
+6. **What kind of data are you producing?** (Only if the user doesn't have an existing schema. Get field names and types so you can generate a matching JSON Schema and sample data.)
+7. **Topic name?** (Default: `demo-topic`)
+8. **Consumer group ID?** (Only if consumer; default: `python-consumer-group`)
 
 Don't ask about Schema Registry — always include it.
 
@@ -52,7 +56,11 @@ These principles matter because they prevent the most common production issues w
 
 1. **Reuse the producer instance.** Creating a new producer per message is expensive — each one opens new TCP connections, does SASL handshakes, and fetches metadata. Create one producer and reuse it for all messages. The produce function should accept the producer as a parameter, not instantiate one.
 
-2. **Always use Schema Registry with JSON Schema.** Schema Registry enforces a contract between producers and consumers. Without it, schema changes silently break downstream consumers. Always register schemas and use the appropriate serializer for the chosen producer style: `AsyncJSONSerializer` / `AsyncJSONDeserializer` from `confluent_kafka.schema_registry._async.json_schema` for async, or `JSONSerializer` / `JSONDeserializer` from `confluent_kafka.schema_registry.json_schema` for synchronous.
+2. **Always use Schema Registry with JSON Schema.** Schema Registry enforces a contract between producers and consumers. Without it, schema changes silently break downstream consumers. This skill uses **JSON Schema** exclusively. Schema Registry supports Avro, Protobuf, and JSON Schema — JSON Schema is chosen because: (1) Python has first-class JSON support with no code generation step, (2) `confluent-kafka-python` provides `JSONSerializer`/`JSONDeserializer` out of the box, (3) it is the most approachable format for Python developers already working with JSON/dict data. If the user specifically requests Avro or Protobuf, explain this rationale and note they can switch using `AvroSerializer`/`ProtobufSerializer` from `confluent_kafka.schema_registry` — do not generate Avro or Protobuf code.
+
+   **Register schemas as a separate explicit step** before creating the serializer. Use a dedicated `register_schema()` function that calls `sr_client.register_schema()` and lets errors (auth failures, network errors, permission denials) propagate immediately — never wrap registration in a bare `try/except`. Then configure the serializer with `auto.register.schemas=False` and `use.latest.version=True`. This ensures the serializer never silently auto-registers and aligns with production practice where CI/CD registers schemas, not application startup.
+
+   Use the appropriate serializer for the chosen producer style: `AsyncJSONSerializer` / `AsyncJSONDeserializer` from `confluent_kafka.schema_registry._async.json_schema` for async, or `JSONSerializer` / `JSONDeserializer` from `confluent_kafka.schema_registry.json_schema` for synchronous.
 
 3. **Choose the right producer style.** The `confluent-kafka-python` library offers two producer APIs:
    - **AsyncIO Producer** (`AIOProducer` from `confluent_kafka.aio`): Non-blocking, integrates with `asyncio` event loops. Use with `AsyncJSONSerializer` from `confluent_kafka.schema_registry._async.json_schema` and `AsyncSchemaRegistryClient`. Best for applications already running an event loop (FastAPI, aiohttp, Sanic, asyncio workers).
@@ -80,8 +88,8 @@ Key points:
 - `AIOProducer.produce()` is async and returns an `asyncio.Future`. You must `await` the method to get the Future, then `await` the Future to get the delivered `Message`: `future = await producer.produce(...); result = await future`
 - `AIOProducer.flush()` and `close()` are coroutines — they must be `await`ed in the `finally` block
 - Signal handlers set a shutdown event for graceful termination
-- `create_json_serializer()` returns both the serializer and the schema ID. The serializer's constructor signature is `AsyncJSONSerializer(schema_str, schema_registry_client=sr_client)` — the schema string is the first positional argument, and the client is a keyword argument
-- **Headers are NOT supported with `AIOProducer` batch mode.** Do not pass `headers=` to `AIOProducer.produce()` — it will raise `NotImplementedError`. Schema identification is handled automatically by the JSON Schema serializer's wire format prefix. Headers with `confluent.value.schemaId` should only be used with the synchronous `Producer`
+- Schema registration and serializer creation are separate steps. `register_schema()` explicitly registers the schema and returns the schema ID — errors propagate immediately. `create_json_serializer()` creates the serializer with `conf={'auto.register.schemas': False, 'use.latest.version': True}`. The serializer's constructor signature is `AsyncJSONSerializer(schema_str, schema_registry_client=sr_client, conf=conf)` — the schema string is the first positional argument, the client and conf are keyword arguments
+- **Headers are NOT supported with `AIOProducer` batch mode.** Do not pass `headers=` to `AIOProducer.produce()` — it will raise `NotImplementedError`. Schema identification is handled automatically by the JSON Schema serializer's wire format prefix. See "Schema ID in Headers vs Wire Format" below for details
 
 ### producer.py Pattern (Synchronous)
 
@@ -96,7 +104,8 @@ Key points:
 - Use a `delivery_callback(err, msg)` function to handle per-message delivery reports
 - Signal handlers set a flag for graceful termination
 - `flush()` in the `finally` block ensures no buffered messages are lost
-- `create_json_serializer()` returns both the serializer and the schema ID. The schema ID is passed as a Kafka record header (`confluent.value.schemaId`) on every produced message so that consumers and downstream systems can identify the schema without parsing the wire-format prefix
+- Schema registration and serializer creation are separate steps, same as the async pattern. `register_schema()` explicitly registers the schema. `create_json_serializer()` creates the serializer with `conf={'auto.register.schemas': False, 'use.latest.version': True}`. Both return the schema ID
+- The schema ID is passed as a Kafka record header (`confluent.value.schemaId`) on every produced message — this is the header-based schema identification pattern. It keeps the JSON payload clean and readable by non-Confluent consumers. See "Schema ID in Headers vs Wire Format" below for details
 
 ### consumer.py Pattern
 
@@ -106,6 +115,14 @@ Key points in the consumer:
 - Signal-based graceful shutdown — `unsubscribe()` then `close()` to leave the consumer group cleanly
 - Deserialization via Schema Registry using `AsyncJSONDeserializer` (no fallback to raw JSON parsing — Schema Registry is required)
 - Continuous polling loop until shutdown signal
+
+### Schema ID in Headers vs Wire Format
+
+**Synchronous producer:** The reference code passes the Schema ID as a Kafka record header (`confluent.value.schemaId`) on every message. This keeps the JSON payload clean (no magic byte prefix), making it readable by non-Confluent consumers and debuggable with tools like `kcat`. This is the recommended approach for synchronous producers.
+
+**Async producer (AIOProducer):** The `AIOProducer` does **not** support custom headers in batch mode (`produce()` raises `NotImplementedError` if `headers=` is passed). Schema identification relies on the JSON Schema serializer's wire format prefix (magic byte + schema ID prepended to the payload). This is a known limitation — do not attempt to add headers to async-produced messages.
+
+**When to use which:** If downstream consumers are all Confluent-aware (using Schema Registry deserializers), both approaches work transparently. If downstream consumers are non-Confluent (plain JSON consumers), the sync producer with header-based schema ID is preferable because the message value remains clean JSON. Document this tradeoff in the generated README when producing for mixed consumer ecosystems.
 
 ### schemas/
 
@@ -117,19 +134,77 @@ For example, if the user is producing financial transactions:
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Transaction",
+  "description": "A financial transaction event produced to Kafka.",
   "type": "object",
   "properties": {
-    "transaction_id": {"type": "string"},
-    "amount": {"type": "number"},
-    "currency": {"type": "string"},
-    "timestamp": {"type": "string"},
-    "status": {"type": "string"}
+    "transaction_id": {
+      "type": "string",
+      "description": "Unique identifier for this transaction."
+    },
+    "amount": {
+      "type": "number",
+      "description": "Transaction amount in the specified currency.",
+      "default": 0
+    },
+    "currency": {
+      "type": "string",
+      "description": "ISO 4217 currency code.",
+      "default": ""
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Time the transaction occurred, in ISO 8601 format."
+    },
+    "status": {
+      "description": "Current state of the transaction.",
+      "enum": ["pending", "completed", "failed", "refunded"],
+      "default": "pending"
+    },
+    "metadata": {
+      "oneOf": [{"type": "null"}, {"type": "object"}],
+      "description": "Optional metadata associated with the transaction.",
+      "default": null
+    }
   },
   "required": ["transaction_id", "amount", "currency", "timestamp", "status"]
 }
 ```
 
-Adapt the schema to whatever the user describes. If they don't have a specific domain, use a generic event schema with `id`, `type`, `timestamp`, and `payload` properties.
+#### Schema Generation Rules
+
+When generating or adapting a schema to the user's domain, follow these rules strictly. Without them, the generated schema will lack discoverability, break on evolution, and produce governance issues.
+
+1. **Descriptions everywhere.** The schema itself and every property MUST have a `description`. Descriptions enable discoverability in Schema Registry UI and governance tools.
+2. **Default values on non-key fields.** Every field that is not the primary identifier MUST have a `default` value. Use sensible defaults: `""` for strings, `0` for numbers, `false` for booleans, `null` for nullable unions, and the first enum value for enums. Without defaults, you cannot add or remove fields without breaking consumers (backward-compatible schema evolution requires defaults).
+3. **Timestamps use `format: date-time`.** Any field representing a point in time MUST use `"type": "string", "format": "date-time"` (ISO 8601). Do not use bare `"type": "string"` for timestamps.
+4. **Enums for fixed value sets.** Fields with a known, fixed set of values (status codes, event types, categories) MUST use `"enum"` with explicit values. This prevents invalid data and enables schema-level validation.
+5. **Include nullable fields.** Include at least one nullable field using `"oneOf": [{"type": "null"}, {"type": "..."}]` with `"default": null` for future extensibility. If the user's domain does not suggest one, add a `metadata` field as a nullable object. Without nullable unions, making a field optional later requires a breaking schema change.
+6. **Title and `$schema`.** The `"title"` must match the event name (e.g., `"UserSignup"`, `"SensorReading"`). The `"$schema"` must be `"http://json-schema.org/draft-07/schema#"`.
+
+If the user doesn't have a specific domain, use a generic event schema with `id`, `type`, `timestamp`, and `payload` properties — but still apply all the rules above (descriptions, defaults, `format: date-time` on the timestamp, etc.).
+
+#### Multi-Event Topics (Advanced)
+
+By default, the reference code uses **TopicNameStrategy**: one schema per `<topic>-value` subject. This is correct for the common case where each topic carries a single event type.
+
+If the user describes multiple event types on a single topic (e.g., `OrderCreated`, `OrderUpdated`, `OrderCancelled` on an `order-events` topic), use **RecordNameStrategy** instead. With RecordNameStrategy, each event type gets its own subject in Schema Registry (e.g., `OrderCreated`, `OrderUpdated`), allowing independent evolution.
+
+Configure the serializer with RecordNameStrategy:
+
+```python
+from confluent_kafka.schema_registry import record_subject_name_strategy
+
+serializer_conf = {
+    'auto.register.schemas': False,
+    'use.latest.version': True,
+    'subject.name.strategy': record_subject_name_strategy
+}
+```
+
+Each event type needs its own JSON Schema file (e.g., `schemas/order_created.schema.json`, `schemas/order_updated.schema.json`). The producer selects the correct serializer based on the event type being produced.
+
+Only suggest RecordNameStrategy when the user explicitly describes multiple event types on one topic. For single-event-type topics, use the default TopicNameStrategy.
 
 ### docker-compose.yml (Local Docker Path Only)
 

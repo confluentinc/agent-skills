@@ -331,6 +331,37 @@ class TestJsonSchema:
         assert "properties" in schema
         assert len(schema["properties"]) > 0
 
+    def test_schema_has_description(self):
+        """Top-level schema must have a description for governance."""
+        schema_path = os.path.join(
+            os.path.dirname(__file__), "..", "schemas", "value.schema.json"
+        )
+        if not os.path.exists(schema_path):
+            schema_path = os.path.join(
+                os.path.dirname(__file__), "schemas", "value.schema.json"
+            )
+        with open(schema_path) as f:
+            schema = json.load(f)
+
+        assert "description" in schema, "Schema must have a top-level 'description'"
+
+    def test_schema_properties_have_descriptions(self):
+        """Every property must have a description for discoverability."""
+        schema_path = os.path.join(
+            os.path.dirname(__file__), "..", "schemas", "value.schema.json"
+        )
+        if not os.path.exists(schema_path):
+            schema_path = os.path.join(
+                os.path.dirname(__file__), "schemas", "value.schema.json"
+            )
+        with open(schema_path) as f:
+            schema = json.load(f)
+
+        for prop_name, prop_def in schema["properties"].items():
+            assert "description" in prop_def, (
+                f"Property '{prop_name}' missing 'description': {prop_def}"
+            )
+
     def test_schema_properties_have_type(self):
         schema_path = os.path.join(
             os.path.dirname(__file__), "..", "schemas", "value.schema.json"
@@ -343,7 +374,31 @@ class TestJsonSchema:
             schema = json.load(f)
 
         for prop_name, prop_def in schema["properties"].items():
-            assert "type" in prop_def, f"Property '{prop_name}' missing 'type': {prop_def}"
+            has_type = "type" in prop_def or "enum" in prop_def or "oneOf" in prop_def
+            assert has_type, (
+                f"Property '{prop_name}' must have 'type', 'enum', or 'oneOf': {prop_def}"
+            )
+
+    def test_timestamp_fields_use_format(self):
+        """Timestamp fields typed as string must use format: date-time."""
+        schema_path = os.path.join(
+            os.path.dirname(__file__), "..", "schemas", "value.schema.json"
+        )
+        if not os.path.exists(schema_path):
+            schema_path = os.path.join(
+                os.path.dirname(__file__), "schemas", "value.schema.json"
+            )
+        with open(schema_path) as f:
+            schema = json.load(f)
+
+        timestamp_indicators = ("timestamp", "_at", "_date", "_time")
+        for prop_name, prop_def in schema["properties"].items():
+            if any(prop_name.endswith(ind) or ind in prop_name for ind in timestamp_indicators):
+                if prop_def.get("type") == "string":
+                    assert prop_def.get("format") == "date-time", (
+                        f"Timestamp property '{prop_name}' must have "
+                        f"'format': 'date-time', got: {prop_def}"
+                    )
 
 
 # ---------------------------------------------------------------------------

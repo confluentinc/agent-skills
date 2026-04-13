@@ -9,22 +9,30 @@ from confluent_kafka.serialization import MessageField, SerializationContext
 import common
 
 
-def create_json_serializer(topic, sr_url, sr_key, sr_secret):
-    schema_file = os.path.join(os.path.dirname(__file__), "schemas", "value.schema.json")
-    with open(schema_file) as f:
-        schema_str = f.read()
+def register_schema(sr_client, topic, schema_str):
+    """Register the schema as a separate explicit step.
 
-    sr_conf = {"url": sr_url, "basic.auth.user.info": f"{sr_key}:{sr_secret}"}
-    sr_client = SchemaRegistryClient(sr_conf)
-
-    # Register schema and retrieve the schema ID
+    Errors (auth failures, network errors, permission denials) propagate
+    immediately — never wrap this in a bare try/except.
+    """
     subject = f"{topic}-value"
     json_schema = Schema(schema_str, schema_type="JSON")
     schema_id = sr_client.register_schema(subject, json_schema)
     print(f"Schema ID: {schema_id} for subject {subject}")
+    return schema_id
 
-    serializer = JSONSerializer(schema_str, sr_client)
-    return serializer, schema_id
+
+def create_json_serializer(sr_client, schema_str):
+    """Create the serializer with auto-registration disabled.
+
+    Schema must already be registered via register_schema().
+    """
+    serializer = JSONSerializer(
+        schema_str,
+        sr_client,
+        conf={'auto.register.schemas': False, 'use.latest.version': True}
+    )
+    return serializer
 
 
 def delivery_callback(err, msg):
@@ -65,9 +73,15 @@ def main():
         raise RuntimeError("Failed to connect to Schema Registry")
     print(f"Connected to Schema Registry ({config['sr_url']})")
 
-    serializer, schema_id = create_json_serializer(
-        config["topic"], config["sr_url"], config["sr_key"], config["sr_secret"]
-    )
+    schema_file = os.path.join(os.path.dirname(__file__), "schemas", "value.schema.json")
+    with open(schema_file) as f:
+        schema_str = f.read()
+
+    sr_conf = {"url": config["sr_url"], "basic.auth.user.info": f"{config['sr_key']}:{config['sr_secret']}"}
+    sr_client = SchemaRegistryClient(sr_conf)
+
+    schema_id = register_schema(sr_client, config["topic"], schema_str)
+    serializer = create_json_serializer(sr_client, schema_str)
 
     # Create producer ONCE and reuse
     producer = Producer(kafka_config)

@@ -93,6 +93,20 @@
           "contains": "user_id"
         },
         {
+          "id": "schema-has-descriptions",
+          "type": "file_contains",
+          "description": "JSON Schema includes field descriptions",
+          "path": "schemas/value.schema.json",
+          "contains": "description"
+        },
+        {
+          "id": "timestamp-uses-format",
+          "type": "file_contains",
+          "description": "Timestamp field uses date-time format",
+          "path": "schemas/value.schema.json",
+          "contains": "date-time"
+        },
+        {
           "id": "tests-pass",
           "type": "command",
           "description": "All unit tests pass with pytest",
@@ -198,6 +212,20 @@
           "description": "JSON Schema includes temperature field",
           "path": "schemas/value.schema.json",
           "contains": "temperature"
+        },
+        {
+          "id": "schema-has-descriptions",
+          "type": "file_contains",
+          "description": "JSON Schema includes field descriptions",
+          "path": "schemas/value.schema.json",
+          "contains": "description"
+        },
+        {
+          "id": "timestamp-uses-format",
+          "type": "file_contains",
+          "description": "Timestamp field uses date-time format",
+          "path": "schemas/value.schema.json",
+          "contains": "date-time"
         },
         {
           "id": "producer-is-async",
@@ -306,6 +334,13 @@
           "description": "JSON Schema includes order_id field",
           "path": "schemas/value.schema.json",
           "contains": "order_id"
+        },
+        {
+          "id": "schema-has-descriptions",
+          "type": "file_contains",
+          "description": "JSON Schema includes field descriptions",
+          "path": "schemas/value.schema.json",
+          "contains": "description"
         },
         {
           "id": "requirements-has-pytest",
@@ -439,6 +474,13 @@
           "description": "JSON Schema includes employee_id field",
           "path": "schemas/value.schema.json",
           "contains": "employee_id"
+        },
+        {
+          "id": "schema-has-descriptions",
+          "type": "file_contains",
+          "description": "JSON Schema includes field descriptions",
+          "path": "schemas/value.schema.json",
+          "contains": "description"
         },
         {
           "id": "requirements-has-pytest",
