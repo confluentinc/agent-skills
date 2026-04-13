@@ -497,6 +497,196 @@
           "expect_exit_code": 0
         }
       ]
+    },
+    {
+      "id": 6,
+      "prompt": "I have an order-events topic that carries three event types: OrderCreated, OrderUpdated, and OrderCancelled. I need an async Python producer on Confluent Cloud that can produce all three event types to the same topic.",
+      "expected_output": "A Python project with an async producer using AIOProducer that produces multiple event types to a single topic. The JSON Schema uses oneOf with $ref to define a union of event types, each with an event_type discriminator field. Uses TopicNameStrategy (default) — no RecordNameStrategy. Tests pass with pytest.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "producer-exists",
+          "type": "file_exists",
+          "description": "producer.py is generated",
+          "path": "producer.py"
+        },
+        {
+          "id": "common-exists",
+          "type": "file_exists",
+          "description": "common.py is generated",
+          "path": "common.py"
+        },
+        {
+          "id": "schema-exists",
+          "type": "file_exists",
+          "description": "JSON Schema is generated",
+          "path": "schemas/value.schema.json"
+        },
+        {
+          "id": "tests-exist",
+          "type": "file_exists",
+          "description": "Unit tests are generated",
+          "path": "tests/test_project.py"
+        },
+        {
+          "id": "schema-has-oneof",
+          "type": "file_contains",
+          "description": "Schema uses oneOf for union of event types",
+          "path": "schemas/value.schema.json",
+          "contains": "oneOf"
+        },
+        {
+          "id": "schema-has-ref",
+          "type": "file_contains",
+          "description": "Schema uses $ref to reference sub-schemas",
+          "path": "schemas/value.schema.json",
+          "contains": "$ref"
+        },
+        {
+          "id": "schema-has-defs",
+          "type": "file_contains",
+          "description": "Schema defines sub-schemas in $defs",
+          "path": "schemas/value.schema.json",
+          "contains": "$defs"
+        },
+        {
+          "id": "schema-has-event-type-discriminator",
+          "type": "file_contains",
+          "description": "Sub-schemas include event_type discriminator field",
+          "path": "schemas/value.schema.json",
+          "contains": "event_type"
+        },
+        {
+          "id": "schema-has-order-created",
+          "type": "file_contains",
+          "description": "Schema includes OrderCreated event type",
+          "path": "schemas/value.schema.json",
+          "contains": "OrderCreated"
+        },
+        {
+          "id": "schema-has-order-cancelled",
+          "type": "file_contains",
+          "description": "Schema includes OrderCancelled event type",
+          "path": "schemas/value.schema.json",
+          "contains": "OrderCancelled"
+        },
+        {
+          "id": "schema-has-descriptions",
+          "type": "file_contains",
+          "description": "JSON Schema includes field descriptions",
+          "path": "schemas/value.schema.json",
+          "contains": "description"
+        },
+        {
+          "id": "producer-is-async",
+          "type": "file_contains",
+          "description": "Producer uses AIOProducer for async",
+          "path": "producer.py",
+          "contains": "AIOProducer"
+        },
+        {
+          "id": "no-record-name-strategy",
+          "type": "file_not_contains",
+          "description": "Producer does NOT use RecordNameStrategy — uses default TopicNameStrategy with union schema",
+          "path": "producer.py",
+          "contains": "record_subject_name_strategy"
+        },
+        {
+          "id": "requirements-has-pytest",
+          "type": "file_contains",
+          "description": "requirements.txt includes pytest",
+          "path": "requirements.txt",
+          "contains": "pytest"
+        },
+        {
+          "id": "requirements-has-pytest-asyncio",
+          "type": "file_contains",
+          "description": "requirements.txt includes pytest-asyncio for async producer",
+          "path": "requirements.txt",
+          "contains": "pytest-asyncio"
+        },
+        {
+          "id": "tests-pass",
+          "type": "command",
+          "description": "All unit tests pass with pytest",
+          "command": "cd {{output_dir}} && pip install -r requirements.txt -q && python -m pytest tests/ -v --tb=short 2>&1",
+          "expect_exit_code": 0
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "I have an existing FastAPI app that produces JSON messages to Kafka without Schema Registry. Here's my current producer code:\n\n```python\n# app/kafka_producer.py\nfrom confluent_kafka import Producer\nimport json\nimport os\n\nproducer = Producer({'bootstrap.servers': os.environ['BOOTSTRAP_SERVER']})\n\ndef send_event(topic: str, event: dict):\n    producer.produce(topic, value=json.dumps(event).encode('utf-8'))\n    producer.poll(0)\n```\n\nI want to add Schema Registry integration. I'm on Confluent Cloud. My events look like: {\"user_id\": \"abc\", \"action\": \"page_view\", \"url\": \"/home\", \"timestamp\": \"2026-04-13T10:00:00Z\"}",
+      "expected_output": "The skill should NOT scaffold a brand new project. It should: (1) generate a JSON Schema from the existing message structure, (2) generate common.py and schemas/value.schema.json, (3) modify the existing producer code to use JSONSerializer with Schema Registry instead of raw json.dumps, (4) set auto.register.schemas=false. The modified producer should preserve the existing function signature as much as possible.",
+      "files": [
+        {
+          "path": "app/kafka_producer.py",
+          "content": "from confluent_kafka import Producer\nimport json\nimport os\n\nproducer = Producer({'bootstrap.servers': os.environ['BOOTSTRAP_SERVER']})\n\ndef send_event(topic: str, event: dict):\n    producer.produce(topic, value=json.dumps(event).encode('utf-8'))\n    producer.poll(0)\n"
+        }
+      ],
+      "assertions": [
+        {
+          "id": "original-file-modified",
+          "type": "file_contains",
+          "description": "Existing producer file is modified to use Schema Registry serialization",
+          "path": "app/kafka_producer.py",
+          "contains": "JSONSerializer"
+        },
+        {
+          "id": "no-raw-json-dumps",
+          "type": "file_not_contains",
+          "description": "Existing producer no longer uses raw json.dumps for serialization",
+          "path": "app/kafka_producer.py",
+          "contains": "json.dumps"
+        },
+        {
+          "id": "schema-generated",
+          "type": "file_exists",
+          "description": "JSON Schema is generated from the existing message structure",
+          "path": "schemas/value.schema.json"
+        },
+        {
+          "id": "schema-has-user-fields",
+          "type": "file_contains",
+          "description": "Generated schema includes user_id from existing message structure",
+          "path": "schemas/value.schema.json",
+          "contains": "user_id"
+        },
+        {
+          "id": "schema-has-action",
+          "type": "file_contains",
+          "description": "Generated schema includes action field",
+          "path": "schemas/value.schema.json",
+          "contains": "action"
+        },
+        {
+          "id": "schema-has-descriptions",
+          "type": "file_contains",
+          "description": "Generated schema includes descriptions",
+          "path": "schemas/value.schema.json",
+          "contains": "description"
+        },
+        {
+          "id": "timestamp-uses-format",
+          "type": "file_contains",
+          "description": "Timestamp field uses date-time format",
+          "path": "schemas/value.schema.json",
+          "contains": "date-time"
+        },
+        {
+          "id": "no-duplicate-producer-py",
+          "type": "file_not_exists",
+          "description": "Skill did NOT scaffold a new top-level producer.py (it should modify the existing one)",
+          "path": "producer.py"
+        },
+        {
+          "id": "auto-register-disabled",
+          "type": "file_contains",
+          "description": "Serializer has auto.register.schemas disabled",
+          "path": "app/kafka_producer.py",
+          "contains": "auto.register.schemas"
+        }
+      ]
     }
   ]
 }
