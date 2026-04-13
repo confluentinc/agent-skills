@@ -4,71 +4,24 @@ Each database requires specific configuration to support Change Data Capture. Th
 
 ## PostgreSQL CDC Prerequisites
 
-### Required PostgreSQL Configuration
+### Required Configuration (postgresql.conf, restart required)
 
-**WAL Level:**
-```sql
--- Check current WAL level
-SHOW wal_level;
-
--- Must be 'logical'
--- Set in postgresql.conf:
+```
 wal_level = logical
+max_replication_slots = 4    # at least 1 per connector
+max_wal_senders = 4          # at least 1 per connector
 ```
 
-**Replication Slots:**
-```sql
--- Check max_replication_slots
-SHOW max_replication_slots;
-
--- Should be at least 1 per connector (recommend 4+)
--- Set in postgresql.conf:
-max_replication_slots = 4
-```
-
-**WAL Senders:**
-```sql
--- Check max_wal_senders
-SHOW max_wal_senders;
-
--- Should be at least 1 per connector (recommend 4+)
--- Set in postgresql.conf:
-max_wal_senders = 4
-```
-
-**Restart Required:**
-After changing these settings, PostgreSQL must be restarted.
-
-### Required Permissions
-
-The connector user needs these permissions:
+### Required Permissions & Publication
 
 ```sql
--- Grant replication privilege
 ALTER USER <connector_user> WITH REPLICATION;
-
--- Grant permissions on database
 GRANT CONNECT ON DATABASE <database> TO <connector_user>;
-
--- Grant schema permissions
 GRANT USAGE ON SCHEMA <schema> TO <connector_user>;
-
--- Grant table permissions
 GRANT SELECT ON ALL TABLES IN SCHEMA <schema> TO <connector_user>;
+ALTER DEFAULT PRIVILEGES IN SCHEMA <schema> GRANT SELECT ON TABLES TO <connector_user>;
 
--- Grant permissions for future tables
-ALTER DEFAULT PRIVILEGES IN SCHEMA <schema>
-  GRANT SELECT ON TABLES TO <connector_user>;
-```
-
-### Publication Setup (PostgreSQL 10+)
-
-```sql
--- Create publication for tables to capture
 CREATE PUBLICATION dbz_publication FOR TABLE table1, table2, table3;
-
--- Or for all tables in a schema
-CREATE PUBLICATION dbz_publication FOR ALL TABLES;
 ```
 
 ### Cloud-Specific Notes
@@ -88,88 +41,65 @@ CREATE PUBLICATION dbz_publication FOR ALL TABLES;
 - Set `max_replication_slots >= 4`
 - Restart server
 
+### Replication Slot Cleanup
+
+**Critical:** When a CDC connector is deleted, its named replication slot is NOT automatically dropped. Orphaned replication slots hold WAL segments indefinitely, causing disk usage to grow until the database runs out of storage.
+
+**After deleting a connector**, always clean up the replication slot:
+
+```sql
+-- List active replication slots
+SELECT slot_name, active, pg_size_pretty(pg_wal_lsn_diff(pg_current_wal_lsn(), restart_lsn)) AS retained_wal
+FROM pg_replication_slots;
+
+-- Drop the orphaned slot (only when 'active' = false)
+SELECT pg_drop_replication_slot('debezium_slot');
+```
+
+**Monitor for orphaned slots** — set up an alert if `pg_wal_lsn_diff` grows beyond a threshold (e.g., 1 GB) for any inactive slot. On managed services like RDS, orphaned slots can fill the allocated storage and cause the instance to become read-only.
+
 ### Verification
 
 ```sql
--- Verify WAL level
-SELECT name, setting FROM pg_settings WHERE name = 'wal_level';
-
--- Check replication slots
-SELECT * FROM pg_replication_slots;
-
--- Test publication
-SELECT * FROM pg_publication;
+SHOW wal_level;                          -- must be 'logical'
+SHOW max_replication_slots;              -- must be >= 1
 SELECT * FROM pg_publication_tables WHERE pubname = 'dbz_publication';
+SELECT slot_name, active, pg_size_pretty(pg_wal_lsn_diff(pg_current_wal_lsn(), restart_lsn)) AS retained_wal FROM pg_replication_slots;
 ```
 
-**References:**
-- Debezium PostgreSQL: https://debezium.io/documentation/reference/2.4/connectors/postgresql.html#postgresql-in-the-cloud
-- Confluent PostgreSQL CDC V2: https://docs.confluent.io/cloud/current/connectors/cc-postgresql-cdc-source-v2-debezium/cc-postgresql-cdc-source-v2-debezium.html
+### Documentation
+
+- **Confluent PostgreSQL CDC Source V2 connector:** https://docs.confluent.io/cloud/current/connectors/cc-postgresql-cdc-source-v2-debezium/cc-postgresql-cdc-source-v2-debezium.html
+- **Confluent PostgreSQL CDC prerequisites:** https://docs.confluent.io/cloud/current/connectors/cc-postgresql-cdc-source-v2-debezium/prereqs-validation.html
+- **Debezium PostgreSQL connector:** https://debezium.io/documentation/reference/2.4/connectors/postgresql.html
+- **AWS RDS PostgreSQL:** https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/CHAP_PostgreSQL.html
 
 ---
 
 ## MySQL CDC Prerequisites
 
-### Required MySQL Configuration
+### Required Configuration (my.cnf, restart required)
 
-**Binary Logging:**
-```sql
--- Check if binary logging is enabled
-SHOW VARIABLES LIKE 'log_bin';
-
--- Check binlog format (must be ROW)
-SHOW VARIABLES LIKE 'binlog_format';
-
--- Set in my.cnf or my.ini:
+```
 log_bin = mysql-bin
 binlog_format = ROW
 binlog_row_image = FULL
+gtid_mode = ON                       # recommended
+enforce_gtid_consistency = ON        # recommended
+binlog_expire_logs_seconds = 604800  # 7 days minimum
 ```
-
-**GTID Mode (Recommended):**
-```sql
--- Check GTID status
-SHOW VARIABLES LIKE 'gtid_mode';
-SHOW VARIABLES LIKE 'enforce_gtid_consistency';
-
--- Enable in my.cnf:
-gtid_mode = ON
-enforce_gtid_consistency = ON
-```
-
-**Binary Log Retention:**
-```sql
--- Check retention (in seconds)
-SHOW VARIABLES LIKE 'binlog_expire_logs_seconds';
-
--- Set retention to at least 7 days (604800 seconds)
--- In my.cnf:
-binlog_expire_logs_seconds = 604800
-```
-
-**Restart Required:**
-After changing these settings, MySQL must be restarted.
 
 ### Required Permissions
 
 ```sql
--- Create dedicated CDC user
 CREATE USER '<connector_user>'@'%' IDENTIFIED BY '<password>';
-
--- Grant replication privileges
-GRANT SELECT, RELOAD, SHOW DATABASES, REPLICATION SLAVE, REPLICATION CLIENT
-  ON *.* TO '<connector_user>'@'%';
-
--- Grant LOCK TABLES (required for managed MySQL — see note below)
+GRANT SELECT, RELOAD, SHOW DATABASES, REPLICATION SLAVE, REPLICATION CLIENT ON *.* TO '<connector_user>'@'%';
 GRANT LOCK TABLES ON <database>.* TO '<connector_user>'@'%';
-
--- Grant permissions on specific database/tables
 GRANT SELECT ON <database>.* TO '<connector_user>'@'%';
-
 FLUSH PRIVILEGES;
 ```
 
-**Why LOCK TABLES is needed on managed MySQL:** Debezium's default snapshot behavior tries `FLUSH TABLES WITH READ LOCK` first (a global read lock requiring the `SUPER` or `RELOAD` privilege). On self-managed MySQL where the user has `SUPER`, this works fine. But managed services (RDS, Aurora, Cloud SQL, Azure MySQL) don't grant `SUPER`, so the global lock fails and Debezium falls back to per-table `LOCK TABLES` — which requires the `LOCK TABLES` privilege explicitly. Without it, the connector fails during the initial snapshot with: *"The database user does not have the 'LOCK TABLES' privilege required to obtain a consistent snapshot."*
+**LOCK TABLES on managed MySQL:** Managed services (RDS, Aurora, Cloud SQL, Azure) don't grant `SUPER`, so Debezium can't use `FLUSH TABLES WITH READ LOCK` and falls back to per-table `LOCK TABLES`. Without this grant, the connector fails during snapshot.
 
 ### Cloud-Specific Notes
 
@@ -195,82 +125,42 @@ FLUSH PRIVILEGES;
 ### Verification
 
 ```sql
--- Verify binlog is enabled and ROW format
-SHOW VARIABLES LIKE 'log_bin';
-SHOW VARIABLES LIKE 'binlog_format';
-SHOW VARIABLES LIKE 'binlog_row_image';
-
--- Check GTID mode
-SHOW VARIABLES LIKE 'gtid_mode';
-
--- List binary logs
-SHOW BINARY LOGS;
-
--- Verify user permissions
+SHOW VARIABLES LIKE 'log_bin';           -- must be ON
+SHOW VARIABLES LIKE 'binlog_format';     -- must be ROW
+SHOW VARIABLES LIKE 'gtid_mode';         -- should be ON
 SHOW GRANTS FOR '<connector_user>'@'%';
 ```
 
-**References:**
-- Debezium MySQL: https://debezium.io/documentation/reference/2.4/connectors/mysql.html
-- Confluent MySQL CDC V2: https://docs.confluent.io/cloud/current/connectors/cc-mysql-cdc-source-v2-debezium/cc-mysql-cdc-source-v2-debezium.html
+### Documentation
+
+- **Confluent MySQL CDC Source V2 connector:** https://docs.confluent.io/cloud/current/connectors/cc-mysql-cdc-source-v2-debezium/cc-mysql-cdc-source-v2-debezium.html
+- **Confluent MySQL CDC prerequisites:** https://docs.confluent.io/cloud/current/connectors/cc-mysql-cdc-source-v2-debezium/prereqs-validation.html
+- **Debezium MySQL connector:** https://debezium.io/documentation/reference/2.4/connectors/mysql.html
+- **AWS RDS MySQL:** https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/CHAP_MySQL.html
 
 ---
 
 ## SQL Server CDC Prerequisites
 
-### Enable CDC on Database
-
-```sql
--- Check if CDC is enabled on database
-SELECT is_cdc_enabled FROM sys.databases
-WHERE name = '<database_name>';
-
--- Enable CDC on database
-USE <database_name>;
-EXEC sys.sp_cdc_enable_db;
-```
-
-### Enable CDC on Tables
-
-```sql
--- Enable CDC for specific table
-USE <database_name>;
-EXEC sys.sp_cdc_enable_table
-  @source_schema = N'dbo',
-  @source_name   = N'<table_name>',
-  @role_name     = NULL,
-  @supports_net_changes = 1;
-
--- Verify CDC is enabled for table
-SELECT name, is_tracked_by_cdc
-FROM sys.tables
-WHERE name = '<table_name>';
-```
-
-### SQL Server Agent
+### Enable CDC and Permissions
 
 **Critical:** SQL Server Agent must be running for CDC to work.
 
 ```sql
--- Check SQL Server Agent status (in Management Studio or via xp_servicecontrol)
-EXEC xp_servicecontrol 'QueryState', 'SQLServerAGENT';
-```
-
-### Required Permissions
-
-```sql
--- Create login and user
-CREATE LOGIN <connector_user> WITH PASSWORD = '<password>';
+-- Enable CDC on database
 USE <database_name>;
-CREATE USER <connector_user> FOR LOGIN <connector_user>;
+EXEC sys.sp_cdc_enable_db;
 
--- Grant permissions
+-- Enable CDC on each table
+EXEC sys.sp_cdc_enable_table @source_schema = N'dbo', @source_name = N'<table_name>', @role_name = NULL, @supports_net_changes = 1;
+
+-- Create connector user with permissions
+CREATE LOGIN <connector_user> WITH PASSWORD = '<password>';
+CREATE USER <connector_user> FOR LOGIN <connector_user>;
 GRANT SELECT ON SCHEMA :: dbo TO <connector_user>;
+GRANT SELECT ON SCHEMA :: cdc TO <connector_user>;
 GRANT VIEW DATABASE STATE TO <connector_user>;
 EXEC sp_addrolemember N'db_datareader', N'<connector_user>';
-
--- Grant access to CDC tables
-GRANT SELECT ON SCHEMA :: cdc TO <connector_user>;
 ```
 
 ### Cloud-Specific Notes
@@ -291,78 +181,135 @@ GRANT SELECT ON SCHEMA :: cdc TO <connector_user>;
 ### Verification
 
 ```sql
--- Check database CDC status
 SELECT name, is_cdc_enabled FROM sys.databases;
-
--- List CDC-enabled tables
-SELECT SCHEMA_NAME(schema_id) + '.' + name AS table_name, is_tracked_by_cdc
-FROM sys.tables
-WHERE is_tracked_by_cdc = 1;
-
--- View CDC capture instances
-SELECT * FROM cdc.change_tables;
-
--- Check CDC jobs are running
+SELECT name, is_tracked_by_cdc FROM sys.tables WHERE is_tracked_by_cdc = 1;
 EXEC sys.sp_cdc_help_jobs;
 ```
 
-**References:**
-- Debezium SQL Server: https://debezium.io/documentation/reference/2.4/connectors/sqlserver.html
-- Confluent SQL Server CDC V2: https://docs.confluent.io/cloud/current/connectors/cc-microsoft-sql-server-cdc-source-v2-debezium/cc-microsoft-sql-server-cdc-source-v2-debezium.html
+### Documentation
+
+- **Confluent SQL Server CDC Source V2 connector:** https://docs.confluent.io/cloud/current/connectors/cc-sqlserver-cdc-source-v2-debezium/cc-sqlserver-cdc-source-v2-debezium.html
+- **Confluent SQL Server CDC prerequisites:** https://docs.confluent.io/cloud/current/connectors/cc-sqlserver-cdc-source-v2-debezium/prereqs-validation.html
+- **Debezium SQL Server connector:** https://debezium.io/documentation/reference/2.4/connectors/sqlserver.html
+- **AWS RDS SQL Server:** https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/CHAP_SQLServer.html
+- **RDS SQL Server CDC:** https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Appendix.SQLServer.CommonDBATasks.CDC.html
 
 ---
 
-## Oracle CDC Prerequisites
+## Oracle XStream CDC Prerequisites
 
-### Archive Log Mode
+**Connector class:** `OracleXStreamSource`
 
-Oracle must be in ARCHIVELOG mode:
+**Supported platforms:**
+- Self-managed Oracle Database 19c+
+- Amazon RDS for Oracle (non-CDB architecture only)
 
+**NOT supported:**
+- Oracle Autonomous Databases
+- Oracle Standby databases (Data Guard)
+- Downstream Capture configurations
+- CDB (Container Database) architecture on RDS
+
+**Licensing:** Requires a valid Confluent license for Oracle XStream Out.
+
+### Documentation
+
+- **Confluent Oracle XStream CDC Source connector:** https://docs.confluent.io/cloud/current/connectors/cc-oracle-xstream-cdc-source/cc-oracle-xstream-cdc-source.html
+- **Confluent Oracle XStream CDC prerequisites:** https://docs.confluent.io/cloud/current/connectors/cc-oracle-xstream-cdc-source/prereqs-validation.html
+- **Working with Amazon RDS for Oracle:** https://docs.confluent.io/cloud/current/connectors/cc-oracle-xstream-cdc-source/prereqs-validation.html#working-with-amazon-rds-for-oracle
+- **AWS RDS Oracle:** https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/CHAP_Oracle.html
+- **Oracle XStream concepts:** https://docs.oracle.com/en/database/oracle/oracle-database/19/xstrm/introduction-to-xstream.html
+
+### Step 1: Enable GoldenGate Replication
+
+XStream requires GoldenGate replication to be enabled at the database level.
+
+**Standard Oracle (non-RDS):**
 ```sql
--- Check archive log mode
-SELECT log_mode FROM v$database;
+-- Connect as SYSDBA
+ALTER SYSTEM SET enable_goldengate_replication=TRUE SCOPE=BOTH;
+```
 
--- Enable archive log mode (requires restart)
+**Amazon RDS for Oracle:**
+- Modify the DB parameter group: set `enable_goldengate_replication` to `TRUE`
+- Apply the parameter group changes and **reboot the RDS instance**
+
+**Verify:**
+```sql
+SELECT VALUE FROM V$PARAMETER WHERE NAME = 'enable_goldengate_replication';
+-- Must return TRUE
+```
+
+### Step 2: Enable ARCHIVELOG Mode
+
+**Standard Oracle (non-RDS):**
+```sql
+-- Check current mode
+SELECT LOG_MODE FROM V$DATABASE;
+
+-- Enable if not already ARCHIVELOG (requires restart)
 SHUTDOWN IMMEDIATE;
 STARTUP MOUNT;
 ALTER DATABASE ARCHIVELOG;
 ALTER DATABASE OPEN;
 ```
 
-### Supplemental Logging
+**Amazon RDS for Oracle:**
+- ARCHIVELOG mode is enabled automatically when **automated backups** are turned on
+- Ensure automated backups are enabled in the RDS console (backup retention period > 0)
 
+### Step 3: Configure Supplemental Logging
+
+Supplemental logging ensures all column values are included in the redo log for CDC.
+
+**Minimal supplemental logging (required):**
 ```sql
--- Enable minimal supplemental logging at database level
 ALTER DATABASE ADD SUPPLEMENTAL LOG DATA;
-
--- Enable identification key logging
-ALTER DATABASE ADD SUPPLEMENTAL LOG DATA (PRIMARY KEY) COLUMNS;
-
--- For tables without primary keys, enable all columns
-ALTER DATABASE ADD SUPPLEMENTAL LOG DATA (ALL) COLUMNS;
-
--- Verify supplemental logging
-SELECT supplemental_log_data_min, supplemental_log_data_pk
-FROM v$database;
 ```
 
-### Table-Level Supplemental Logging
-
+**Table-level supplemental logging (recommended — captures all columns):**
 ```sql
--- For each table to capture
 ALTER TABLE <schema>.<table> ADD SUPPLEMENTAL LOG DATA (ALL) COLUMNS;
 ```
 
-### XStream Configuration
+**Alternative — database-level (captures all columns for all tables):**
+```sql
+ALTER DATABASE ADD SUPPLEMENTAL LOG DATA (ALL) COLUMNS;
+```
 
-For Oracle XStream CDC connector:
+**Amazon RDS for Oracle:**
+```sql
+-- Enable minimal supplemental logging
+exec rdsadmin.rdsadmin_util.alter_supplemental_logging('ADD');
+
+-- Enable ALL column supplemental logging (database-level)
+exec rdsadmin.rdsadmin_util.alter_supplemental_logging('ADD','ALL');
+
+-- Or table-level (same SQL as standard Oracle)
+ALTER TABLE <schema>.<table> ADD SUPPLEMENTAL LOG DATA (ALL) COLUMNS;
+```
+
+**Verify:**
+```sql
+SELECT SUPPLEMENTAL_LOG_DATA_MIN, SUPPLEMENTAL_LOG_DATA_ALL FROM V$DATABASE;
+-- SUPPLEMENTAL_LOG_DATA_MIN should be YES
+
+-- For table-level verification
+SELECT * FROM ALL_LOG_GROUPS
+WHERE LOG_GROUP_TYPE = 'ALL COLUMN LOGGING'
+  AND OWNER = '<schema>'
+  AND TABLE_NAME = '<table>';
+```
+
+### Step 4: Create XStream Admin User and Grant Privileges
 
 ```sql
--- Create XStream admin user
+-- Create the XStream admin user
 CREATE USER xstream_admin IDENTIFIED BY <password>;
 GRANT CREATE SESSION TO xstream_admin;
+GRANT SET CONTAINER TO xstream_admin;
 
--- Grant XStream privileges
+-- Grant XStream admin privileges
 BEGIN
   DBMS_XSTREAM_AUTH.GRANT_ADMIN_PRIVILEGE(
     grantee => 'xstream_admin',
@@ -371,52 +318,99 @@ BEGIN
   );
 END;
 /
+```
 
--- Create outbound server
+### Step 5: Create XStream Outbound Server
+
+The outbound server name must match the connector's `database.out.server.name` property.
+
+```sql
+-- Connect as the XStream admin user
 BEGIN
   DBMS_XSTREAM_ADM.CREATE_OUTBOUND(
     server_name => 'dbz_outbound',
-    table_names => '<schema>.<table>',
-    source_database => '<database>'
+    table_names => '<SCHEMA>.<TABLE1>,<SCHEMA>.<TABLE2>',
+    source_database => '<database_name>'
   );
 END;
 /
 ```
 
-### Required Permissions
+**Important:** The `table_names` parameter controls which tables are captured. If you need to add more tables later, you must drop and recreate the outbound server, or use `DBMS_XSTREAM_ADM.ALTER_OUTBOUND` to add tables.
+
+### Step 6: Create Connector User and Grant Permissions
+
+The connector user is the user specified in the connector's `database.user` property — this is the user the connector authenticates as to read XStream changes.
 
 ```sql
 -- Create connector user
 CREATE USER <connector_user> IDENTIFIED BY <password>;
 
--- Grant session and basic permissions
+-- Grant required permissions
 GRANT CREATE SESSION TO <connector_user>;
 GRANT SET CONTAINER TO <connector_user>;
 GRANT SELECT ON V_$DATABASE TO <connector_user>;
+GRANT SELECT ON V_$INSTANCE TO <connector_user>;
 GRANT FLASHBACK ANY TABLE TO <connector_user>;
+GRANT SELECT_CATALOG_ROLE TO <connector_user>;
+GRANT EXECUTE_CATALOG_ROLE TO <connector_user>;
+GRANT SELECT ANY TABLE TO <connector_user>;
+GRANT LOCK ANY TABLE TO <connector_user>;
 
--- Grant table permissions
-GRANT SELECT ON <schema>.<table> TO <connector_user>;
+-- Grant XStream connect privilege to the connector user for the outbound server
+BEGIN
+  DBMS_XSTREAM_ADM.ALTER_OUTBOUND(
+    server_name => 'dbz_outbound',
+    connect_user => '<connector_user>'
+  );
+END;
+/
 ```
 
-### Verification
+### Step 7: Verify Complete Setup
 
 ```sql
--- Check archive log mode
-SELECT log_mode FROM v$database;
+-- 1. GoldenGate replication enabled
+SELECT VALUE FROM V$PARAMETER WHERE NAME = 'enable_goldengate_replication';
+-- Must return TRUE
 
--- Verify supplemental logging
-SELECT supplemental_log_data_min, supplemental_log_data_pk, supplemental_log_data_all
-FROM v$database;
+-- 2. ARCHIVELOG mode
+SELECT LOG_MODE FROM V$DATABASE;
+-- Must return ARCHIVELOG
 
--- Check XStream outbound server
-SELECT server_name, capture_name, connect_user, status
-FROM DBA_XSTREAM_OUTBOUND;
+-- 3. Supplemental logging
+SELECT SUPPLEMENTAL_LOG_DATA_MIN, SUPPLEMENTAL_LOG_DATA_ALL FROM V$DATABASE;
+-- SUPPLEMENTAL_LOG_DATA_MIN should be YES
+
+-- 4. XStream outbound server exists and is running
+SELECT SERVER_NAME, CONNECT_USER, STATUS FROM ALL_XSTREAM_OUTBOUND;
+-- Should show your outbound server with ATTACHED or ENABLED status
+
+-- 5. Table-level supplemental logging (if using table-level)
+SELECT * FROM ALL_LOG_GROUPS
+WHERE LOG_GROUP_TYPE = 'ALL COLUMN LOGGING'
+  AND OWNER = '<schema>'
+  AND TABLE_NAME = '<table>';
 ```
 
-**References:**
-- Debezium Oracle: https://debezium.io/documentation/reference/2.4/connectors/oracle.html
-- Confluent Oracle XStream CDC: https://docs.confluent.io/cloud/current/connectors/cc-oracle-xstream-source/cc-oracle-xstream-source.html
+### Connector Configuration Reference
+
+After all prerequisites are met, the connector requires these Oracle-specific properties:
+
+| Property | Description | Example |
+|---|---|---|
+| `connector.class` | Must be `OracleXStreamSource` | `OracleXStreamSource` |
+| `database.hostname` | Oracle host | `oracle.example.com` |
+| `database.port` | Oracle listener port | `1521` |
+| `database.user` | Connector user (Step 6) | `cfltuser` |
+| `database.password` | Connector user password | `***` |
+| `database.dbname` | Oracle service name or SID | `ORCL` |
+| `database.service.name` | **Required.** Oracle service name | `ORCL` |
+| `database.out.server.name` | XStream outbound server name (Step 5) | `dbz_outbound` |
+| `database.processor.licenses` | **Required.** Oracle processor license count | `1` |
+| `table.include.list` | Tables to capture (uppercase) | `SCHEMA.TABLE` |
+
+See `references/connector-configs.md` for the full connector configuration template.
 
 ---
 
@@ -443,26 +437,46 @@ aws dynamodb update-table \
 
 ### IAM Permissions
 
-Create IAM user or role with these permissions:
+Create IAM user or role with these permissions. **Critical:** The CDC phase requires write permissions for a KCL-style checkpointing table that the connector creates to track shard leases. Without these write permissions, the snapshot phase will work but CDC streaming will silently fail — no real-time changes will be captured.
 
 ```json
 {
   "Version": "2012-10-17",
   "Statement": [
     {
+      "Sid": "DynamoDBReadAndCheckpointing",
       "Effect": "Allow",
       "Action": [
         "dynamodb:DescribeTable",
         "dynamodb:DescribeStream",
+        "dynamodb:DescribeTimeToLive",
+        "dynamodb:DescribeContinuousBackups",
+        "dynamodb:DescribeLimits",
         "dynamodb:GetRecords",
         "dynamodb:GetShardIterator",
         "dynamodb:ListStreams",
-        "dynamodb:ListTables"
+        "dynamodb:ListTables",
+        "dynamodb:ListGlobalTables",
+        "dynamodb:ListTagsOfResource",
+        "dynamodb:Scan",
+        "dynamodb:CreateTable",
+        "dynamodb:PutItem",
+        "dynamodb:GetItem",
+        "dynamodb:UpdateItem",
+        "dynamodb:DeleteItem",
+        "dynamodb:DeleteTable",
+        "dynamodb:TagResource"
       ],
-      "Resource": [
-        "arn:aws:dynamodb:*:*:table/<table-name>",
-        "arn:aws:dynamodb:*:*:table/<table-name>/stream/*"
-      ]
+      "Resource": "*"
+    },
+    {
+      "Sid": "TagAndCloudWatch",
+      "Effect": "Allow",
+      "Action": [
+        "tag:GetResources",
+        "cloudwatch:PutMetricData"
+      ],
+      "Resource": "*"
     }
   ]
 }
@@ -471,29 +485,11 @@ Create IAM user or role with these permissions:
 ### Verification
 
 ```bash
-# Check if streams are enabled
-aws dynamodb describe-table --table-name <table-name> \
-  | jq '.Table.StreamSpecification'
-
-# List streams for table
-aws dynamodb list-streams --table-name <table-name>
+aws dynamodb describe-table --table-name <table-name> | jq '.Table.StreamSpecification'
 ```
 
-**References:**
-- Debezium DynamoDB: https://debezium.io/documentation/reference/2.4/connectors/dynamodb.html
-- Confluent DynamoDB CDC: https://docs.confluent.io/cloud/current/connectors/cc-amazon-dynamodb-source.html
-- AWS DynamoDB Streams: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Streams.html
+### Documentation
 
----
-
-## General Checklist
-
-Before setting up any CDC connector, verify:
-
-- [ ] Database is configured for CDC (WAL, binlog, archive log, streams)
-- [ ] Database user has appropriate permissions
-- [ ] Network connectivity from Confluent Cloud to database
-- [ ] Firewall rules allow connection
-- [ ] Schema Registry is enabled in Confluent Cloud
-- [ ] Sufficient database resources for CDC overhead
-- [ ] Monitoring in place for replication lag
+- **Confluent DynamoDB CDC Source connector:** https://docs.confluent.io/cloud/current/connectors/cc-amazon-dynamodb-cdc-source.html
+- **DynamoDB Streams:** https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Streams.html
+- **DynamoDB Developer Guide:** https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Introduction.html
