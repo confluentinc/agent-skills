@@ -38,9 +38,38 @@ All connectors share these common settings:
 **REQUIRED field: `topic.prefix`** — Controls topic naming. All CDC V2 connectors require this. Topics will be named `{topic.prefix}.{schema}.{table}`.
 
 **Schema Format Options:**
-- `JSON_SR` (default, recommended — JSON with Schema Registry, uses schema ID in header which is safer for downstream consumers and won't break existing consumers)
-- `AVRO` (binary format, requires Avro-compatible consumers)
-- `PROTOBUF`
+- `JSON_SR` (default, recommended — JSON with Schema Registry, uses schema ID in header; human-readable payloads, easiest to debug with `consume-messages`)
+- `AVRO` (binary format — more compact and efficient for high-throughput pipelines; requires Avro-compatible consumers; best for large-scale production CDC)
+- `PROTOBUF` (binary format — strongly typed with nested message support; good when downstream consumers already use Protobuf)
+
+**Format selection guidance:**
+| Criteria | JSON_SR | AVRO | PROTOBUF |
+|---|---|---|---|
+| Debugging / readability | Best — human-readable payloads | Poor — binary | Poor — binary |
+| Throughput / message size | Largest payloads | ~30-50% smaller than JSON_SR | ~30-50% smaller than JSON_SR |
+| Flink auto-discovery | Yes | Yes | Yes |
+| Tableflow compatibility | Yes | Yes | Yes |
+| Schema evolution | Supported via SR | Best support via SR | Supported via SR |
+
+All three formats register schemas in Schema Registry and work identically with Flink auto-discovery and Tableflow. The choice is primarily about payload size vs. debuggability.
+
+**Important:** `output.data.format` and `output.key.format` must both use a Schema Registry-backed format (`JSON_SR`, `AVRO`, or `PROTOBUF`). Using plain `JSON` (without SR) means no schema is registered, which breaks Flink auto-discovery and Tableflow. See "Handling Topics Without Schema Registry" below.
+
+To use Avro or Protobuf, change both format fields in the connector config:
+```json
+{
+  "output.data.format": "AVRO",
+  "output.key.format": "AVRO"
+}
+```
+or:
+```json
+{
+  "output.data.format": "PROTOBUF",
+  "output.key.format": "PROTOBUF"
+}
+```
+All other connector settings (type mappings, snapshot mode, etc.) remain the same regardless of format.
 
 **Note on managed connectors:** Fields like `kafka.auth.mode` and `kafka.endpoint` are auto-configured by Confluent Cloud when using MCP or the CLI. You only need to provide `kafka.api.key` and `kafka.api.secret`.
 
@@ -93,21 +122,14 @@ All connectors share these common settings:
 }
 ```
 
-**Key Parameters:**
-- `topic.prefix`: **REQUIRED** — Controls topic naming (e.g., `postgres-cdc`)
-- `decimal.handling.mode`: **Always set to `string`.** Without it, Debezium serializes DECIMAL/NUMERIC/MONEY columns as raw bytes (Java BigDecimal unscaled value), producing garbled data like `"N\u001f"` instead of `"199.99"`. Flink cannot CAST BYTES to DECIMAL, so this must be fixed at the connector level.
-- `interval.handling.mode`: Set to `string` for PostgreSQL INTERVAL columns. Default `numeric` approximates intervals as microseconds (months = 30 days, years = 365.25 days), which is lossy. `string` outputs ISO 8601 format like `P1Y2M3DT4H5M6.78S`.
-- `hstore.handling.mode`: Set to `map` if using PostgreSQL HSTORE columns. Default `json` serializes as a JSON string inside a STRING field; `map` produces a native Kafka Connect MAP type.
-- `binary.handling.mode`: Set to `base64` if using BYTEA columns. Default `bytes` can break JSON serialization.
-- `database.server.name`: Logical name for this database server
-- `table.include.list`: Comma-separated list of tables (format: `schema.table`)
+**PostgreSQL-specific parameters:**
 - `plugin.name`: Use `pgoutput` (native PostgreSQL logical replication)
 - `publication.name`: Publication created in PostgreSQL
 - `slot.name`: Replication slot name (must be unique)
-- `snapshot.mode`:
-  - `initial`: Snapshot existing data, then stream changes
-  - `never`: Only stream changes (no initial snapshot)
-  - `always`: Always snapshot on startup
+- `interval.handling.mode`: Set to `string` for INTERVAL columns (default `numeric` is lossy)
+- `hstore.handling.mode`: Set to `map` for HSTORE columns
+
+For `topic.prefix`, `decimal.handling.mode`, `binary.handling.mode`, `snapshot.mode`, and other shared settings, see Common Configuration Elements and Configuration Best Practices above.
 
 **Topic Naming:**
 Topic pattern: `<topic.prefix>.<schema>.<table>`
@@ -160,16 +182,11 @@ https://docs.confluent.io/cloud/current/connectors/cc-postgresql-cdc-source-v2-d
 }
 ```
 
-**Key Parameters:**
+**MySQL-specific parameters:**
 - `database.server.id`: Unique numeric ID for this connector (5-10 digits)
-- `topic.prefix`: **REQUIRED** — Controls topic naming
-- `decimal.handling.mode`: **Always set to `string`.** Same raw bytes issue as PostgreSQL for DECIMAL/NUMERIC columns.
-- `binary.handling.mode`: Set to `base64` if using BINARY/VARBINARY/BLOB columns. Default `bytes` breaks JSON serialization.
-- `database.server.name`: Logical name for this database server
 - `database.include.list`: Comma-separated list of databases
-- `table.include.list`: Comma-separated list of tables (format: `database.table`)
+- `table.include.list`: Format: `database.table` (not `schema.table`)
 - `gtid.source.includes`: GTID filter (use `.*` for all)
-- `snapshot.mode`: Same options as PostgreSQL
 
 **Topic Naming:**
 Topic pattern: `<topic.prefix>.<database>.<table>`
@@ -219,14 +236,9 @@ https://docs.confluent.io/cloud/current/connectors/cc-mysql-cdc-source-v2-debezi
 }
 ```
 
-**Key Parameters:**
-- `topic.prefix`: **REQUIRED** — Controls topic naming
-- `decimal.handling.mode`: **Always set to `string`.** Affects DECIMAL, NUMERIC, MONEY, and SMALLMONEY columns — same raw bytes issue as PostgreSQL.
-- `binary.handling.mode`: Set to `base64` if using BINARY/VARBINARY/IMAGE columns.
+**SQL Server-specific parameters:**
 - `database.names`: Comma-separated list of databases
-- `database.server.name`: Logical name for this database server
-- `table.include.list`: Comma-separated list of tables (format: `schema.table`, use `dbo` for default schema)
-- `snapshot.mode`: Same options as PostgreSQL
+- `table.include.list`: Format: `schema.table` (use `dbo` for default schema)
 
 **Topic Naming:**
 Topic pattern: `<topic.prefix>.<schema>.<table>`
@@ -255,11 +267,13 @@ https://docs.confluent.io/cloud/current/connectors/cc-microsoft-sql-server-cdc-s
   "database.user": "<oracle-user>",
   "database.password": "<oracle-password>",
   "database.dbname": "<service-name-or-sid>",
+  "database.service.name": "<service-name-or-sid>",
   "database.server.name": "<logical-server-name>",
   "topic.prefix": "<topic-prefix>",
 
   "database.connection.adapter": "xstream",
   "database.out.server.name": "dbz_outbound",
+  "database.processor.licenses": "1",
 
   "table.include.list": "<schema>.<table1>,<schema>.<table2>",
 
@@ -278,24 +292,28 @@ https://docs.confluent.io/cloud/current/connectors/cc-microsoft-sql-server-cdc-s
 }
 ```
 
-**Key Parameters:**
-- `decimal.handling.mode`: **Always set to `string`.** Affects `NUMBER(p,s)` columns. Oracle `NUMBER` and `FLOAT` without explicit precision are especially problematic — Debezium serializes them as `VariableScaleDecimal`, a struct containing a bytes field, which breaks differently than regular decimals.
-- `interval.handling.mode`: Set to `string` for `INTERVAL YEAR TO MONTH` and `INTERVAL DAY TO SECOND` columns. Default `numeric` approximates as microseconds, which is lossy for month/year intervals.
-- `binary.handling.mode`: Set to `base64` if using RAW or BLOB columns.
+**Oracle-specific parameters:**
 - `database.dbname`: Oracle service name or SID
+- `database.service.name`: **Required.** Oracle service name (often same as `database.dbname`)
+- `database.processor.licenses`: **Required.** Number of Oracle processor licenses (use `"1"` for testing)
 - `database.connection.adapter`: Use `xstream` for XStream
 - `database.out.server.name`: XStream outbound server name (created in Oracle)
-- `topic.prefix`: **REQUIRED** — Controls topic naming
-- `table.include.list`: Comma-separated list of tables (format: `SCHEMA.TABLE` - uppercase)
-- `snapshot.mode`: Same options as PostgreSQL
+- `table.include.list`: Format: `SCHEMA.TABLE` (uppercase)
+- `interval.handling.mode`: Set to `string` for INTERVAL columns (same as PostgreSQL)
+- Oracle `NUMBER`/`FLOAT` without precision produces `VariableScaleDecimal` struct — `decimal.handling.mode: string` fixes this
+- **`after.state.only` is NOT supported** by OracleXStreamSource — do not use this option
 
 **Topic Naming:**
 Topic pattern: `<topic.prefix>.<schema>.<table>`
 
 Example: `oracle-cdc.HR.EMPLOYEES`
 
+**Prerequisites:** Oracle XStream requires significant database-side setup before the connector can be deployed — GoldenGate replication must be enabled, ARCHIVELOG mode configured, supplemental logging set up, an XStream admin user created, and an XStream outbound server provisioned. See `references/database-prerequisites.md` "Oracle XStream CDC Prerequisites" for the complete step-by-step guide.
+
+**Prerequisites validation:** https://docs.confluent.io/cloud/current/connectors/cc-oracle-xstream-cdc-source/prereqs-validation.html
+
 **Documentation:**
-https://docs.confluent.io/cloud/current/connectors/cc-oracle-xstream-source/cc-oracle-xstream-source.html
+https://docs.confluent.io/cloud/current/connectors/cc-oracle-xstream-cdc-source/cc-oracle-xstream-cdc-source.html
 
 ---
 
@@ -313,24 +331,33 @@ https://docs.confluent.io/cloud/current/connectors/cc-oracle-xstream-source/cc-o
 
   "aws.access.key.id": "<aws-access-key>",
   "aws.secret.access.key": "<aws-secret-key>",
-  "aws.dynamodb.region": "<aws-region>",
 
-  "table.include.list": "<table1>,<table2>",
-
-  "kafka.topic": "cdc-pipeline-skill-dynamodb-<table-name>",
+  "dynamodb.service.endpoint": "https://dynamodb.<aws-region>.amazonaws.com",
+  "dynamodb.table.discovery.mode": "INCLUDELIST",
+  "dynamodb.table.sync.mode": "SNAPSHOT_CDC",
+  "dynamodb.table.includelist": "<table1>,<table2>",
 
   "output.data.format": "JSON_SR",
-  "output.key.format": "JSON_SR",
+
+  "dynamodb.cdc.max.poll.records": "5000",
+  "dynamodb.snapshot.max.poll.records": "1000",
 
   "tasks.max": "1"
 }
 ```
 
 **Key Parameters:**
-- `aws.access.key.id` / `aws.secret.access.key`: IAM credentials with DynamoDB Streams permissions
-- `aws.dynamodb.region`: AWS region where DynamoDB table is located
-- `table.include.list`: Comma-separated list of DynamoDB table names
-- `kafka.topic`: Topic name pattern (use table name variable)
+- `aws.access.key.id` / `aws.secret.access.key`: IAM credentials with DynamoDB Streams **and** checkpointing table write permissions (see `references/database-prerequisites.md` for the complete IAM policy)
+- `dynamodb.service.endpoint`: **Required.** Full DynamoDB service URL including region (e.g., `https://dynamodb.us-east-2.amazonaws.com`)
+- `dynamodb.table.discovery.mode`: **Required.** Set to `INCLUDELIST` for explicit table names, or `TAG` for tag-based auto-discovery
+- `dynamodb.table.sync.mode`: Snapshot behavior — `SNAPSHOT_CDC` (default, snapshot then stream), `SNAPSHOT` (one-time scan only), or `CDC` (streams only, no initial snapshot)
+- `dynamodb.table.includelist`: **Required when discovery mode is INCLUDELIST.** Comma-separated list of DynamoDB table names (note: this is `dynamodb.table.includelist`, NOT `table.include.list` like SQL connectors)
+- `dynamodb.cdc.max.poll.records`: Max records per DynamoDB Streams GetRecords call (each call also limited to 1 MB)
+- `dynamodb.snapshot.max.poll.records`: Max records per DynamoDB Scan call during snapshot (each call also limited to 1 MB)
+
+**tasks.max for DynamoDB:** A single DynamoDB table can only be processed by one task. `tasks.max` should equal the number of tables in `dynamodb.table.includelist`. Configuring more tasks than tables results in idle tasks. For multi-table setups, increase `tasks.max` to match — especially during snapshot to avoid the 24-hour DynamoDB Streams expiry window.
+
+**Critical IAM note:** The CDC phase requires write permissions to create and manage a KCL-style checkpointing table in DynamoDB. Without `CreateTable`, `PutItem`, `GetItem`, `UpdateItem`, `DeleteItem` permissions, the snapshot will succeed but CDC streaming will silently fail (no real-time changes captured). This is the most common cause of DynamoDB CDC appearing "stuck" after snapshot. See `references/database-prerequisites.md` for the complete IAM policy and `references/troubleshooting.md` "DynamoDB CDC: Snapshot Works but CDC Streaming Silently Fails" for diagnosis steps.
 
 **Topic Naming:**
 Topic pattern: `<kafka.topic>` (configurable, unlike other connectors)
@@ -363,11 +390,7 @@ Debezium's default serialization modes can produce raw bytes, lossy approximatio
 | `interval.handling.mode` | `numeric` | Intervals approximated as microseconds (lossy) | `string` | PG: INTERVAL. Oracle: INTERVAL YEAR TO MONTH, INTERVAL DAY TO SECOND |
 | `hstore.handling.mode` | `json` | HSTORE as JSON string, not native MAP | `map` | PG: HSTORE |
 
-**Database-specific quirks with no config toggle:**
-- **MySQL `TINYINT(1)`**: Serialized as INT16, not BOOLEAN. Fix: add `converters=bool` with `TinyIntOneToBooleanConverter` (note: may not be available on all managed connector versions).
-- **MySQL `BIGINT UNSIGNED`**: Default `long` silently overflows for values > 2^63. Setting `bigint.unsigned.handling.mode = precise` avoids overflow but produces bytes (same issue as decimals).
-- **SQL Server `DATETIMEOFFSET`**: Serialized as STRING with timezone offset. Flink may not auto-parse — requires explicit cast.
-- **Oracle `NUMBER` (no precision)**: Serialized as `VariableScaleDecimal` (a struct containing bytes), not plain bytes. `decimal.handling.mode = string` fixes this.
+**Database-specific quirks:** MySQL `TINYINT(1)` → INT16 not BOOLEAN; MySQL `BIGINT UNSIGNED` overflows at 2^63; SQL Server `DATETIMEOFFSET` → STRING; Oracle `NUMBER` (no precision) → `VariableScaleDecimal` struct (fixed by `decimal.handling.mode = string`).
 
 ### Secrets Management
 
@@ -390,50 +413,193 @@ Debezium's default serialization modes can produce raw bytes, lossy approximatio
 
 - `initial`: Snapshot existing data on first run, then stream changes (recommended for new connectors)
 - `never`: Skip snapshot, only capture new changes (use when you don't need historical data)
+- `schema_only`: Snapshot the schema but not the data, then stream changes (use for initial pipeline validation on large tables)
 - `always`: Always snapshot on restart (use for testing, not production)
 
-### Tombstones
+**Large tables (100M+ rows):** Use `schema_only` first to validate the pipeline end-to-end, then recreate with `initial`. The initial snapshot can lock the source DB, burst-produce to Kafka, and trigger SR rate limits — you don't want to wait hours to discover a config error.
 
-Always enable tombstones for proper delete handling:
+### Other Settings (Already in Templates)
+
+The connector templates above include correct defaults for these — only adjust if needed:
+- **`tombstones.on.delete: true`** — Produces null-value record on delete; important for log compaction and downstream consumers
+- **`include.schema.changes: false`** — Suppresses DDL noise in the pipeline
+- **`heartbeat.interval.ms: 30000`** — Detects stalled connectors (PostgreSQL template only)
+- **`tasks.max: 1`** — Ensures message ordering; only increase for high-throughput with careful testing
+
+### Handling Topics Without Schema Registry
+
+If a topic was produced with plain `JSON` (no SR serializer), no schema is registered in Schema Registry. This affects Flink auto-discovery and Tableflow, but there are several ways to handle it.
+
+**Option 1: Register a JSON schema manually in Schema Registry (recommended)**
+
+Register a JSON schema for the topic's subject in Schema Registry. Once registered, Flink will infer the schema and read the topic as if it were serialized with SR serializers — no re-ingestion needed.
+
+For JSON topics, the schema can be **partial** — you don't have to define every field, just the ones you need. Flink will map the defined fields and ignore the rest.
+
+Register via CLI:
+```bash
+confluent schema-registry schema create --subject "<topic-name>-value" --schema schema.json --type JSON --environment <env-id>
+```
+
+Or use the Confluent Cloud UI: Schema Registry → Subjects → Create Subject → paste the JSON Schema.
+
+**Option 2: Infer a schema from existing messages**
+
+Confluent Cloud can [infer a schema from messages](https://docs.confluent.io/cloud/current/sr/schemas-manage.html#infer-a-schema-from-messages) already on the topic. This auto-generates a schema from sample payloads and registers it in SR. After inference, Flink auto-discovers the topic normally.
+
+**Option 3: Use Flink's raw BYTES inference and parse with JSON functions**
+
+For topics with no schema at all, Flink infers a raw table:
+```sql
+-- Flink auto-infers schemaless topics as raw bytes
+CREATE TABLE inferred_raw (`key` BYTES, `val` BYTES);
+
+-- Switch to STRING to work with JSON payloads
+ALTER TABLE inferred_raw MODIFY (`key` STRING, `val` STRING);
+
+-- Then use JSON functions to extract fields
+INSERT INTO target_table
+SELECT
+  JSON_VALUE(val, '$.id' RETURNING INT) AS id,
+  JSON_VALUE(val, '$.name') AS name,
+  JSON_VALUE(val, '$.email') AS email
+FROM inferred_raw;
+```
+
+This is useful when you can't register a schema or need ad-hoc exploration, but it's more fragile than schema-based approaches.
+
+**Option 4: Re-create the connector with an SR-backed format**
+
+If you control the producer, change `output.data.format` from `JSON` to `JSON_SR`, `AVRO`, or `PROTOBUF`. Delete the old connector and topics, then recreate. This is the cleanest path for new CDC pipelines.
+
+**Important format note for schema registration:**
+- **JSON**: Partial schemas are fine — define only the fields you need
+- **Avro**: Must define the complete schema matching the payload structure (binary format, partial schemas won't decode correctly)
+- **Protobuf**: Must define the complete schema matching the payload structure (binary format, same as Avro)
+
+**For new CDC pipelines**, always use `JSON_SR`, `AVRO`, or `PROTOBUF` — never plain `JSON`.
+
+### Subject Name Strategies
+
+The **subject name strategy** controls how Schema Registry subjects are named when schemas are registered. This directly affects whether Flink can auto-discover topics and whether Tableflow can work with them. There are three strategies:
+
+#### TopicNameStrategy (Default)
+
+**Subject pattern:** `<topic-name>-key` / `<topic-name>-value`
+
+```
+Topic: postgres-cdc.public.customers
+  → Key subject:   postgres-cdc.public.customers-key
+  → Value subject: postgres-cdc.public.customers-value
+
+Topic: postgres-cdc.public.orders
+  → Key subject:   postgres-cdc.public.orders-key
+  → Value subject: postgres-cdc.public.orders-value
+```
+
+**Behavior:** One schema per topic. Every record on a given topic must conform to the same schema (with compatible evolution). This is the Debezium default — each captured table gets its own topic and its own schema subject.
+
+| Aspect | Status |
+|---|---|
+| Flink auto-discovery | **Works** — one schema per topic, Flink maps it directly to a table |
+| Tableflow | **Works** — single schema per topic maps cleanly to Iceberg/Delta columns |
+| Schema evolution | Governed by subject-level compatibility (e.g., `BACKWARD`, `FULL_TRANSITIVE`) |
+| Multi-table CDC | Each table on its own topic — no conflicts |
+
+**This is the recommended strategy for CDC-to-Tableflow pipelines.**
+
+#### RecordNameStrategy
+
+**Subject pattern:** `<fully-qualified-record-name>-key` / `<fully-qualified-record-name>-value`
+
+```
+Topic: all-cdc-events  (multiple tables routed here)
+  → Record "com.example.Customer" → Value subject: com.example.Customer-value
+  → Record "com.example.Order"    → Value subject: com.example.Order-value
+```
+
+**Behavior:** The subject is derived from the record's fully qualified name (namespace + name), not the topic. Multiple different schemas can coexist on the same topic because each record type gets its own subject.
+
+| Aspect | Status |
+|---|---|
+| Flink auto-discovery | **Does NOT work** — Flink expects one schema per topic; it cannot resolve multiple SR subjects for the same topic |
+| Tableflow | **Does NOT work reliably** — mixed schemas on one topic produce inconsistent Iceberg/Delta files |
+| Schema evolution | Each record type evolves independently (different subjects) |
+| Use case | Shared topics where multiple event types are intentionally co-located |
+
+**Configuration (self-managed connectors):**
 ```json
 {
-  "tombstones.on.delete": "true"
+  "value.converter.value.subject.name.strategy": "io.confluent.kafka.serializers.subject.RecordNameStrategy"
 }
 ```
 
-This produces a null-value record when a row is deleted, which is important for downstream consumers.
+**Note:** For Confluent Cloud fully-managed connectors, the subject name strategy may not be directly configurable. Check the specific connector documentation.
 
-### Schema Changes
+#### TopicRecordNameStrategy
 
-For production, usually disable schema change events:
+**Subject pattern:** `<topic-name>-<fully-qualified-record-name>-key` / `<topic-name>-<fully-qualified-record-name>-value`
+
+```
+Topic: all-cdc-events
+  → Record "com.example.Customer" → Value subject: all-cdc-events-com.example.Customer-value
+  → Record "com.example.Order"    → Value subject: all-cdc-events-com.example.Order-value
+```
+
+**Behavior:** Combines the topic name and record name. Like `RecordNameStrategy`, it allows multiple schemas per topic, but subjects are scoped to both topic and record type. This means the same record type on different topics gets separate subjects (unlike `RecordNameStrategy` where they'd share one).
+
+| Aspect | Status |
+|---|---|
+| Flink auto-discovery | **Does NOT work** — same limitation as `RecordNameStrategy`; Flink can't resolve compound subjects |
+| Tableflow | **Does NOT work reliably** — same issue as `RecordNameStrategy` |
+| Schema evolution | Each topic+record combination evolves independently |
+| Use case | Multiple topics with overlapping record types that need independent evolution |
+
+**Configuration (self-managed connectors):**
 ```json
 {
-  "include.schema.changes": "false"
+  "value.converter.value.subject.name.strategy": "io.confluent.kafka.serializers.subject.TopicRecordNameStrategy"
 }
 ```
 
-Schema changes (DDL) are captured separately and can create noise in the pipeline.
+#### Strategy Comparison Summary
 
-### Heartbeat
+| | TopicNameStrategy | RecordNameStrategy | TopicRecordNameStrategy |
+|---|---|---|---|
+| Subject derived from | Topic name | Record name | Topic + Record name |
+| Schemas per topic | One | Many | Many |
+| Flink auto-discovery | Yes | No | No |
+| Tableflow | Yes | No | No |
+| Debezium default | Yes | No | No |
+| CDC-to-Tableflow ready | **Yes** | Requires splitting | Requires splitting |
 
-Enable heartbeat to detect stalled connectors:
-```json
-{
-  "heartbeat.interval.ms": "30000",
-  "heartbeat.action.query": "INSERT INTO heartbeat (ts) VALUES (NOW())"
-}
-```
+### Multi-Event Topics
 
-Heartbeat produces a special event every N milliseconds to show the connector is alive.
+A **multi-event topic** contains records with different schemas on the same Kafka topic. By default, Debezium creates one topic per captured table (`{topic.prefix}.{schema}.{table}`) using `TopicNameStrategy`, so each topic has a single event type. Multi-event topics occur when:
 
-### Task Parallelism
+- Topic routing is used (e.g., Debezium's `transforms.route` SMT to merge multiple tables into one topic)
+- An upstream producer writes different event types to the same topic
+- `RecordNameStrategy` or `TopicRecordNameStrategy` is configured (see above)
 
-Most CDC connectors work best with `tasks.max = 1` because:
-- Single-task ensures message ordering per table
-- Database transactions are sequential
-- Parallel tasks can cause out-of-order events
+**Handling multi-event topics for Tableflow:**
 
-Only increase for very high-throughput scenarios with careful testing.
+1. **Best approach — avoid them for CDC:** Use Debezium's default `TopicNameStrategy` with one-topic-per-table. This is the standard and recommended pattern for CDC-to-Tableflow.
+
+2. **If multi-event topics already exist**, split them before the Flink/Tableflow stage:
+   - Create a Flink SQL job per event type that filters and routes to separate target topics
+   - Each target topic gets its own schema and can be used with Tableflow normally
+   - For schemaless multi-event topics, use the raw BYTES approach (Option 3 above) with JSON functions to filter by event type:
+     ```sql
+     -- Route events by type to separate typed target tables
+     INSERT INTO target_orders
+     SELECT JSON_VALUE(val, '$.order_id' RETURNING INT), ...
+     FROM inferred_raw
+     WHERE JSON_VALUE(val, '$.event_type') = 'order';
+     ```
+
+3. **If migrating from `RecordNameStrategy` / `TopicRecordNameStrategy`**, the long-term fix is to re-route events to separate topics with `TopicNameStrategy`. Short-term, use Flink to split and re-serialize as described above.
+
+**Recommendation:** Keep `TopicNameStrategy` (default) and one-topic-per-table for CDC pipelines targeting Tableflow.
 
 ---
 
