@@ -11,10 +11,10 @@ import common
 
 
 async def register_schema(sr_client, topic, schema_str):
-    """Register the schema as a separate explicit step.
+    """Register the union schema under the default TopicNameStrategy subject.
 
-    Errors (auth failures, network errors, permission denials) propagate
-    immediately — never wrap this in a bare try/except.
+    The oneOf union schema is registered as a single subject (<topic>-value).
+    No strategy change is needed — TopicNameStrategy is the default.
     """
     subject = f"{topic}-value"
     json_schema = Schema(schema_str, schema_type="JSON")
@@ -26,7 +26,8 @@ async def register_schema(sr_client, topic, schema_str):
 async def create_json_serializer(sr_client, schema_str):
     """Create the serializer with auto-registration disabled.
 
-    Schema must already be registered via register_schema().
+    The oneOf in the schema handles validation — the serializer checks each
+    message against the matching sub-schema at serialization time.
     """
     serializer = await AsyncJSONSerializer(
         schema_str,
@@ -37,10 +38,12 @@ async def create_json_serializer(sr_client, schema_str):
 
 
 async def produce(producer, topic, serializer, schema_id, messages):
-    """Produce messages using an existing producer instance.
+    """Produce messages of varying event types using an existing producer.
 
-    The producer is passed in — never create a new producer per call.
-    This function can be called multiple times with the same producer.
+    Each message must include an event_type field that matches one of the
+    oneOf discriminators in the union schema (e.g., "OrderCreated",
+    "OrderUpdated", "OrderCancelled"). The serializer validates the message
+    against the matching sub-schema.
     """
     futures = []
     for i, value in enumerate(messages):
@@ -57,7 +60,8 @@ async def produce(producer, topic, serializer, schema_id, messages):
         elif result.error():
             print(f"Message {i+1} delivery failed: {result.error()}")
         else:
-            print(f"Message {i+1} produced: partition={result.partition()}, offset={result.offset()}")
+            print(f"Message {i+1} ({messages[i].get('event_type', '?')}) produced: "
+                  f"partition={result.partition()}, offset={result.offset()}")
 
 
 async def main():
@@ -96,12 +100,34 @@ async def main():
         try:
             loop.add_signal_handler(sig, shutdown.set)
         except NotImplementedError:
-            # Fallback for platforms (e.g., Windows) where add_signal_handler is not supported
             signal.signal(sig, _handle_signal)
 
     try:
-        # -- Generate sample messages here, adapted to the user's domain --
-        messages = [...]  # Replace with domain-specific sample data
+        # -- Multiple event types on the same topic --
+        messages = [
+            {
+                "event_type": "OrderCreated",
+                "order_id": "ORD-001",
+                "customer_id": "CUST-42",
+                "total": 99.95,
+                "currency": "USD",
+                "timestamp": "2026-04-13T10:00:00Z",
+            },
+            {
+                "event_type": "OrderUpdated",
+                "order_id": "ORD-001",
+                "updated_fields": ["total"],
+                "new_total": 89.95,
+                "timestamp": "2026-04-13T10:05:00Z",
+            },
+            {
+                "event_type": "OrderCancelled",
+                "order_id": "ORD-001",
+                "reason": "Customer requested",
+                "cancelled_by": "CUST-42",
+                "timestamp": "2026-04-13T10:10:00Z",
+            },
+        ]
         await produce(producer, config["topic"], serializer, schema_id, messages)
     finally:
         await producer.flush()
