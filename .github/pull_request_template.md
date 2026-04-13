@@ -8,9 +8,7 @@
 
 ## Skill Quality Checklist
 
-- [ ] Skill name uses [gerund form](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices#naming-conventions) (e.g., `creating-connectors`, not `create-connector`)
 - [ ] Skill [description is optimized](https://agentskills.io/skill-creation/optimizing-descriptions) for accurate triggering
-- [ ] Uses concrete examples; avoids verbose paragraphs
 - [ ] Feedback loops like unit tests are built-in to enable agent iteration
 
 ## Testing
@@ -19,7 +17,7 @@
 
 ## Review
 
-- [ ] SME reviewer identified: <!-- @mention here -->
+- [ ] SME reviewer identified if adding a new skill: <!-- @mention here -->
 - [ ] DTX/DevRel reviewer assigned
 
 ## Additional Context
