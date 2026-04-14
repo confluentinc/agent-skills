@@ -123,7 +123,7 @@ This guide covers common issues when setting up and running CDC pipelines with D
 
 **Symptom:** Connector fails during initial snapshot with: *"The database user does not have the 'LOCK TABLES' privilege required to obtain a consistent snapshot by preventing concurrent writes to tables."*
 
-**Cause:** This happens on all managed MySQL services (AWS RDS/Aurora, Google Cloud SQL, Azure Database for MySQL). Debezium first tries `FLUSH TABLES WITH READ LOCK` (requires `SUPER`), but managed services don't grant `SUPER`. Debezium then falls back to per-table `LOCK TABLES`, which requires an explicit `LOCK TABLES` grant. On self-managed MySQL where the user has `SUPER`, this error doesn't occur because the global lock succeeds.
+**Cause:** Managed MySQL services (RDS/Aurora, Cloud SQL, Azure) don't grant `SUPER`, so Debezium falls back to per-table `LOCK TABLES` which needs an explicit grant. See `references/database-prerequisites.md` MySQL section for details.
 
 **Solution:**
 ```sql
@@ -132,6 +132,69 @@ FLUSH PRIVILEGES;
 ```
 
 Then restart or recreate the connector.
+
+### Snapshot Takes Too Long / Unclear if Pipeline is Broken
+
+**Symptom:** After creating the connector with `snapshot.mode: initial` on a large table, no data appears in the target topic for hours. Unclear whether the snapshot is still running or the pipeline is broken.
+
+**Cause:** Initial snapshots on large tables (100M+ rows) can take hours or days. The skill's Phase 4 verification can't distinguish "waiting for snapshot" from "broken pipeline."
+
+**Diagnosis:**
+1. Check if the connector has tasks assigned (provisioned):
+   ```
+   mcp__confluent__read-connector(connectorName, environmentId, clusterId)
+   ```
+   If `tasks: [{...}]` → connector is provisioned and likely running the snapshot.
+
+2. Check if schemas have been registered (snapshot has started producing):
+   ```
+   mcp__confluent__list-schemas(subjectPrefix: "<topic-prefix>")
+   ```
+   Schemas appearing means the connector has started producing. No schemas after 5+ minutes with tasks assigned = broken.
+
+3. Monitor the source topic for growing message count — in Confluent Cloud UI, check the topic's "Messages In" metric. A steady stream means the snapshot is progressing.
+
+4. Check the source database for active replication connections:
+   ```sql
+   -- PostgreSQL: check active replication slots
+   SELECT slot_name, active, confirmed_flush_lsn FROM pg_replication_slots;
+
+   -- MySQL: check active binlog connections
+   SHOW PROCESSLIST;
+   ```
+
+**Mitigation for initial validation:**
+Use `snapshot.mode: schema_only` to validate the pipeline end-to-end without waiting for the full snapshot. Once confirmed working, delete the connector and recreate with `snapshot.mode: initial`.
+
+### CDC Connector Broken After Kafka Topic Deletion
+
+**Symptom:** After deleting a CDC source Kafka topic (e.g., `mysql-cdc.cdctest.customers`) while the connector was running, the connector enters a failure loop and cannot recover.
+
+**Cause:** The connector tracks its position (offsets, binlog position, LSN, etc.) relative to the Kafka topic. When the topic is deleted, the connector loses its state and cannot resume or re-snapshot automatically.
+
+**Solution:** Delete the connector entirely and recreate it from scratch. The new connector will perform a fresh initial snapshot. **Never delete CDC source Kafka topics while the connector is running.** Always delete the connector first, then clean up topics.
+
+### DynamoDB CDC: Snapshot Works but CDC Streaming Silently Fails
+
+**Symptom:** The connector completes the initial snapshot (records with `sync_mode: SNAPSHOT` appear in the Kafka topic), but subsequent DML changes never appear. The connector shows as RUNNING with a task assigned — no errors visible.
+
+**Cause:** The IAM user is missing write permissions needed for the CDC checkpointing table. The DynamoDB CDC connector uses a KCL-style DynamoDB table to track shard leases during the CDC phase. Without `CreateTable`, `PutItem`, `GetItem`, `UpdateItem`, `DeleteItem` permissions, the connector cannot create or update this table, so the CDC phase cannot track its position in the stream.
+
+**Diagnosis:**
+1. Check the source Kafka topic — if only `sync_mode: SNAPSHOT` records exist and no `sync_mode: CDC` records appear after 5+ minutes, the CDC phase is not working
+2. Check the IAM policy for the connector's IAM user — it likely only has read permissions (`Scan`, `GetRecords`, `GetShardIterator`, etc.) but is missing write permissions
+
+**Solution:** Update the IAM policy to include all required permissions for both reading DynamoDB Streams and writing to the checkpointing table. See `references/database-prerequisites.md` "DynamoDB CDC Prerequisites" for the complete IAM policy. After updating the IAM policy, delete and recreate the connector.
+
+Also ensure the connector config includes these explicit properties:
+```json
+{
+  "dynamodb.table.discovery.mode": "INCLUDELIST",
+  "dynamodb.table.sync.mode": "SNAPSHOT_CDC",
+  "dynamodb.cdc.max.poll.records": "5000",
+  "dynamodb.snapshot.max.poll.records": "1000"
+}
+```
 
 ### Connector Runs but No Messages
 
@@ -147,6 +210,24 @@ mcp__confluent__search-topics-by-name(topicName: "<topic-prefix>")
 1. Initial snapshot still in progress (wait a few more minutes)
 2. `table.include.list` filter excludes all tables (check case sensitivity)
 3. `snapshot.mode = "never"` and no recent database changes
+
+### Orphaned PostgreSQL Replication Slot After Connector Deletion
+
+**Symptom:** After deleting a PostgreSQL CDC connector, database disk usage grows steadily. Eventually the database may become read-only (on managed services like RDS).
+
+**Cause:** Deleting the connector does NOT drop the replication slot. The orphaned slot holds WAL segments indefinitely.
+
+**Solution:**
+```sql
+-- Check for orphaned slots (active = false)
+SELECT slot_name, active, pg_size_pretty(pg_wal_lsn_diff(pg_current_wal_lsn(), restart_lsn)) AS retained_wal
+FROM pg_replication_slots;
+
+-- Drop the orphaned slot
+SELECT pg_drop_replication_slot('debezium_slot');
+```
+
+**Prevention:** Always clean up the replication slot when deleting a PostgreSQL CDC connector. See `references/database-prerequisites.md` for monitoring guidance.
 
 ---
 
@@ -229,7 +310,40 @@ These warnings appear on INSERT statements but don't prevent execution:
 - **Managed** — Confluent manages the S3 storage
 - **BYOB (Bring Your Own Bucket)** — User provides S3 bucket with Provider Integration
 
-**Requirement:** Tableflow requires a **Dedicated** cluster. Basic and Standard clusters do not support Tableflow.
+**Requirement:** Tableflow works across all Confluent Cloud cluster types (Basic, Standard, Enterprise, Dedicated, and Freight).
+
+### Tableflow Suspended: Null Value (Tombstone) on APPEND-Mode Topic
+
+**Symptom:** Tableflow suspends with: *"Tableflow will be suspended because we detected a Kafka record at partition X offset Y with a null value. The changelog mode of this table is APPEND."*
+
+**Cause:** CDC connectors with `tombstones.on.delete=true` produce null-value Kafka records (tombstones) when a row is deleted in the source database. Tableflow in APPEND mode cannot handle null values.
+
+**Solution:** **Never enable Tableflow directly on CDC source topics.** Follow the skill's architecture: use a Flink INSERT job to decode the Debezium envelope into a target topic created with `'changelog.mode' = 'upsert'`, then enable Tableflow on that target topic. The Flink decode layer properly translates DELETE operations into upsert-compatible retract/tombstone messages that Tableflow handles correctly.
+
+**Do NOT try these workarounds — they don't work:**
+- `record_failure_strategy: SKIP` — Does not skip changelog mode violations, only data-level errors.
+- `after.state.only=true` on the connector — Strips the Debezium envelope but tombstones still produce null values. Also, `OracleXStreamSource` does not support this option.
+- Changing `changelog.mode` from APPEND to UPSERT after Tableflow has started — See "Changelog Mode Immutable" below.
+
+### Tableflow Error: Changelog Mode Modified
+
+**Symptom:** *"The changelog mode for this topic has been modified since table materialization began from APPEND to UPSERT. Modifying the changelog mode of an existing table is not supported."*
+
+**Cause:** Tableflow caches the changelog mode at first materialization. The mode was APPEND when Tableflow first read from the topic, and someone subsequently altered the topic's `changelog.mode` property to UPSERT.
+
+**Solution:** The cached mode cannot be changed. You must:
+1. Delete the Tableflow topic
+2. Delete the underlying Kafka topic (this is required because the S3 `table_path` is keyed by topic name — deleting only the Tableflow topic and recreating it reuses the same cached state)
+3. Recreate the Kafka topic with `'changelog.mode' = 'upsert'` set from creation (via Flink CREATE TABLE)
+4. Re-enable Tableflow on the new topic
+
+### Tableflow Error: Incompatible Schema Evolution
+
+**Symptom:** *"Incompatible schema evolution detected. Field changed from nullable to non-nullable at key."*
+
+**Cause:** Multiple changelog mode changes corrupted the Tableflow S3 state. Flip-flopping between APPEND and UPSERT modes causes schema conflicts because the key nullability changes between modes.
+
+**Solution:** Full pipeline reset required — delete the Tableflow topic, the Kafka topic, all associated schemas, and recreate from scratch. See SKILL.md "Pipeline cleanup order matters" for the correct deletion sequence.
 
 ### Tableflow Topic Fails to Activate
 
@@ -241,7 +355,7 @@ These warnings appear on INSERT statements but don't prevent execution:
 
 2. **Storage credentials invalid (BYOB only)** — Check Provider Integration and IAM permissions.
 
-3. **Cluster type** — Must be a Dedicated cluster.
+3. **Cluster type** — Verify Tableflow is available on your cluster tier and region.
 
 ### Tableflow Not Writing Files
 
@@ -290,6 +404,47 @@ mcp__confluent__list-schemas(subjectPrefix: "<topic-prefix>")
 6. Recreate the connector fresh — it will create new topics, register new schemas, and do a clean initial snapshot
 
 **Important:** Simply deleting schemas without deleting the topics does NOT work. The old messages with stale schema IDs remain on the topics and will cause Flink failures.
+
+### Schema Registry Compatibility Rejects New Schema
+
+**Symptom:** Connector halts or fails to register a new schema after a database column is dropped or a type changes.
+
+**Cause:** The default Schema Registry compatibility mode is `BACKWARD`. If Debezium registers a schema with a removed field, `BACKWARD` compatibility rejects it because existing consumers might depend on that field.
+
+**Solution:**
+1. Check current compatibility:
+   ```bash
+   confluent schema-registry config describe --environment <env-id>
+   ```
+2. For CDC subjects, set `FULL_TRANSITIVE` compatibility (allows both forward and backward evolution):
+   ```bash
+   confluent schema-registry config update --subject "<topic-prefix>.<schema>.<table>-value" --compatibility FULL_TRANSITIVE --environment <env-id>
+   ```
+3. If you need to apply this globally for all CDC subjects, update the global default — but be aware this affects non-CDC subjects too.
+
+**Prevention:** Check SR compatibility during Phase 1 (Discovery) before creating the connector.
+
+### Topic Has No Schema — Flink Can't Auto-Discover
+
+**Symptom:** A topic exists and has messages, but doesn't appear in `SHOW TABLES` in Flink.
+
+**Cause:** The topic was produced without a Schema Registry serializer (plain `JSON` / `StringSerializer`), so no schema is registered.
+
+**Solution:** Register a JSON schema in SR (partial schemas work for JSON), use [schema inference](https://docs.confluent.io/cloud/current/sr/schemas-manage.html#infer-a-schema-from-messages), or use Flink's raw BYTES approach. See `references/connector-configs.md` "Handling Topics Without Schema Registry" for all options and `references/flink-sql-patterns.md` Pattern 6 for Flink-specific code.
+
+### Multi-Event Topic — Mixed Schemas on One Topic
+
+**Symptom:** A topic has messages from multiple event types. Flink can't auto-discover it, or some records fail deserialization.
+
+**Cause:** The topic uses `RecordNameStrategy` or `TopicRecordNameStrategy` instead of the default `TopicNameStrategy`. Flink expects one schema per topic.
+
+**Diagnosis:** Check which subjects exist:
+```bash
+confluent schema-registry subject list --environment <env-id> | grep "<topic-name>"
+```
+Subjects like `com.example.Order-value` instead of `<topic-name>-value` indicate `RecordNameStrategy`.
+
+**Solution:** Split into typed target tables using Flink. See `references/flink-sql-patterns.md` Pattern 7 for code and `references/connector-configs.md` "Subject Name Strategies" for strategy details.
 
 ### Schema Evolution
 

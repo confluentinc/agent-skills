@@ -1,28 +1,6 @@
 # Flink SQL Patterns for Debezium CDC in Confluent Cloud
 
-This guide covers Flink SQL patterns for working with Debezium CDC events in Confluent Cloud Flink. In Confluent Cloud, Flink is deeply integrated with Schema Registry and Kafka -- source tables from CDC connectors are auto-discovered, and no explicit connector or format properties are needed in CREATE TABLE statements.
-
----
-
-## Key Principle: Auto-Discovery of CDC Source Tables
-
-When a Debezium CDC connector creates topics with schemas registered in Schema Registry, Confluent Cloud Flink **automatically discovers** those topics as Flink tables. You do NOT need to create source tables manually.
-
-For example, if a CDC connector with `topic.prefix = "postgres-cdc"` captures the `public.customers` table, the topic `postgres-cdc.public.customers` automatically appears as a Flink table:
-
-```sql
--- This table already exists -- no CREATE TABLE needed
--- Reference it with backtick-quoting due to dots in the name:
-SELECT * FROM `postgres-cdc.public.customers` LIMIT 5;
-```
-
-Verify auto-discovered tables with:
-
-```sql
-SHOW TABLES;
-```
-
-If the CDC source table does not appear, the connector may not have produced data yet. Wait 2-5 minutes for the connector to fully provision and produce its initial snapshot.
+CDC source tables are **auto-discovered** from Kafka topics with SR schemas — no manual source table creation needed. Reference them with backtick-quoting: `` `postgres-cdc.public.customers` ``. All patterns work identically with `JSON_SR`, `AVRO`, and `PROTOBUF` formats. If a CDC table doesn't appear in `SHOW TABLES`, the connector may not have produced data yet — wait 2-5 minutes.
 
 ---
 
@@ -32,7 +10,9 @@ Debezium uses specific logical types that map to Flink types differently than yo
 
 | Debezium Logical Type | Flink Column Type | Meaning | Conversion |
 |---|---|---|---|
-| `io.debezium.time.MicroTimestamp` | `BIGINT` | Microseconds since epoch | `TO_TIMESTAMP_LTZ(col / 1000, 3)` |
+| `io.debezium.time.ZonedTimestamp` | `STRING` | ISO 8601 string with timezone (MySQL TIMESTAMP) | No conversion needed — already human-readable |
+| `io.debezium.time.NanoTimestamp` | `BIGINT` | Nanoseconds since epoch (SQL Server DATETIME2) | `TO_TIMESTAMP_LTZ(col / 1000000, 3)` |
+| `io.debezium.time.MicroTimestamp` | `BIGINT` | Microseconds since epoch (Oracle TIMESTAMP) | `TO_TIMESTAMP_LTZ(col / 1000, 3)` |
 | `io.debezium.time.Timestamp` | `BIGINT` | Milliseconds since epoch | `TO_TIMESTAMP_LTZ(col, 3)` |
 | `io.debezium.time.Date` | `INT` | Days since epoch | Use as-is or convert |
 | `io.debezium.time.MicroTime` | `BIGINT` | Microseconds since midnight | Use as-is or convert |
@@ -91,27 +71,9 @@ FROM `postgres-cdc.public.customers`;
 
 ## Pattern 3: Multi-Table Pipeline
 
-When capturing multiple tables, create a target table and INSERT statement for each. Each INSERT runs as a separate continuous Flink statement.
+For each table, create a target table (Pattern 1) and INSERT (Pattern 2). **Each INSERT must be submitted as a separate Flink statement** — they run as independent continuous jobs.
 
 ```sql
--- Target tables (source tables are auto-discovered)
-CREATE TABLE `target_customers` (
-  `id` INT NOT NULL,
-  `name` STRING,
-  `email` STRING,
-  `created_at` TIMESTAMP_LTZ(3),
-  PRIMARY KEY (`id`) NOT ENFORCED
-) WITH ('changelog.mode' = 'upsert');
-
-CREATE TABLE `target_orders` (
-  `order_id` BIGINT NOT NULL,
-  `customer_id` INT,
-  `amount` DECIMAL(10, 2),
-  `order_date` TIMESTAMP_LTZ(3),
-  PRIMARY KEY (`order_id`) NOT ENFORCED
-) WITH ('changelog.mode' = 'upsert');
-
--- INSERT statements (each submitted as a separate Flink statement)
 INSERT INTO `target_customers`
 SELECT `id`, `name`, `email`, TO_TIMESTAMP_LTZ(`created_at` / 1000, 3)
 FROM `postgres-cdc.public.customers`;
@@ -120,8 +82,6 @@ INSERT INTO `target_orders`
 SELECT `order_id`, `customer_id`, `amount`, TO_TIMESTAMP_LTZ(`order_date` / 1000, 3)
 FROM `postgres-cdc.public.orders`;
 ```
-
-**Important:** Each INSERT must be submitted as a separate Flink statement via MCP.
 
 ---
 
@@ -229,25 +189,72 @@ Use `mcp__confluent__create-flink-statement` with:
 - **Problem:** `TO_TIMESTAMP_LTZ()` returns `TIMESTAMP_LTZ(3)`, incompatible with `TIMESTAMP(3)`.
 - **Solution:** Define target columns as `TIMESTAMP_LTZ(3)`.
 
-**Pitfall 5: DECIMAL columns appear as garbled BYTES**
-- **Problem:** DECIMAL/NUMERIC columns show as raw bytes (e.g., `"N\u001f"` instead of `"199.99"`). Flink cannot CAST VARBINARY to DECIMAL.
-- **Solution:** This must be fixed at the connector level, not in Flink. Set `"decimal.handling.mode": "string"` in the Debezium connector config. This outputs decimal values as human-readable strings which Flink can handle directly.
+For connector-level data type issues (DECIMAL garbled bytes, INTERVAL lossy values, binary breaking JSON, Oracle NUMBER structs), see `references/connector-configs.md` Data Type Serialization and `references/troubleshooting.md` Data Quality Issues. These must be fixed at the connector level, not in Flink SQL.
 
-**Pitfall 6: INTERVAL columns produce lossy microsecond values**
-- **Problem:** PostgreSQL `INTERVAL` or Oracle `INTERVAL YEAR TO MONTH` columns arrive as INT64 microseconds, approximating months as 30 days and years as 365.25 days.
-- **Solution:** Set `"interval.handling.mode": "string"` on the connector. Values arrive as ISO 8601 strings (e.g., `P1Y2M3DT4H5M6.78S`).
+---
 
-**Pitfall 7: Binary columns break JSON serialization**
-- **Problem:** BYTEA, VARBINARY, BLOB, or RAW columns serialized as raw bytes produce garbled or inconsistent JSON output.
-- **Solution:** Set `"binary.handling.mode": "base64"` on the connector. Values arrive as base64-encoded strings.
+## Pattern 6: Working with Schemaless Topics (No Schema Registry)
 
-**Pitfall 8: Oracle NUMBER without precision produces struct, not scalar**
-- **Problem:** Oracle `NUMBER` (no precision/scale) and `FLOAT` columns are serialized as `VariableScaleDecimal` — a struct of `{scale: INT32, value: BYTES}`, not a simple value. This breaks differently than regular DECIMAL bytes.
-- **Solution:** Set `"decimal.handling.mode": "string"` on the connector. Converts to human-readable string values.
+When a topic has no schema in SR, Flink cannot auto-discover its structure. The preferred fix is to register a schema in SR or use schema inference — see `references/connector-configs.md` "Handling Topics Without Schema Registry" for all options.
 
-**Pitfall 9: CDC source table not in SHOW TABLES**
-- **Problem:** Connector just created, table not visible yet.
-- **Solution:** Wait 2-5 minutes for connector provisioning. Verify schemas exist via `mcp__confluent__list-schemas`.
+If you need to work with the topic directly in Flink without registering a schema, use the raw BYTES approach:
+
+```sql
+-- Flink infers schemaless topics as raw bytes
+-- Modify to STRING to work with JSON payloads
+ALTER TABLE `raw_topic` MODIFY (`key` STRING, `val` STRING);
+
+-- Extract fields using JSON functions
+INSERT INTO `target_customers`
+SELECT
+  JSON_VALUE(`val`, '$.id' RETURNING INT) AS `id`,
+  JSON_VALUE(`val`, '$.name') AS `name`,
+  JSON_VALUE(`val`, '$.email') AS `email`,
+  TO_TIMESTAMP_LTZ(
+    CAST(JSON_VALUE(`val`, '$.created_at') AS BIGINT) / 1000, 3
+  ) AS `created_at`
+FROM `raw_topic`;
+```
+
+This works for any JSON payload regardless of how it was serialized. It's more fragile than schema-based approaches (no type safety, no schema evolution), but useful for ad-hoc exploration or topics you can't modify.
+
+---
+
+## Pattern 7: Multi-Event Topics
+
+Multi-event topics use `RecordNameStrategy` or `TopicRecordNameStrategy` instead of the default `TopicNameStrategy`, putting multiple schemas on one topic. Flink can't auto-discover these. For a detailed breakdown of each strategy, see `references/connector-configs.md` "Subject Name Strategies".
+
+### Splitting Multi-Event Topics into Typed Target Tables
+
+Use the raw BYTES approach with JSON functions to split by event type:
+
+```sql
+-- Multi-event topic: Flink infers as raw bytes since it can't resolve the schema
+-- Modify to STRING to parse JSON payloads
+ALTER TABLE `shared_events` MODIFY (`key` STRING, `val` STRING);
+
+-- Route order events to a typed target table
+INSERT INTO `target_orders`
+SELECT
+  JSON_VALUE(`val`, '$.order_id' RETURNING INT),
+  JSON_VALUE(`val`, '$.customer_id' RETURNING INT),
+  JSON_VALUE(`val`, '$.amount' RETURNING DOUBLE)
+FROM `shared_events`
+WHERE JSON_VALUE(`val`, '$.event_type') = 'order';
+
+-- Route customer events to a separate typed target table
+INSERT INTO `target_customers`
+SELECT
+  JSON_VALUE(`val`, '$.customer_id' RETURNING INT),
+  JSON_VALUE(`val`, '$.name'),
+  JSON_VALUE(`val`, '$.email')
+FROM `shared_events`
+WHERE JSON_VALUE(`val`, '$.event_type') = 'customer';
+```
+
+Each INSERT runs as a separate continuous Flink job. The target topics each use `TopicNameStrategy` (the default for Flink-created topics), so they have a single schema and work normally with Tableflow.
+
+**Long-term recommendation:** Migrate to `TopicNameStrategy` with one topic per event type for any topics that need to flow into Tableflow.
 
 ---
 

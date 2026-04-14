@@ -9,7 +9,7 @@
       "assertions": [
         {"name": "Creates PostgreSQL CDC connector configuration", "description": "Should generate a PostgreSQL CDC V2 connector config file (JSON)"},
         {"name": "Includes both tables in connector config", "description": "Connector config should have table.include.list with 'public.users' and 'public.orders'"},
-        {"name": "Uses JSON_SR format", "description": "Connector config should specify output.data.format = JSON_SR"},
+        {"name": "Uses SR-backed format", "description": "Connector config should specify output.data.format as JSON_SR, AVRO, or PROTOBUF (not plain JSON)"},
         {"name": "Creates Flink compute pool", "description": "Should include commands or plan to create a Flink compute pool"},
         {"name": "Generates Flink SQL for both tables", "description": "Should create source and target table DDL plus INSERT statements for users and orders"},
         {"name": "Creates Tableflow sink configuration", "description": "Should generate Tableflow connector config for Iceberg with S3 path"},
@@ -49,7 +49,7 @@
       "assertions": [
         {"name": "Creates SQL Server CDC V2 connector configuration", "description": "Should generate a SQL Server CDC V2 connector config file (JSON)"},
         {"name": "Includes all three tables", "description": "Connector config should have table.include.list with 'dbo.Customers', 'dbo.Invoices', 'dbo.LineItems'"},
-        {"name": "Uses JSON_SR format", "description": "Connector config should specify output.data.format = JSON_SR (not AVRO)"},
+        {"name": "Uses JSON_SR format per user request", "description": "Connector config should specify output.data.format = JSON_SR since user requested JSON with Schema Registry"},
         {"name": "Configures Tableflow for ADLS Gen2", "description": "Tableflow sink should use Azure Data Lake Storage Gen2 path (abfss:// format)"},
         {"name": "Uses sales-cdc naming prefix", "description": "All component names should start with 'sales-cdc-' as requested"}
       ]
@@ -89,6 +89,42 @@
         {"name": "Provides steps to update Flink target table", "description": "Should explain how to drop and recreate the target table DDL with new column"},
         {"name": "Explains how to restart INSERT statement", "description": "Should provide commands to stop existing INSERT statement and start new one"},
         {"name": "References schema evolution pattern", "description": "Should mention or reference Pattern 5 from flink-sql-patterns.md"}
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "We want to set up CDC from our PostgreSQL database to Iceberg, but we need to use Avro format instead of JSON because we have very high throughput — about 50k events per second. Database is at pg-analytics.internal:5432, database name is 'events', table is 'public.page_views'. We have a Flink pool lfcp-htp001 and everything else is set up. Can you generate configs with Avro?",
+      "expected_output": "Setup plan using AVRO format: (1) PostgreSQL CDC connector with output.data.format = AVRO and output.key.format = AVRO, (2) Flink SQL using auto-discovered CDC table (same patterns as JSON_SR — Flink handles all formats transparently), (3) Tableflow for Iceberg. Should explain that Avro is a good choice for high throughput due to smaller payloads.",
+      "files": [],
+      "assertions": [
+        {"name": "Uses AVRO format", "description": "Connector config should specify output.data.format = AVRO and output.key.format = AVRO"},
+        {"name": "Flink patterns are format-agnostic", "description": "Flink SQL should use the same auto-discovery and INSERT patterns as JSON_SR — no format-specific changes"},
+        {"name": "Explains Avro benefits for throughput", "description": "Should mention that Avro produces smaller payloads than JSON_SR, beneficial for high throughput"}
+      ]
+    },
+    {
+      "id": 9,
+      "prompt": "I have an existing Kafka topic called 'app-events' that receives plain JSON messages (no Schema Registry) from our application. The messages look like {\"user_id\": 123, \"action\": \"click\", \"timestamp\": 1710000000000, \"page\": \"/home\"}. I want to get this data into an Iceberg table via Tableflow. How do I handle the fact that there's no schema registered?",
+      "expected_output": "Should explain multiple options for handling schemaless topics: (1) Register a JSON schema manually in SR (partial schema is fine for JSON), (2) Use Confluent Cloud's schema inference feature, (3) Use Flink raw BYTES inference with ALTER TABLE MODIFY and JSON functions. Should recommend Option 1 or 2 as preferred. Should explain that Tableflow requires schemas.",
+      "files": [],
+      "assertions": [
+        {"name": "Identifies schemaless topic issue", "description": "Should recognize that plain JSON without SR means no Flink auto-discovery and no Tableflow"},
+        {"name": "Recommends schema registration", "description": "Should recommend registering a JSON schema in SR as the preferred approach"},
+        {"name": "Mentions partial schema support", "description": "Should note that JSON schemas can be partial — not all fields need to be defined"},
+        {"name": "Mentions schema inference", "description": "Should reference Confluent Cloud's ability to infer schemas from existing messages"},
+        {"name": "Shows BYTES fallback", "description": "Should explain the ALTER TABLE MODIFY approach with JSON_VALUE functions as an alternative"}
+      ]
+    },
+    {
+      "id": 10,
+      "prompt": "We have a Kafka topic called 'all-changes' that receives CDC events from multiple tables — orders, customers, and products are all routed to the same topic using Debezium's topic routing SMT. Each message has an 'event_type' field indicating which table it came from. We need to split these into separate Iceberg tables via Tableflow. How should we handle this?",
+      "expected_output": "Should explain that multi-event topics require splitting before Tableflow. Recommend creating separate Flink INSERT jobs that filter by event_type and write to separate target tables. Each target table gets its own schema and can be used with Tableflow normally. Should also recommend avoiding multi-event topics for future CDC pipelines.",
+      "files": [],
+      "assertions": [
+        {"name": "Identifies multi-event topic challenge", "description": "Should recognize that Tableflow works best with single-schema topics"},
+        {"name": "Recommends splitting via Flink", "description": "Should suggest using Flink SQL to filter by event_type and route to separate target tables"},
+        {"name": "Creates separate Tableflow targets", "description": "Should enable Tableflow on each separate target table, not the multi-event source"},
+        {"name": "Recommends avoiding multi-event for CDC", "description": "Should advise using Debezium's default one-topic-per-table for future pipelines"}
       ]
     }
   ]
