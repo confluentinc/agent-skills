@@ -36,18 +36,23 @@ async def create_json_serializer(sr_client, schema_str):
     return serializer
 
 
-async def produce(producer, topic, serializer, schema_id, messages):
+async def produce(producer, topic, serializer, schema_id, messages, key_field=None):
     """Produce messages using an existing producer instance.
 
     The producer is passed in — never create a new producer per call.
     This function can be called multiple times with the same producer.
+
+    key_field: name of the field in each message to use as the partition key
+    (e.g., "order_id", "user_id"). Messages with the same key land on the
+    same partition, preserving ordering. Pass None for round-robin distribution.
     """
     futures = []
     for i, value in enumerate(messages):
         serialized = await serializer(
             value, SerializationContext(topic, MessageField.VALUE)
         )
-        future = await producer.produce(topic, value=serialized)
+        key_bytes = value[key_field].encode("utf-8") if key_field and key_field in value else None
+        future = await producer.produce(topic, key=key_bytes, value=serialized)
         futures.append(future)
 
     results = await asyncio.gather(*futures, return_exceptions=True)

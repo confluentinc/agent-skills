@@ -131,6 +131,8 @@ These principles matter because they prevent the most common production issues w
 
 6. **Verify connectivity before running.** Use `AdminClient.list_topics()` to verify the broker is reachable and the topic exists before producing or consuming. Verify Schema Registry connectivity with an HTTP health check.
 
+7. **Set a message key for partition ordering.** The `produce()` function accepts a `key_field` parameter: the name of the field in each message to use as the partition key (e.g., `"order_id"`, `"user_id"`, `"device_id"`). Messages with the same key land on the same partition, preserving ordering for that entity. Choose the primary identifier from the user's schema. If the user's data has no natural key, pass `None` for round-robin distribution. Always ask the user which field should be the key when gathering requirements about their data fields (question #6).
+
 ### common.py
 
 This module handles configuration loading and connectivity verification. Use `references/common.py` as the template.

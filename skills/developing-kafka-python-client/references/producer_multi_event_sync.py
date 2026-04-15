@@ -43,19 +43,23 @@ def delivery_callback(err, msg):
         print(f"Produced: partition={msg.partition()}, offset={msg.offset()}")
 
 
-def produce(producer, topic, serializer, schema_id, messages):
+def produce(producer, topic, serializer, schema_id, messages, key_field=None):
     """Produce messages of varying event types using an existing producer.
 
     Each message must include an event_type field that matches one of the
     oneOf discriminators in the union schema. The serializer validates the
     message against the matching sub-schema at serialization time.
+
+    key_field: name of the field to use as the partition key (e.g., "order_id").
+    All events for the same entity land on the same partition, preserving ordering.
     """
     headers = {"confluent.value.schemaId": str(schema_id)}
     for value in messages:
         serialized = serializer(
             value, SerializationContext(topic, MessageField.VALUE)
         )
-        producer.produce(topic, value=serialized, headers=headers, on_delivery=delivery_callback)
+        key_bytes = value[key_field].encode("utf-8") if key_field and key_field in value else None
+        producer.produce(topic, key=key_bytes, value=serialized, headers=headers, on_delivery=delivery_callback)
         producer.poll(0)
 
     producer.flush()
