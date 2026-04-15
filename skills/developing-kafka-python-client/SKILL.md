@@ -1,7 +1,17 @@
 ---
 name: developing-kafka-python-client
-description: "Create a Python Kafka producer/consumer project using confluent-kafka-python with Schema Registry JSON Schema serialization. Supports async (AIOProducer) and synchronous (Producer) modes, Confluent Cloud, Confluent Platform, open-source Apache Kafka, and local Docker for development."
+description: "Use when the user wants to build a Python Kafka producer or consumer, add Schema Registry to existing Python code, migrate from raw JSON to schema-backed serialization, or scaffold a confluent-kafka-python project for Confluent Cloud or local Docker."
 ---
+
+<HARD-GATE>
+Do NOT generate any code, scaffold any project, or modify any file until you have
+explicitly asked and received answers for questions #1 (existing app or greenfield),
+#2 (target environment), and #3 (producer, consumer, or both). If the user's prompt
+partially answers some questions, still confirm your understanding before generating.
+This applies to EVERY prompt regardless of how specific it appears.
+</HARD-GATE>
+
+Begin by announcing: "Using the Confluent Kafka Python Client skill to guide this project."
 
 # Confluent Kafka Python Client Creation
 
@@ -28,7 +38,55 @@ Generate a production-ready Python project for producing to and/or consuming fro
 
 Don't ask about Schema Registry — always include it.
 
+### Common Agent Mistakes
+
+| Thought | Reality |
+|---------|---------|
+| "The user mentioned FastAPI, so I know it's async — skip the questions" | Still confirm. They might want a sync background worker alongside FastAPI. |
+| "I'll use Avro since it's more widely used" | This skill uses JSON Schema exclusively. Explain why if asked, but don't switch. |
+| "I'll skip Schema Registry to keep it simple" | Schema Registry is non-negotiable. Every project includes it. |
+| "I'll use `auto.register.schemas=True` for convenience" | Always `False`. Explicit registration is a core principle. |
+| "I'll create a producer in `produce()` — it's cleaner" | One producer instance, created in `main()`, passed as a parameter. Always. |
+| "The user wants sync, so the consumer should be sync too" | Consumer is always async (`AIOConsumer`). This is a deliberate design decision. |
+| "I'll add `headers=` to the AIOProducer for schema ID" | `AIOProducer.produce()` raises `NotImplementedError` on headers. Only sync producers use headers. |
+
+## Step 1b: Confirm Understanding
+
+After gathering all answers, present a confirmation summary before generating any code:
+
+```
+Before I generate the project, let me confirm:
+- Project type: [Greenfield scaffold / Migration of existing code]
+- Environment: [Confluent Cloud (SASL_SSL) / Local Docker (PLAINTEXT)]
+- Components: [Producer only / Consumer only / Both]
+- Producer style: [AsyncIO (AIOProducer) / Synchronous (Producer)] (if applicable)
+- Schema: [brief description of user's data fields]
+- Topic: [topic name]
+- Consumer group: [group ID] (if consumer)
+
+Does this look right?
+```
+
+Wait for user confirmation before proceeding to Step 2. If the user corrects anything, update your understanding and re-confirm.
+
 ## Step 2: Generate the Project
+
+### Decision Flowchart
+
+```dot
+digraph decisions {
+  "Q1: Existing app?" -> "Migration path:\nmodify existing code" [label="yes"];
+  "Q1: Existing app?" -> "Q2: Environment?" [label="no / greenfield"];
+  "Q2: Environment?" -> "Cloud config\n(SASL_SSL)" [label="Confluent Cloud"];
+  "Q2: Environment?" -> "Local Docker config\n(PLAINTEXT) + docker-compose.yml" [label="local / docker / OSS"];
+  "Cloud config\n(SASL_SSL)" -> "Q3: Components?";
+  "Local Docker config\n(PLAINTEXT) + docker-compose.yml" -> "Q3: Components?";
+  "Q3: Components?" -> "Q4: Async or sync?" [label="producer requested"];
+  "Q3: Components?" -> "Generate consumer\n(always async AIOConsumer)" [label="consumer only"];
+  "Q4: Async or sync?" -> "AIOProducer path\nAsyncJSONSerializer\n(no headers support)" [label="async / event-loop"];
+  "Q4: Async or sync?" -> "Producer path\nJSONSerializer\n(header-based schema ID)" [label="sync / batch / ETL"];
+}
+```
 
 Create this file structure in the user's chosen directory:
 
@@ -173,65 +231,11 @@ For example, if the user is producing financial transactions:
 
 #### Schema Generation Rules
 
-When generating or adapting a schema to the user's domain, follow these rules strictly. Without them, the generated schema will lack discoverability, break on evolution, and produce governance issues.
-
-1. **Descriptions everywhere.** The schema itself and every property MUST have a `description`. Descriptions enable discoverability in Schema Registry UI and governance tools.
-2. **Default values on non-key fields.** Every field that is not the primary identifier MUST have a `default` value. Use sensible defaults: `""` for strings, `0` for numbers, `false` for booleans, `null` for nullable unions, and the first enum value for enums. Without defaults, you cannot add or remove fields without breaking consumers (backward-compatible schema evolution requires defaults).
-3. **Timestamps use `format: date-time`.** Any field representing a point in time MUST use `"type": "string", "format": "date-time"` (ISO 8601). Do not use bare `"type": "string"` for timestamps.
-4. **Enums for fixed value sets.** Fields with a known, fixed set of values (status codes, event types, categories) MUST use `"enum"` with explicit values. This prevents invalid data and enables schema-level validation.
-5. **Include nullable fields.** Include at least one nullable field using `"oneOf": [{"type": "null"}, {"type": "..."}]` with `"default": null` for future extensibility. If the user's domain does not suggest one, add a `metadata` field as a nullable object. Without nullable unions, making a field optional later requires a breaking schema change.
-6. **Title and `$schema`.** The `"title"` must match the event name (e.g., `"UserSignup"`, `"SensorReading"`). The `"$schema"` must be `"http://json-schema.org/draft-07/schema#"`.
-
-If the user doesn't have a specific domain, use a generic event schema with `id`, `type`, `timestamp`, and `payload` properties — but still apply all the rules above (descriptions, defaults, `format: date-time` on the timestamp, etc.).
+Follow the rules in `references/schema-generation-rules.md` strictly when generating or adapting schemas to the user's domain.
 
 #### Multi-Event Topics (Advanced)
 
-By default, the reference code uses **TopicNameStrategy**: one schema per `<topic>-value` subject. This is correct for the common case where each topic carries a single event type.
-
-When a user describes multiple event types on a single topic (e.g., `OrderCreated`, `OrderUpdated`, `OrderCancelled` on an `order-events` topic), keep **TopicNameStrategy** and use a **union schema** with `oneOf` and `$ref`. This keeps a single subject (`<topic>-value`) and a single serializer while allowing multiple event shapes within the same topic. The `oneOf` discriminates between event types, and each referenced sub-schema can evolve independently inside the union.
-
-Use `references/order_events.schema.json` as the template for multi-event schemas. The pattern:
-
-```json
-{
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "OrderEvent",
-  "description": "Union of all event types on the order-events topic.",
-  "oneOf": [
-    { "$ref": "#/$defs/OrderCreated" },
-    { "$ref": "#/$defs/OrderUpdated" },
-    { "$ref": "#/$defs/OrderCancelled" }
-  ],
-  "$defs": {
-    "OrderCreated": {
-      "type": "object",
-      "title": "OrderCreated",
-      "description": "Emitted when a new order is placed.",
-      "properties": {
-        "event_type": { "type": "string", "enum": ["OrderCreated"], "description": "Discriminator." },
-        "order_id":   { "type": "string", "description": "Unique order identifier." },
-        "customer_id": { "type": "string", "description": "Customer who placed the order.", "default": "" },
-        "total":      { "type": "number", "description": "Order total.", "default": 0 },
-        "currency":   { "type": "string", "description": "ISO 4217 currency code.", "default": "USD" },
-        "timestamp":  { "type": "string", "format": "date-time", "description": "When the order was placed." }
-      },
-      "required": ["event_type", "order_id", "timestamp"]
-    },
-    "OrderUpdated": { "..." : "..." },
-    "OrderCancelled": { "..." : "..." }
-  }
-}
-```
-
-Key rules for union schemas:
-1. **Discriminator field.** Every sub-schema MUST include an `event_type` property with a single-value `enum` (e.g., `"enum": ["OrderCreated"]`). This lets consumers route messages without inspecting the full payload.
-2. **All Schema Generation Rules still apply** to each sub-schema — descriptions, defaults, `format: date-time`, nullable fields, etc.
-3. **One file.** The union schema is a single `schemas/value.schema.json` registered under the default `<topic>-value` subject. No extra subjects or strategy changes are needed.
-4. **Producer code is unchanged.** The producer uses the same single serializer — the `oneOf` validation happens at serialization time. The producer just passes the correct dict shape for each event type.
-
-Use `references/producer_multi_event.py` as the template for multi-event async producers and `references/producer_multi_event_sync.py` for synchronous. The key difference from single-event producers is that the `produce()` function accepts messages of varying shapes — the union schema's `oneOf` validates each message against the matching sub-schema at serialization time.
-
-Only suggest multi-event union schemas when the user explicitly describes multiple event types on one topic. For single-event-type topics, use a plain object schema.
+When the user describes multiple event types on a single topic, follow `references/multi-event-guide.md`. Only suggest multi-event union schemas when the user explicitly describes multiple event types on one topic.
 
 ### docker-compose.yml (Local Docker Path Only)
 
@@ -278,6 +282,7 @@ httpx
 authlib
 cachetools
 attrs
+typing_extensions
 pytest
 pytest-asyncio
 ```
@@ -288,24 +293,7 @@ Always include `pytest`. Include `pytest-asyncio` if the project uses the async 
 
 ### README.md
 
-Generate a README.md that includes:
-
-1. **Project title** — a descriptive name based on the user's data domain (e.g., "IoT Sensor Data Kafka Pipeline")
-2. **Overview** — one paragraph explaining what the project does (produces to / consumes from Kafka using confluent-kafka-python with Schema Registry)
-3. **Prerequisites** — Python 3.8+, plus Docker if using local mode or a Confluent Cloud account if using cloud mode
-4. **Setup** section:
-   - For **Confluent Cloud**: copy `.env.example` to `.env`, fill in bootstrap server, API keys, and Schema Registry URL (mention these are found in the Confluent Cloud Console)
-   - For **Local Docker**: `docker compose up -d` to start Kafka and Schema Registry, then copy `.env.example` to `.env` (defaults work as-is)
-5. **Install dependencies** — `pip install -r requirements.txt` (suggest using a virtualenv)
-6. **Create topic** — include the command to create the topic if it doesn't already exist:
-   - For **Local Docker**: `docker compose exec kafka kafka-topics --create --topic <topic-name> --bootstrap-server localhost:29092`
-   - For **Confluent Cloud**: direct the user to create the topic via the Confluent Cloud Console, or use the Confluent CLI: `confluent kafka topic create <topic-name>`
-7. **Usage** — commands to run the producer and/or consumer (`python producer.py`, `python consumer.py`), adapted to whichever components were generated
-8. **Schema** — brief note that the JSON Schema is in `schemas/value.schema.json` and is auto-registered with Schema Registry on first produce
-9. **Running tests** — `pytest tests/`
-10. **Cleanup** (local Docker only) — `docker compose down` (mention `-v` to remove stored data)
-
-Adapt the README to match what was actually generated — omit producer sections if only a consumer was requested, omit Docker sections for Confluent Cloud projects, etc. Keep it concise and actionable.
+Generate a README following `references/readme-template.md`. Adapt to match what was actually generated — omit producer sections if only a consumer was requested, omit Docker sections for Confluent Cloud projects.
 
 ### tests/test_project.py
 
@@ -334,7 +322,7 @@ After generating the files, give the user instructions based on their target env
 **Confluent Cloud:**
 
 1. Copy `.env.example` to `.env` and fill in their Confluent Cloud credentials
-2. Set up the value schema in Schema Registry — they can either paste the contents of `schemas/value.schema.json` into the Confluent Cloud Console under Schema Registry > Schemas for their topic's value subject, or let the producer auto-register it on first run
+2. The schema will be registered automatically when the producer runs for the first time via the explicit `register_schema()` function (not auto-registration — `auto.register.schemas` is set to `False`). Alternatively, they can paste the contents of `schemas/value.schema.json` into the Confluent Cloud Console under Schema Registry > Schemas for their topic's value subject.
 3. Create a virtualenv and install dependencies: `pip install -r requirements.txt`
 4. Run the producer: `python producer.py`
 5. Run the consumer: `python consumer.py`
