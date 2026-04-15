@@ -328,24 +328,24 @@ After generating all files, run `pytest tests/` to verify the tests pass. If any
 
 ## Step 3: Guide the User
 
-After generating the files, give the user instructions based on their target environment:
+After generating the files, give the user instructions based on their target environment. Adapt these to match what was actually generated: omit producer steps if only a consumer was requested, omit consumer steps if only a producer was requested.
 
 **Confluent Cloud:**
 
 1. Copy `.env.example` to `.env` and fill in their Confluent Cloud credentials
-2. The schema will be registered automatically when the producer runs for the first time via the explicit `register_schema()` function (not auto-registration — `auto.register.schemas` is set to `False`). Alternatively, they can paste the contents of `schemas/value.schema.json` into the Confluent Cloud Console under Schema Registry > Schemas for their topic's value subject.
-3. Create a virtualenv and install dependencies: `pip install -r requirements.txt`
-4. Run the producer: `python producer.py`
-5. Run the consumer: `python consumer.py`
+2. Create a virtualenv and install dependencies: `pip install -r requirements.txt`
+3. If a producer was generated: the schema will be registered explicitly when the producer runs for the first time via the `register_schema()` function (`auto.register.schemas` is set to `False`). If only a consumer was generated: register the schema manually by pasting the contents of `schemas/value.schema.json` into the Confluent Cloud Console under Schema Registry > Schemas for the topic's value subject.
+4. Run the producer (if generated): `python producer.py`
+5. Run the consumer (if generated): `python consumer.py`
 
 Remind them that they can find their bootstrap server, API keys, and Schema Registry URL in the Confluent Cloud Console under their cluster and environment settings.
 
 **Local Docker:**
 
 1. Start Kafka and Schema Registry: `docker compose up -d`
-2. Copy `.env.example` to `.env` (defaults are pre-filled for local Docker — no edits needed)
+2. Copy `.env.example` to `.env` (defaults are pre-filled for local Docker, no edits needed)
 3. Create a virtualenv and install dependencies: `pip install -r requirements.txt`
 4. Create the topic (if auto-creation is disabled): `docker compose exec kafka kafka-topics --create --topic demo-topic --bootstrap-server localhost:29092`
-5. Run the producer: `python producer.py`
-6. Run the consumer: `python consumer.py`
+5. Run the producer (if generated): `python producer.py`
+6. Run the consumer (if generated): `python consumer.py`
 7. When done, stop the containers: `docker compose down` (add `-v` to also remove stored data)
