@@ -13,7 +13,7 @@ Generate a README.md that includes:
    - For **Local Docker**: `docker compose exec kafka kafka-topics --create --topic <topic-name> --bootstrap-server localhost:29092`
    - For **Confluent Cloud**: direct the user to create the topic via the Confluent Cloud Console, or use the Confluent CLI: `confluent kafka topic create <topic-name>`
 7. **Usage** — commands to run the producer and/or consumer (`python producer.py`, `python consumer.py`), adapted to whichever components were generated
-8. **Schema** — brief note that the JSON Schema is in `schemas/value.schema.json` and is auto-registered with Schema Registry on first produce
+8. **Schema** — the JSON Schema is in `schemas/value.schema.json`. The producer registers it explicitly via `register_schema()` on startup (`auto.register.schemas` is `False`). Alternatively, register it manually via the Confluent Cloud Console.
 9. **Running tests** — `pytest tests/`
 10. **Cleanup** (local Docker only) — `docker compose down` (mention `-v` to remove stored data)
 
