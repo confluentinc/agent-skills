@@ -10,6 +10,25 @@ from confluent_kafka.serialization import MessageField, SerializationContext
 import common
 
 
+def _extract_key(value, key_field, index):
+    """Extract the Kafka message key from a message dict.
+
+    Raises a clear error if the field is missing. Coerces non-string
+    scalars (ints, UUIDs) to str before UTF-8 encoding; bytes pass
+    through unchanged.
+    """
+    if not key_field:
+        return None
+    if key_field not in value:
+        raise KeyError(
+            f"Message {index + 1} is missing key field {key_field!r}"
+        )
+    raw_key = value[key_field]
+    if isinstance(raw_key, bytes):
+        return raw_key
+    return str(raw_key).encode("utf-8")
+
+
 async def register_schema(sr_client, topic, schema_str):
     """Register the schema as a separate explicit step.
 
@@ -46,13 +65,18 @@ async def produce(producer, topic, serializer, schema_id, messages, key_field=No
     key (e.g., "transaction_id"). Keys co-locate related messages on the
     same partition, preserving per-entity ordering. Pass None only if
     ordering does not matter.
+
+    schema_id is accepted for signature parity with the synchronous
+    variant, which sends it as a record header. AIOProducer does not
+    support custom headers in batch mode, so the schema is identified
+    via the wire-format prefix written by the serializer.
     """
     futures = []
     for i, value in enumerate(messages):
         serialized = await serializer(
             value, SerializationContext(topic, MessageField.VALUE)
         )
-        key = value[key_field].encode("utf-8") if key_field else None
+        key = _extract_key(value, key_field, i)
         future = await producer.produce(topic, key=key, value=serialized)
         futures.append(future)
 
@@ -110,7 +134,8 @@ async def main():
         messages = [...]  # Replace with domain-specific sample data
         # Set key_field to the field that identifies the entity (e.g., "transaction_id",
         # "user_id"). Messages with the same key land on the same partition.
-        await produce(producer, config["topic"], serializer, schema_id, messages, key_field=None)
+        # Replace "entity_id" below with the actual field name in your messages.
+        await produce(producer, config["topic"], serializer, schema_id, messages, key_field="entity_id")
     finally:
         await producer.flush()
         await producer.close()

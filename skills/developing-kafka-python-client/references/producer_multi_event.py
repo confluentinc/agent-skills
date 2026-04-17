@@ -10,6 +10,25 @@ from confluent_kafka.serialization import MessageField, SerializationContext
 import common
 
 
+def _extract_key(value, key_field, index):
+    """Extract the Kafka message key from a message dict.
+
+    Raises a clear error if the field is missing. Coerces non-string
+    scalars (ints, UUIDs) to str before UTF-8 encoding; bytes pass
+    through unchanged.
+    """
+    if not key_field:
+        return None
+    if key_field not in value:
+        raise KeyError(
+            f"Message {index + 1} is missing key field {key_field!r}"
+        )
+    raw_key = value[key_field]
+    if isinstance(raw_key, bytes):
+        return raw_key
+    return str(raw_key).encode("utf-8")
+
+
 async def register_schema(sr_client, topic, schema_str):
     """Register the union schema under the default TopicNameStrategy subject.
 
@@ -48,13 +67,18 @@ async def produce(producer, topic, serializer, schema_id, messages, key_field="o
     key_field names the field used as the Kafka message key. For order
     events, "order_id" ensures all events for the same order land on the
     same partition, preserving per-order ordering guarantees.
+
+    schema_id is accepted for signature parity with the synchronous
+    variant, which sends it as a record header. AIOProducer does not
+    support custom headers in batch mode, so the schema is identified
+    via the wire-format prefix written by the serializer.
     """
     futures = []
     for i, value in enumerate(messages):
         serialized = await serializer(
             value, SerializationContext(topic, MessageField.VALUE)
         )
-        key = value[key_field].encode("utf-8") if key_field else None
+        key = _extract_key(value, key_field, i)
         future = await producer.produce(topic, key=key, value=serialized)
         futures.append(future)
 
