@@ -43,19 +43,24 @@ def delivery_callback(err, msg):
         print(f"Produced: partition={msg.partition()}, offset={msg.offset()}")
 
 
-def produce(producer, topic, serializer, schema_id, messages):
+def produce(producer, topic, serializer, schema_id, messages, key_field="order_id"):
     """Produce messages of varying event types using an existing producer.
 
     Each message must include an event_type field that matches one of the
     oneOf discriminators in the union schema. The serializer validates the
     message against the matching sub-schema at serialization time.
+
+    key_field names the field used as the Kafka message key. For order
+    events, "order_id" ensures all events for the same order land on the
+    same partition, preserving per-order ordering guarantees.
     """
     headers = {"confluent.value.schemaId": str(schema_id)}
     for value in messages:
         serialized = serializer(
             value, SerializationContext(topic, MessageField.VALUE)
         )
-        producer.produce(topic, value=serialized, headers=headers, on_delivery=delivery_callback)
+        key = value[key_field].encode("utf-8") if key_field else None
+        producer.produce(topic, key=key, value=serialized, headers=headers, on_delivery=delivery_callback)
         producer.poll(0)
 
     producer.flush()

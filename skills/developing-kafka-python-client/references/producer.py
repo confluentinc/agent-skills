@@ -36,18 +36,24 @@ async def create_json_serializer(sr_client, schema_str):
     return serializer
 
 
-async def produce(producer, topic, serializer, schema_id, messages):
+async def produce(producer, topic, serializer, schema_id, messages, key_field=None):
     """Produce messages using an existing producer instance.
 
     The producer is passed in — never create a new producer per call.
     This function can be called multiple times with the same producer.
+
+    key_field names the field in each message to use as the Kafka message
+    key (e.g., "transaction_id"). Keys co-locate related messages on the
+    same partition, preserving per-entity ordering. Pass None only if
+    ordering does not matter.
     """
     futures = []
     for i, value in enumerate(messages):
         serialized = await serializer(
             value, SerializationContext(topic, MessageField.VALUE)
         )
-        future = await producer.produce(topic, value=serialized)
+        key = value[key_field].encode("utf-8") if key_field else None
+        future = await producer.produce(topic, key=key, value=serialized)
         futures.append(future)
 
     results = await asyncio.gather(*futures, return_exceptions=True)
@@ -102,7 +108,9 @@ async def main():
     try:
         # -- Generate sample messages here, adapted to the user's domain --
         messages = [...]  # Replace with domain-specific sample data
-        await produce(producer, config["topic"], serializer, schema_id, messages)
+        # Set key_field to the field that identifies the entity (e.g., "transaction_id",
+        # "user_id"). Messages with the same key land on the same partition.
+        await produce(producer, config["topic"], serializer, schema_id, messages, key_field=None)
     finally:
         await producer.flush()
         await producer.close()

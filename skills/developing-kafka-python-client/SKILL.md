@@ -9,7 +9,11 @@ Generate a production-ready Python project for producing to and/or consuming fro
 
 ## Step 1: Gather Requirements
 
-**Always** ask the user these questions before generating — do not assume defaults for #1, #2, or #3:
+Before generating any code, work through the questions below. **Skip any question the user has already answered explicitly in their prompt** — do not re-ask just for form's sake. For example, "build a producer and consumer on Confluent Cloud with an async producer" already answers #2, #3, and #4; only #1, #5, #6, #7, and #8 remain.
+
+Before generating, post a short bulleted recap of the answers you extracted (e.g., "Target: Confluent Cloud · Components: producer + consumer · Producer style: async") and ask the user to confirm or correct. This is a single confirmation turn, not a re-interrogation. Ask the remaining open questions in the same message.
+
+Do not assume defaults for #1, #2, or #3 — if any of these are not answered by the prompt, you must ask.
 
 1. **Are you adding Kafka to an existing application, or starting from scratch?**
    - If the user has existing Python code (mentions an existing project, has a `main.py`, uses Flask/FastAPI/Django, etc.), do **not** scaffold a new project. Instead: (a) identify their existing producer or data-sending code, (b) ask whether they already have schemas registered in Schema Registry, (c) add Schema Registry integration to their existing code following the patterns in the reference files. Generate only the files they are missing (e.g., `common.py`, `schemas/value.schema.json`) and modify their existing code inline.
@@ -72,6 +76,8 @@ These principles matter because they prevent the most common production issues w
 5. **Support both Confluent Cloud and local Docker.** When targeting Confluent Cloud, configure `SASL_SSL` with `PLAIN` mechanism and load API keys from `.env`. When targeting local Docker, use `PLAINTEXT` with no authentication. The `KAFKA_ENV` environment variable (`cloud` or `local`) controls which path is used. Load all settings from environment variables via `.env`.
 
 6. **Verify connectivity before running.** Use `AdminClient.list_topics()` to verify the broker is reachable and the topic exists before producing or consuming. Verify Schema Registry connectivity with an HTTP health check.
+
+7. **Always set a message key for domain events.** Pass `key=<entity_id>.encode("utf-8")` to `producer.produce()` for any message that represents an entity or event stream (order events, user actions, device telemetry, transactions). Kafka partitions by key, so messages with the same key land on the same partition and preserve ordering — critical for event streams like `OrderCreated → OrderUpdated → OrderCancelled` where consumers must see events in order. The `produce()` helper in every reference file accepts a `key_field` parameter naming the field to use as the key (e.g., `key_field="order_id"`, `key_field="transaction_id"`). Ask the user which field identifies the entity and pass it to `produce()`. Only leave `key_field=None` if the user explicitly states ordering does not matter (e.g., stateless metrics where any partition is fine).
 
 ### common.py
 

@@ -37,20 +37,25 @@ async def create_json_serializer(sr_client, schema_str):
     return serializer
 
 
-async def produce(producer, topic, serializer, schema_id, messages):
+async def produce(producer, topic, serializer, schema_id, messages, key_field="order_id"):
     """Produce messages of varying event types using an existing producer.
 
     Each message must include an event_type field that matches one of the
     oneOf discriminators in the union schema (e.g., "OrderCreated",
     "OrderUpdated", "OrderCancelled"). The serializer validates the message
     against the matching sub-schema.
+
+    key_field names the field used as the Kafka message key. For order
+    events, "order_id" ensures all events for the same order land on the
+    same partition, preserving per-order ordering guarantees.
     """
     futures = []
     for i, value in enumerate(messages):
         serialized = await serializer(
             value, SerializationContext(topic, MessageField.VALUE)
         )
-        future = await producer.produce(topic, value=serialized)
+        key = value[key_field].encode("utf-8") if key_field else None
+        future = await producer.produce(topic, key=key, value=serialized)
         futures.append(future)
 
     results = await asyncio.gather(*futures, return_exceptions=True)
