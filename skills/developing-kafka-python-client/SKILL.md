@@ -11,7 +11,12 @@ Generate a production-ready Python project for producing to and/or consuming fro
 
 Before generating any code, work through the questions below. **Skip any question the user has already answered explicitly in their prompt** — do not re-ask just for form's sake. For example, "build a producer and consumer on Confluent Cloud with an async producer" already answers #2, #3, and #4; only #1, #5, #6, #7, and #8 remain.
 
-Before generating, post a short bulleted recap of the answers you extracted (e.g., "Target: Confluent Cloud · Components: producer + consumer · Producer style: async") and ask the user to confirm or correct. This is a single confirmation turn, not a re-interrogation. Ask the remaining open questions in the same message.
+**Mandatory confirmation gate — do not skip, even if the user answered every question.** Before writing any file, you MUST send one message that:
+1. Recaps the answers you extracted as a short bulleted list (e.g., "Target: Confluent Cloud · Components: producer + consumer · Producer style: async · From scratch: yes").
+2. Asks any remaining open questions inline.
+3. Explicitly asks the user to confirm or correct before you proceed.
+
+Then STOP and wait for the user's reply. Do not generate files in the same turn as the recap, and do not proceed on the assumption that a fully-specified prompt implies consent to generate immediately — the recap catches misinterpretations of the prompt and is required even when questions #1–#8 are all pre-answered. The only way to skip the gate is if the user has already confirmed the recap earlier in this conversation.
 
 Do not assume defaults for #1, #2, or #3 — if any of these are not answered by the prompt, you must ask.
 
