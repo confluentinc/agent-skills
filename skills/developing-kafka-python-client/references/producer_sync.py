@@ -42,18 +42,24 @@ def delivery_callback(err, msg):
         print(f"Produced: partition={msg.partition()}, offset={msg.offset()}")
 
 
-def produce(producer, topic, serializer, schema_id, messages):
+def produce(producer, topic, serializer, schema_id, messages, key_field=None):
     """Produce messages using an existing producer instance.
 
     The producer is passed in — never create a new producer per call.
     This function can be called multiple times with the same producer.
+
+    key_field names the field in each message to use as the Kafka message
+    key (e.g., "transaction_id"). Keys co-locate related messages on the
+    same partition, preserving per-entity ordering. Pass None only if
+    ordering does not matter.
     """
     headers = {"confluent.value.schemaId": str(schema_id)}
     for value in messages:
         serialized = serializer(
             value, SerializationContext(topic, MessageField.VALUE)
         )
-        producer.produce(topic, value=serialized, headers=headers, on_delivery=delivery_callback)
+        key = value[key_field].encode("utf-8") if key_field else None
+        producer.produce(topic, key=key, value=serialized, headers=headers, on_delivery=delivery_callback)
         # Serve delivery callbacks; keeps the internal queue from filling up
         producer.poll(0)
 
@@ -103,7 +109,9 @@ def main():
         # For continuous production, wrap in `while not shutdown:` and call
         # produce() with each batch.
         messages = [...]  # Replace with domain-specific sample data
-        produce(producer, config["topic"], serializer, schema_id, messages)
+        # Set key_field to the field that identifies the entity (e.g., "transaction_id",
+        # "user_id"). Messages with the same key land on the same partition.
+        produce(producer, config["topic"], serializer, schema_id, messages, key_field=None)
     finally:
         producer.flush()
         print("Producer closed")
