@@ -9,6 +9,25 @@ from confluent_kafka.serialization import MessageField, SerializationContext
 import common
 
 
+def _extract_key(value, key_field, index):
+    """Extract the Kafka message key from a message dict.
+
+    Raises a clear error if the field is missing. Coerces non-string
+    scalars (ints, UUIDs) to str before UTF-8 encoding; bytes pass
+    through unchanged.
+    """
+    if not key_field:
+        return None
+    if key_field not in value:
+        raise KeyError(
+            f"Message {index + 1} is missing key field {key_field!r}"
+        )
+    raw_key = value[key_field]
+    if isinstance(raw_key, bytes):
+        return raw_key
+    return str(raw_key).encode("utf-8")
+
+
 def register_schema(sr_client, topic, schema_str):
     """Register the schema as a separate explicit step.
 
@@ -42,18 +61,24 @@ def delivery_callback(err, msg):
         print(f"Produced: partition={msg.partition()}, offset={msg.offset()}")
 
 
-def produce(producer, topic, serializer, schema_id, messages):
+def produce(producer, topic, serializer, schema_id, messages, key_field=None):
     """Produce messages using an existing producer instance.
 
     The producer is passed in — never create a new producer per call.
     This function can be called multiple times with the same producer.
+
+    key_field names the field in each message to use as the Kafka message
+    key (e.g., "transaction_id"). Keys co-locate related messages on the
+    same partition, preserving per-entity ordering. Pass None only if
+    ordering does not matter.
     """
     headers = {"confluent.value.schemaId": str(schema_id)}
-    for value in messages:
+    for i, value in enumerate(messages):
         serialized = serializer(
             value, SerializationContext(topic, MessageField.VALUE)
         )
-        producer.produce(topic, value=serialized, headers=headers, on_delivery=delivery_callback)
+        key = _extract_key(value, key_field, i)
+        producer.produce(topic, key=key, value=serialized, headers=headers, on_delivery=delivery_callback)
         # Serve delivery callbacks; keeps the internal queue from filling up
         producer.poll(0)
 
@@ -103,7 +128,10 @@ def main():
         # For continuous production, wrap in `while not shutdown:` and call
         # produce() with each batch.
         messages = [...]  # Replace with domain-specific sample data
-        produce(producer, config["topic"], serializer, schema_id, messages)
+        # Set key_field to the field that identifies the entity (e.g., "transaction_id",
+        # "user_id"). Messages with the same key land on the same partition.
+        # Replace "entity_id" below with the actual field name in your messages.
+        produce(producer, config["topic"], serializer, schema_id, messages, key_field="entity_id")
     finally:
         producer.flush()
         print("Producer closed")
