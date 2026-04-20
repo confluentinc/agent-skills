@@ -9,6 +9,25 @@ from confluent_kafka.serialization import MessageField, SerializationContext
 import common
 
 
+def _extract_key(value, key_field, index):
+    """Extract the Kafka message key from a message dict.
+
+    Raises a clear error if the field is missing. Coerces non-string
+    scalars (ints, UUIDs) to str before UTF-8 encoding; bytes pass
+    through unchanged.
+    """
+    if not key_field:
+        return None
+    if key_field not in value:
+        raise KeyError(
+            f"Message {index + 1} is missing key field {key_field!r}"
+        )
+    raw_key = value[key_field]
+    if isinstance(raw_key, bytes):
+        return raw_key
+    return str(raw_key).encode("utf-8")
+
+
 def register_schema(sr_client, topic, schema_str):
     """Register the union schema under the default TopicNameStrategy subject.
 
@@ -43,19 +62,24 @@ def delivery_callback(err, msg):
         print(f"Produced: partition={msg.partition()}, offset={msg.offset()}")
 
 
-def produce(producer, topic, serializer, schema_id, messages):
+def produce(producer, topic, serializer, schema_id, messages, key_field="order_id"):
     """Produce messages of varying event types using an existing producer.
 
     Each message must include an event_type field that matches one of the
     oneOf discriminators in the union schema. The serializer validates the
     message against the matching sub-schema at serialization time.
+
+    key_field names the field used as the Kafka message key. For order
+    events, "order_id" ensures all events for the same order land on the
+    same partition, preserving per-order ordering guarantees.
     """
     headers = {"confluent.value.schemaId": str(schema_id)}
-    for value in messages:
+    for i, value in enumerate(messages):
         serialized = serializer(
             value, SerializationContext(topic, MessageField.VALUE)
         )
-        producer.produce(topic, value=serialized, headers=headers, on_delivery=delivery_callback)
+        key = _extract_key(value, key_field, i)
+        producer.produce(topic, key=key, value=serialized, headers=headers, on_delivery=delivery_callback)
         producer.poll(0)
 
     producer.flush()
