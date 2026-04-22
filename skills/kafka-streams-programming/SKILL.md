@@ -152,6 +152,7 @@ Non-negotiable defaults. Apply all. Read reference files only if you need implem
 9. **Defensive topology**: Guard lambdas in prod (null checks, try/catch). Dev: simpler is fine.
 10. **Schema parity**: Avro/Protobuf/JSON Schema all supported (build-templates.md, schema-patterns.md)
 11. **Test caching**: TopologyTestDriver tests need `statestore.cache.max.bytes=0` to avoid non-deterministic assertions.
+12. **Avro logical type Java mappings**: Avro 1.12+ generates `java.time.Instant` for `timestamp-millis`/`timestamp-micros`, `LocalDate` for `date`, `BigDecimal` for `decimal`, etc. **Never use raw `long`/`int` literals** with generated setter methods — use `Instant.EPOCH`, `Instant.now()`, `Instant.ofEpochMilli(...)`. Use `Instant.isAfter()`/`isBefore()` instead of `Math.max()`/`Math.min()` for timestamp comparisons. Applies to topology code, aggregation initializers, producers, AND test helpers (schema-patterns.md § Java type mapping).
 
 ---
 

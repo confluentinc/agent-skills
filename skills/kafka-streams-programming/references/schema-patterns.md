@@ -80,7 +80,35 @@ When the Avro plugin generates code with logical types enabled (default in recen
 | `decimal` | `java.math.BigDecimal` | `BigDecimal.ZERO` |
 | `uuid` | `java.util.UUID` | `UUID.randomUUID()` |
 
-**Important:** If your topology code or test code uses `long` values for timestamps (e.g., `System.currentTimeMillis()`), you must change to use `Instant` instead (e.g., `Instant.now()`). The generated builder methods expect the Java type, not the raw Avro type.
+**CRITICAL — common compilation errors with logical types:**
+
+Avro 1.12+ with the Gradle Avro plugin generates `Instant` (not `long`) for `timestamp-millis`. All code touching these fields must use `java.time.Instant`. This affects topology aggregations, initializers, producers, and tests.
+
+**WRONG — causes `incompatible types: long cannot be converted to Instant`:**
+```java
+// Aggregation initializer
+stats.setLastOrderTime(0L);                              // WRONG
+// Timestamp comparison
+updated.setTimestamp(Math.max(a.getTimestamp(), b.getTimestamp())); // WRONG — Math.max doesn't accept Instant
+// Producer
+order.setTimestamp(Instant.now().toEpochMilli());          // WRONG — toEpochMilli() returns long
+// Test helper
+event.setTimestamp(1000L);                                 // WRONG
+```
+
+**CORRECT:**
+```java
+// Aggregation initializer
+stats.setLastOrderTime(Instant.EPOCH);
+// Timestamp comparison
+updated.setTimestamp(a.getTimestamp().isAfter(b.getTimestamp()) ? a.getTimestamp() : b.getTimestamp());
+// Producer
+order.setTimestamp(Instant.now());
+// Test helper
+event.setTimestamp(Instant.ofEpochMilli(1000L));
+```
+
+Same pattern applies to all logical types: use `LocalDate` not `int` for `date`, `BigDecimal` not `bytes` for `decimal`, etc.
 
 ### Schema evolution defaults
 
