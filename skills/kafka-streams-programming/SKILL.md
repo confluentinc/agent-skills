@@ -17,6 +17,10 @@ JVM-embedded stream processing library with no separate cluster.
 
 **Never read multiple files preemptively "just in case"**
 
+## Always Confirm Target Environment First
+
+Before answering in any mode (Architect, Build, Debug), confirm the target environment if the user hasn't stated it: **Apache Kafka | Confluent Platform | Confluent Cloud**. Versions/auth shape every recommendation — KIP-1071 support, SASL config, ACL model, transactional-id expiry, CLI tool names all branch on this. Skip the question only if the user already named the environment.
+
 ## Mode Detection
 
 Determine the user's intent and enter the appropriate mode:
@@ -41,7 +45,7 @@ Design the right topology. Translate user's data problem into KS primitives.
 
 ### Step 1: Understand the Data Problem
 
-Ask (skip if answered): What data (topics)? What output? Relationship between inputs (combine/enrich/group)?
+Confirm target environment first (see preamble). Then ask (skip if answered): What data (topics)? What output? Relationship between inputs (combine/enrich/group)?
 
 ### Step 2: Recommend the Topology Pattern
 
@@ -78,7 +82,7 @@ Ask (skip if already answered):
 
 ### Step 2: Plan Resources
 
-Present plan: topics to create (source/output/DLQ), schemas to register. Changelog/repartition topics auto-created by KS.
+Present plan: topics to create (source/output/DLQ), schemas to register. Changelog/repartition topics auto-created by KS. **If the user says input topics already exist, omit them from `create-topics.sh` — the script should only create new topics (typically output + DLQ).**
 
 ### Step 3: Generate the Project
 
@@ -106,9 +110,31 @@ Add production components (read `production-hardening.md` for details if needed)
 
 Explain topology, config choices, how to run, what to monitor. Mention `group.protocol=streams` (KIP-1071) provides 50-80% faster rebalancing (requires AK 4.2+/CP 8.2+).
 
-### Step 6: Verify and Iterate
+### Step 6: Run the App Before Handing Off
 
-If user needs verification help, read `verification.md` for checklists and reset procedures.
+**You must actually start the app against a real broker and observe it reach `RUNNING` before declaring the task done.** Generated code that compiles and passes `TopologyTestDriver` tests can still fail at startup — version-mismatch `NoClassDefFoundError`s, silent logger fallbacks, missing runtime deps, and import-path errors all slip past `compile` + `test` and only surface against a real broker / Schema Registry. A green build is not a working app.
+
+Branch on the target environment chosen in Step 1:
+
+**Local (Apache Kafka or Confluent Platform via the generated `docker-compose.yml`):**
+1. `docker compose up -d` and wait for Kafka + SR to be healthy (`docker compose ps`, or curl SR `/subjects`)
+2. `./create-topics.sh`
+3. Start the app **in the background** (`./gradlew run` or `mvn exec:java`) so you can read its logs while it runs
+4. Tail the log and confirm `State transition from REBALANCING to RUNNING` within ~30s. If you don't see it, read the actual stack trace, diagnose via `references/debugging.md` § Startup Failures, fix, restart, re-verify
+5. If the user wanted sample data: produce a few records and confirm output appears on the destination topic
+6. Stop the app and `docker compose down` (or leave running if the user wants to keep iterating — ask)
+
+**Confluent Cloud:**
+You usually cannot run end-to-end yourself because the cluster + SR API keys are the user's. Do the most you can without them, then hand off the rest:
+1. If `.env` has real CC creds (the user has set up a real `.env`): run the app locally pointed at CC (`./gradlew run` auto-loads `.env`) and follow steps 3–5 above. Don't skip just because it's CC — if you have creds, run it.
+2. If creds are placeholders or not provided: do **not** fabricate a successful run. Instead:
+   - Run `./gradlew build` (compile + unit tests) and report the result
+   - List the exact commands the user must run to verify (`./create-topics.sh --cloud`, `./gradlew run`, the consume command from `references/verification.md` § Confluent Cloud) and what success looks like (`State transition from REBALANCING to RUNNING`, records on the output topic)
+   - Tell the user explicitly: "I couldn't run this against your CC cluster because I don't have your API keys — please run the steps above and paste any errors back."
+
+In the handoff, state plainly which of the above you did. If you ran it and saw `RUNNING`, say so. If you only compiled, say only that. Don't imply a runtime verification you didn't perform.
+
+For CC consume commands, schema-aware producers, and reset procedures, read `references/verification.md`.
 
 ---
 
@@ -129,7 +155,7 @@ If user needs verification help, read `verification.md` for checklists and reset
 
 ### Step 2: Gather Context
 
-Ask for: error message, config, runtime environment (local/Docker/K8s/CC), KS/Java versions, new app or regression?
+Confirm target environment first (see preamble) — most debug paths branch on it. Then ask for: error message, config, KS/Java versions, new app or regression?
 
 ### Step 3: Diagnose and Fix
 
