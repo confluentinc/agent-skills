@@ -8,7 +8,7 @@ assignees: ''
 
 Thanks for taking the time to tell us about your issue using Confluent's AI agent skills!
 
-Requests for features and improvements to a skill or its documentation should be opened in [discussions](https://github.com/confluentinc/agent-skills/discussions/new?category=ideas). For more information about opening a feature request, [read more](https://github.com/confluentinc/agent-skills/blob/main/CONTRIBUTING.md).
+Requests for features and improvements to a skill or its documentation should be opened in [discussions](https://github.com/confluentinc/agent-skills/discussions/new?category=ideas). For more information about opening a feature request, [read more](https://github.com/confluentinc/agent-skills/discussions).
 
 Before opening a new issue, please do a [search](https://github.com/confluentinc/agent-skills/issues) of existing issues and :+1: upvote the existing issue instead. This will result in a quicker resolution.
 
