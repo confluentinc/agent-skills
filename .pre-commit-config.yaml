@@ -1,0 +1,26 @@
+exclude: ^\.devcontainer/|^charts/|^mk-include/|^node_modules/
+fail_fast: false
+repos:
+# ### SERVICEBOT BEGIN - DO NOT EDIT THIS SECTION
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-case-conflict
+      - id: check-json
+      - id: check-merge-conflict
+        args: [--assume-in-merge]
+      - id: check-yaml
+        args: [--unsafe]
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+# ### SERVICEBOT END
+  - repo: https://github.com/confluentinc/gitleaks
+    rev: v7.6.1.1
+    hooks:
+      - id: gitleaks
+        args:
+          - --verbose
+  - repo: https://github.com/confluentinc/devprod-pre-commit
+    rev: v0.4.0
+    hooks:
+      - id: trufflehog
