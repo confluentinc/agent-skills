@@ -102,7 +102,7 @@ The most common P1 pattern in production Kafka Streams deployments. The cascade:
 3. **Check processing time:**
    - Monitor `process-latency-max` and `punctuate-latency-max`
    - Common culprits: blocking external calls (REST, DB), full state store scans in punctuators, slow RocksDB operations
-4. **Check instance stability:** Are instances crashing and restarting? (K8s OOM kills, health check failures)
+4. **Check instance stability:** Are instances crashing and restarting? (K8s OOM kills, health check failures). For stateful apps, **also compute expected RocksDB off-heap memory** using `architecture.md` § Memory — container OOMs from undersized memory requests are a frequent rebalance root cause.
 5. **Check for CPU throttling:** K8s CPU limits cause poll delays → rebalances. Never set CPU limits on KS containers.
 
 **Config relationship rules (must all hold):**
@@ -220,6 +220,7 @@ After pod/instance restart, state stores rebuild from changelog topics. For larg
 1. Look for `Restoration in progress for N partitions` in logs
 2. Check `max.poll.interval.ms` vs estimated restoration time
 3. Check if persistent volumes (PVCs) are used — ephemeral storage forces full restoration on every restart
+4. **Compute expected RocksDB memory for the user's topology** using the per-store formula in `architecture.md` § Memory (block_cache 50MB + write_buffers 16MB × 3 ≈ 98MB per store-partition; multiply by partitions/instance × stores × segments for windowed). Container OOMs and oversized JVM heap that starves RocksDB are common rebalance triggers.
 
 **Fix:**
 1. **Use persistent volumes (PVCs) in K8s** — avoids full restoration on pod restart (critical for stateful apps)
