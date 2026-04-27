@@ -1,0 +1,72 @@
+title: "[Feature Request] "
+labels: ["feature-request"]
+body:
+  - type: textarea
+    attributes:
+      label: Users
+      description: Who is affected by this issue?
+      value: |
+        - [ ] Skill author building or maintaining a skill for streaming data tooling
+        - [ ] Developer using an AI coding agent (e.g., Claude Code, Cursor) to build streaming applications with these skills
+        - [ ] Development manager evaluating AI agent skills for their team's streaming data work
+        - [ ] Platform engineer integrating these skills into their org's developer workflow
+        - [ ] Developer authoring evals or benchmarks for skill quality
+        - [ ] Other: [User type] tasked with [primary goal related to AI agent skills for streaming data]
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Problems
+      description: What problem are these users experiencing with the current skills (or lack thereof)?
+      value: |
+        1.
+        2.
+        3.
+  - type: textarea
+    attributes:
+      label: Solutions
+      description: How will this issue solve this problem? (e.g., new skill, change to an existing skill, new eval, tooling improvement)
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Goals
+      description: Short list of what the feature request aims to address?
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Non-Goals
+      description: Short list of what the feature request _does not_ aim to address?
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: false
+  - type: textarea
+    attributes:
+      label: Scope
+      description: Which skill(s) or parts of the repo does this touch? (e.g., `kafka-streams-programming`, `developing-kafka-python-client`, evals harness, plugin packaging, a new skill)
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Background
+      description: Is there prior art? Why do you think this feature is needed? Are there current alternatives (other skills, manual workflows, external docs the agent could read instead)?
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Proposal
+      description: How should this feature be implemented? Consider skill triggering (description/keywords), SKILL.md structure, supporting scripts/templates, evals to validate behavior, and which agents it should support. Are you interested in contributing?
+    validations:
+      required: true
