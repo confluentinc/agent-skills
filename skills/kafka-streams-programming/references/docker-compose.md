@@ -94,9 +94,7 @@ docker exec schema-registry kafka-avro-console-consumer \
   --topic output-topic \
   --from-beginning \
   --bootstrap-server broker:29092 \
-  --property schema.registry.url=http://localhost:8081 \
-  --property print.key=true \
-  --key-deserializer org.apache.kafka.common.serialization.StringDeserializer
+  --property schema.registry.url=http://localhost:8081
 
 # Stop
 docker compose down
@@ -109,7 +107,6 @@ docker compose down
 - For EOS testing, `transaction.state.log.replication.factor` must be 1 in single-broker mode
 - Schema Registry is required because all data is schematized (project invariant). Never use plain `kafka-console-producer` / `kafka-console-consumer` for schematized topics — always use the schema-aware variants (`kafka-avro-console-producer`, etc.)
 - The `kafka-avro-console-producer` and `kafka-avro-console-consumer` CLIs are bundled in the `schema-registry` container, so run them via `docker exec schema-registry`. Broker-only commands like `kafka-topics` run via `docker exec broker`.
-- `kafka-avro-console-consumer` defaults `KafkaAvroDeserializer` for **both** key and value. Our topologies write string keys with `Serdes.String()` (no SR framing), so always pass `--key-deserializer org.apache.kafka.common.serialization.StringDeserializer` — otherwise the Avro deserializer chokes on the first byte (expects `0x00` magic + 4-byte schema ID). Same applies to `kafka-protobuf-console-consumer` and `kafka-json-schema-console-consumer`.
 - `group.protocol=streams` requires broker version AK 4.2+. The `confluentinc/confluent-local:8.2.0` image bundles CP 8.2 which includes AK 4.2, so it works locally. If using an older image version (e.g., 7.x), comment out `group.protocol=streams` in your Streams config.
 - For local dev, topics can use the `--if-not-exists` flag since `auto.create.topics.enable=true` by default on the local broker, but pre-creating topics with explicit partition counts is still recommended to avoid surprises.
 
