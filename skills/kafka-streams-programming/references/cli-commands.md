@@ -80,9 +80,11 @@ Omit `--value-format` and SR flags for plain text.
 
 | Format | Command |
 |--------|---------|
-| Avro | `kafka-avro-console-consumer --bootstrap-server localhost:9092 --topic <topic> --from-beginning --property schema.registry.url=http://localhost:8081` |
+| Avro | `kafka-avro-console-consumer --bootstrap-server localhost:9092 --topic <topic> --from-beginning --property schema.registry.url=http://localhost:8081 --property print.key=true --key-deserializer org.apache.kafka.common.serialization.StringDeserializer` |
 | Protobuf | `kafka-protobuf-console-consumer` (same args) |
 | JSON Schema | `kafka-json-schema-console-consumer` (same args) |
+
+> The `--key-deserializer` override is required because these schema-aware consumers default `KafkaAvroDeserializer` (or equivalent) for the key, but our topologies write string keys with `Serdes.String()` — a raw UTF-8 key has no `0x00` magic byte + 4-byte schema ID, so the schema deserializer fails on the first record.
 
 ## Producing Test Data
 
