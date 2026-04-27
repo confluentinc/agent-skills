@@ -60,14 +60,10 @@ See `references/cli-commands.md` for the full CLI reference.
 ### Local / Confluent Platform
 
 ```bash
-# Keys are Serdes.String() in our topologies — override the default key
-# deserializer so the consumer doesn't try to Avro-decode a raw UTF-8 key
-# (which has no 0x00 magic byte + 4-byte schema ID).
-kafka-avro-console-consumer --bootstrap-server broker:29092 \
-  --topic output-topic --from-beginning \
-  --property schema.registry.url=http://localhost:8081 \
-  --property print.key=true \
-  --key-deserializer org.apache.kafka.common.serialization.StringDeserializer
+# Avro
+kafka-avro-console-producer --bootstrap-server localhost:9092 \
+  --topic input-topic --property schema.registry.url=http://localhost:8081 \
+  --property value.schema='<avro-schema>'
 
 # Protobuf
 kafka-protobuf-console-producer --bootstrap-server localhost:9092 \
@@ -100,9 +96,14 @@ If the user wants sample data, generate a `SampleDataProducer.java` class and a 
 
 ```bash
 # Avro
+# Keys are Serdes.String() in our topologies — override the default key
+# deserializer so the consumer doesn't try to Avro-decode a raw UTF-8 key
+# (which has no 0x00 magic byte + 4-byte schema ID).
 kafka-avro-console-consumer --bootstrap-server broker:29092 \
   --topic output-topic --from-beginning \
-  --property schema.registry.url=http://localhost:8081
+  --property schema.registry.url=http://localhost:8081 \
+  --property print.key=true \
+  --key-deserializer org.apache.kafka.common.serialization.StringDeserializer
 ```
 
 ### Confluent Cloud
