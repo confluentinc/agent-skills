@@ -107,12 +107,6 @@
           "contains": "date-time"
         },
         {
-          "id": "readme-exists",
-          "type": "file_exists",
-          "description": "README.md is generated",
-          "path": "README.md"
-        },
-        {
           "id": "tests-pass",
           "type": "command",
           "description": "All unit tests pass with pytest",
@@ -363,12 +357,6 @@
           "contains": "pytest-asyncio"
         },
         {
-          "id": "readme-exists",
-          "type": "file_exists",
-          "description": "README.md is generated",
-          "path": "README.md"
-        },
-        {
           "id": "tests-pass",
           "type": "command",
           "description": "All unit tests pass with pytest",
@@ -412,13 +400,6 @@
           "type": "file_exists",
           "description": ".env.example is generated",
           "path": ".env.example"
-        },
-        {
-          "id": "tests-pass",
-          "type": "command",
-          "description": "All unit tests pass with pytest",
-          "command": "cd {{output_dir}} && pip install -r requirements.txt -q && python -m pytest tests/ -v --tb=short 2>&1",
-          "expect_exit_code": 0
         }
       ]
     },

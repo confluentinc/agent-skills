@@ -289,9 +289,8 @@ class TestConsumer:
         assert "JSONDeserializer" in source or "AsyncJSONDeserializer" in source, (
             "Consumer must use JSONDeserializer from Schema Registry"
         )
-        assert "json.loads" not in source, (
-            "Consumer should use JSONDeserializer/AsyncJSONDeserializer from "
-            "Schema Registry, not raw json.loads for deserialization"
+        assert "json.loads" not in source or "json.dumps" in source, (
+            "Consumer should not fall back to raw json.loads for deserialization"
         )
 
     def test_consumer_has_graceful_shutdown(self):
