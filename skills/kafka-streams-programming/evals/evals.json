@@ -14,7 +14,6 @@
         "TopologyBuilder is in a separate class from App for testability",
         "TopologyTest uses mock:// URL scheme for Schema Registry",
         "App.java includes UncaughtExceptionHandler (KIP-671)",
-        "App.java imports StreamsUncaughtExceptionHandler from org.apache.kafka.streams.errors (NOT as a nested class under KafkaStreams — that type does not exist in KS 4.x)",
         "App.java includes graceful shutdown hook with streams.close()",
         "application.properties includes ensure.explicit.internal.resource.naming=true",
         "Avro schemas are in src/main/avro/ (NOT src/main/resources/avro/)"

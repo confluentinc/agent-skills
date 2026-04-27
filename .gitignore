@@ -4,3 +4,97 @@
 
 # OS Files
 .DS_Store
+
+# Credentials
+cdc-credentials.properties
+mysql-cdc-connector-config.json
+
+# Environment / secret files
+.env
+.env.*
+!.env.example
+!.env.sample
+!.env.template
+*.env
+
+# Properties / config with secrets
+# (narrowed to avoid catching legitimate application.properties; add specific files as needed)
+*credentials.properties
+*secret*.properties
+*secrets.properties
+local.properties
+*.local.properties
+!*.properties.example
+!*.properties.sample
+!*.properties.template
+
+# Generic secret/key files
+secrets.*
+*.secret
+*.secrets
+*secrets.json
+*secrets.yaml
+*secrets.yml
+credentials
+credentials.*
+*credentials.json
+*credentials.yaml
+*credentials.yml
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.truststore
+id_rsa
+id_dsa
+id_ecdsa
+id_ed25519
+*.ppk
+
+# Cloud provider credentials
+.aws/credentials
+aws-credentials*
+.azure/
+gcp-key*.json
+gcloud-service-key*.json
+service-account*.json
+*-service-account.json
+google-credentials*.json
+.boto
+
+# Kubernetes / Docker
+kubeconfig
+*.kubeconfig
+.kube/config
+docker-compose.override.yml
+
+# Language-specific local config
+# Node
+.npmrc
+.yarnrc
+.yarnrc.yml
+# Python
+*.cfg.local
+pip.conf
+# Ruby
+.netrc
+# Java/Maven/Gradle
+gradle.properties
+settings.xml
+# .NET
+*.pubxml
+*.publishsettings
+appsettings.*.json
+!appsettings.Example.json
+# PHP
+auth.json
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.*.log
+*.tfvars
+!*.tfvars.example
