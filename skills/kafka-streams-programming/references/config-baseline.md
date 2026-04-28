@@ -28,7 +28,10 @@ default.key.serde=org.apache.kafka.common.serialization.Serdes$StringSerde
 #   JSON Schema: default.value.serde=io.confluent.kafka.streams.serdes.json.KafkaJsonSchemaSerde
 default.value.serde=<set-based-on-schema-format>
 
-# Rebalance protocol (KIP-1071)
+# Rebalance protocol (KIP-1071) — requires AK 4.2+/CP 8.2+
+# CC rollback: if you hit UnsupportedVersionException after a CC version
+# downgrade, comment this line out to fall back to the classic protocol.
+# Standby/warm-up replicas and static membership require classic protocol.
 group.protocol=streams
 
 # Explicit naming (prevents state loss on topology changes)
