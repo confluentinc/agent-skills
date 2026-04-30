@@ -6,11 +6,6 @@
     If adding a skill, what does it do? What use case does it address?
 -->
 
-## Skill Quality Checklist
-
-- [ ] Skill [description is optimized](https://agentskills.io/skill-creation/optimizing-descriptions) for accurate triggering
-- [ ] Feedback loops like unit tests are built-in to enable agent iteration
-
 ## Testing
 
 - [ ] Evals pass at 90%+ threshold
