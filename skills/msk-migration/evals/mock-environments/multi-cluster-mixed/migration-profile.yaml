@@ -1,0 +1,73 @@
+source:
+  platform: msk-provisioned
+  cloud_provider: aws
+  region: multi
+  kafka_version: 3.5.1
+  migration_drivers: "Consolidating three clusters across regions under CC. 6-month timeline."
+  monthly_cost_usd: 58000
+
+clusters:
+  - name: cluster-a-east
+    broker_count: 6
+    broker_instance_type: kafka.m5.large
+    availability_zones: [us-east-1a, us-east-1b, us-east-1c]
+    topic_count: 80
+    partition_count_pre_replication: 1800
+    replication_factor: 3
+    peak_ingress_mbps: 140
+    peak_egress_mbps: 420
+    auth_types:
+      - scram
+    network_accessibility: private
+    vpc_topology: single-vpc
+    acl_count: 35
+    acl_source: kafka-acls
+
+  - name: cluster-b-west
+    broker_count: 9
+    broker_instance_type: kafka.m5.xlarge
+    availability_zones: [us-west-2a, us-west-2b, us-west-2c]
+    topic_count: 140
+    partition_count_pre_replication: 4200
+    replication_factor: 3
+    peak_ingress_mbps: 380
+    peak_egress_mbps: 1140
+    auth_types:
+      - mtls
+    network_accessibility: private
+    vpc_topology: single-vpc
+    acl_count: 92
+    acl_source: kafka-acls
+
+  - name: cluster-c-eu
+    broker_count: 3
+    broker_instance_type: kafka.m5.large
+    availability_zones: [eu-west-1a, eu-west-1b, eu-west-1c]
+    topic_count: 24
+    partition_count_pre_replication: 420
+    replication_factor: 3
+    peak_ingress_mbps: 40
+    peak_egress_mbps: 120
+    auth_types:
+      - iam
+    network_accessibility: private
+    vpc_topology: single-vpc
+    acl_count: 28
+    acl_source: iam-policies
+
+schema_registry:
+  type: confluent-sr
+  subject_count: 210
+
+connectors:
+  msk_connect_count: 6
+  self_managed_connect_count: 1
+  connector_types:
+    - s3-sink
+    - debezium-postgres
+    - http-sink
+
+downstream:
+  tableflow_planned: null
+  flink_planned: null
+  lakehouse_planned: null
