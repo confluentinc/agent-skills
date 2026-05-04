@@ -33,7 +33,7 @@ Plan turns the environment profile into architecture decisions: cluster type, ne
 
 1. **[cluster-types.html](https://docs.confluent.io/cloud/current/clusters/cluster-types.html)** — per-eCKU ingress, per-eCKU egress, per-eCKU partition rate, Enterprise eCKU cap (PNI and PrivateLink), cluster-type feature matrix. Without this fetch, the sizing math is guesswork.
 2. **[Cluster Linking source requirements](https://docs.confluent.io/cloud/current/multi-cloud/cluster-linking)** — minimum source Kafka version, auth support matrix, supported source topologies (including MSK Express broker tier if present). Without this fetch, CL compatibility claims rest on stale general knowledge.
-3. **[KCP zero-cut guide](https://github.com/confluentinc/kcp/blob/main/docs/getting-started-with-zero-cut-migrations.md)** — current Zero-Cut prerequisites (Kubernetes distribution, CP licensing, minimum KCP version, auth compatibility). Required if the Plan recommends Zero-Cut as the switchover approach (the default). Without this fetch, the Switchover Approach section is incomplete.
+3. **[KCP zero-cut guide](https://github.com/confluentinc/kcp/blob/main/docs/assets/getting-started-with-zero-cut-migrations.md)** — current Zero-Cut prerequisites (Kubernetes distribution, CP licensing, minimum KCP version, auth compatibility). Required if the Plan recommends Zero-Cut as the switchover approach (the default). Without this fetch, the Switchover Approach section is incomplete.
 
 All three fetches should happen before writing the Plan doc — not in a later iteration. Cite them inline per the Plan Doc Conventions (Style A).
 
