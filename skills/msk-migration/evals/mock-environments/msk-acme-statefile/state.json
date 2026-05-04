@@ -1,0 +1,1024 @@
+{
+  "regions": [
+    {
+      "name": "us-east-1",
+      "configurations": [
+        {
+          "Arn": "arn:aws:kafka:us-east-1:123456789012:configuration/acme-events-config/00000000-0000-0000-0000-00000000aaaa-1",
+          "CreationTime": "2024-06-01T00:00:00Z",
+          "Description": "ACME baseline MSK configuration",
+          "KafkaVersions": ["3.6.0", "3.7.x", "3.8.x"],
+          "LatestRevision": {
+            "CreationTime": "2024-06-01T00:00:00Z",
+            "Description": "Initial revision",
+            "Revision": 1
+          },
+          "Name": "acme-events-config",
+          "State": "ACTIVE",
+          "Revision": 1,
+          "ServerProperties": "YXV0by5jcmVhdGUudG9waWNzLmVuYWJsZT1mYWxzZQ=="
+        }
+      ],
+      "costs": {
+        "metadata": {
+          "start_date": "2025-05-04T00:00:00Z",
+          "end_date": "2026-05-04T00:00:00Z",
+          "granularity": "MONTHLY",
+          "tags": null,
+          "services": [
+            "Amazon Managed Streaming for Apache Kafka",
+            "EC2 - Other",
+            "AWS Certificate Manager"
+          ]
+        },
+        "results": [
+          {
+            "Estimated": false,
+            "TimePeriod": {
+              "Start": "2025-05-04",
+              "End": "2026-05-04"
+            },
+            "Total": {},
+            "Groups": [
+              {
+                "Keys": [
+                  "Amazon Managed Streaming for Apache Kafka",
+                  "USE1-Kafka.m7g.2xlarge"
+                ],
+                "Metrics": {
+                  "AmortizedCost": {"Amount": "62050.00", "Unit": "USD"},
+                  "BlendedCost": {"Amount": "62050.00", "Unit": "USD"},
+                  "NetAmortizedCost": {"Amount": "62050.00", "Unit": "USD"},
+                  "NetUnblendedCost": {"Amount": "62050.00", "Unit": "USD"},
+                  "UnblendedCost": {"Amount": "62050.00", "Unit": "USD"}
+                }
+              },
+              {
+                "Keys": [
+                  "Amazon Managed Streaming for Apache Kafka",
+                  "USE1-Kafka.m7g.large"
+                ],
+                "Metrics": {
+                  "AmortizedCost": {"Amount": "11200.00", "Unit": "USD"},
+                  "BlendedCost": {"Amount": "11200.00", "Unit": "USD"},
+                  "NetAmortizedCost": {"Amount": "11200.00", "Unit": "USD"},
+                  "NetUnblendedCost": {"Amount": "11200.00", "Unit": "USD"},
+                  "UnblendedCost": {"Amount": "11200.00", "Unit": "USD"}
+                }
+              },
+              {
+                "Keys": [
+                  "Amazon Managed Streaming for Apache Kafka",
+                  "USE1-Express.m7g.4xlarge"
+                ],
+                "Metrics": {
+                  "AmortizedCost": {"Amount": "146935.00", "Unit": "USD"},
+                  "BlendedCost": {"Amount": "146935.00", "Unit": "USD"},
+                  "NetAmortizedCost": {"Amount": "146935.00", "Unit": "USD"},
+                  "NetUnblendedCost": {"Amount": "146935.00", "Unit": "USD"},
+                  "UnblendedCost": {"Amount": "146935.00", "Unit": "USD"}
+                }
+              },
+              {
+                "Keys": [
+                  "Amazon Managed Streaming for Apache Kafka",
+                  "USE1-Kafka.m7g.4xlarge"
+                ],
+                "Metrics": {
+                  "AmortizedCost": {"Amount": "49850.00", "Unit": "USD"},
+                  "BlendedCost": {"Amount": "49850.00", "Unit": "USD"},
+                  "NetAmortizedCost": {"Amount": "49850.00", "Unit": "USD"},
+                  "NetUnblendedCost": {"Amount": "49850.00", "Unit": "USD"},
+                  "UnblendedCost": {"Amount": "49850.00", "Unit": "USD"}
+                }
+              },
+              {
+                "Keys": [
+                  "Amazon Managed Streaming for Apache Kafka",
+                  "USE1-Kafka.Storage.Tiered"
+                ],
+                "Metrics": {
+                  "AmortizedCost": {"Amount": "8400.00", "Unit": "USD"},
+                  "BlendedCost": {"Amount": "8400.00", "Unit": "USD"},
+                  "NetAmortizedCost": {"Amount": "8400.00", "Unit": "USD"},
+                  "NetUnblendedCost": {"Amount": "8400.00", "Unit": "USD"},
+                  "UnblendedCost": {"Amount": "8400.00", "Unit": "USD"}
+                }
+              },
+              {
+                "Keys": [
+                  "Amazon Managed Streaming for Apache Kafka",
+                  "USE1-Kafka.Storage.GP2"
+                ],
+                "Metrics": {
+                  "AmortizedCost": {"Amount": "3650.00", "Unit": "USD"},
+                  "BlendedCost": {"Amount": "3650.00", "Unit": "USD"},
+                  "NetAmortizedCost": {"Amount": "3650.00", "Unit": "USD"},
+                  "NetUnblendedCost": {"Amount": "3650.00", "Unit": "USD"},
+                  "UnblendedCost": {"Amount": "3650.00", "Unit": "USD"}
+                }
+              },
+              {
+                "Keys": [
+                  "Amazon Managed Streaming for Apache Kafka",
+                  "DataTransfer-Regional-Bytes"
+                ],
+                "Metrics": {
+                  "AmortizedCost": {"Amount": "9120.00", "Unit": "USD"},
+                  "BlendedCost": {"Amount": "9120.00", "Unit": "USD"},
+                  "NetAmortizedCost": {"Amount": "9120.00", "Unit": "USD"},
+                  "NetUnblendedCost": {"Amount": "9120.00", "Unit": "USD"},
+                  "UnblendedCost": {"Amount": "9120.00", "Unit": "USD"}
+                }
+              },
+              {
+                "Keys": [
+                  "EC2 - Other",
+                  "DataTransfer-Regional-Bytes"
+                ],
+                "Metrics": {
+                  "AmortizedCost": {"Amount": "780.00", "Unit": "USD"},
+                  "BlendedCost": {"Amount": "780.00", "Unit": "USD"},
+                  "NetAmortizedCost": {"Amount": "780.00", "Unit": "USD"},
+                  "NetUnblendedCost": {"Amount": "780.00", "Unit": "USD"},
+                  "UnblendedCost": {"Amount": "780.00", "Unit": "USD"}
+                }
+              },
+              {
+                "Keys": [
+                  "AWS Certificate Manager",
+                  "USE1-PrivateCA-Hours"
+                ],
+                "Metrics": {
+                  "AmortizedCost": {"Amount": "480.00", "Unit": "USD"},
+                  "BlendedCost": {"Amount": "480.00", "Unit": "USD"},
+                  "NetAmortizedCost": {"Amount": "480.00", "Unit": "USD"},
+                  "NetUnblendedCost": {"Amount": "480.00", "Unit": "USD"},
+                  "UnblendedCost": {"Amount": "480.00", "Unit": "USD"}
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "clusters": [
+        {
+          "name": "acme-events-prod",
+          "arn": "arn:aws:kafka:us-east-1:123456789012:cluster/acme-events-prod/00000000-0000-0000-0000-000000000001-1",
+          "region": "us-east-1",
+          "metrics": {
+            "metadata": {
+              "cluster_type": "PROVISIONED",
+              "number_of_broker_nodes": 6,
+              "kafka_version": "3.6.0",
+              "broker_az_distribution": "DEFAULT",
+              "enhanced_monitoring": "PER_TOPIC_PER_PARTITION",
+              "start_date": "2026-04-04T00:00:00Z",
+              "end_date": "2026-05-04T00:00:00Z",
+              "period": 86400,
+              "follower_fetching": false,
+              "instance_type": "kafka.m7g.2xlarge",
+              "tiered_storage": true,
+              "broker_type": "standard"
+            },
+            "results": [
+              {
+                "Id": "ingress_p95",
+                "Label": "BytesInPerSec - P95 (cluster MB/s)",
+                "Values": [78.4],
+                "Timestamps": ["2026-05-03T00:00:00Z"]
+              },
+              {
+                "Id": "ingress_peak",
+                "Label": "BytesInPerSec - Peak (cluster MB/s)",
+                "Values": [142.0],
+                "Timestamps": ["2026-04-22T17:00:00Z"]
+              },
+              {
+                "Id": "egress_p95",
+                "Label": "BytesOutPerSec - P95 (cluster MB/s)",
+                "Values": [231.7],
+                "Timestamps": ["2026-05-03T00:00:00Z"]
+              },
+              {
+                "Id": "egress_peak",
+                "Label": "BytesOutPerSec - Peak (cluster MB/s)",
+                "Values": [410.0],
+                "Timestamps": ["2026-04-22T17:00:00Z"]
+              },
+              {
+                "Id": "storage_used_gb",
+                "Label": "KafkaDataLogsDiskUsed - GB (cluster total)",
+                "Values": [4180.0],
+                "Timestamps": ["2026-05-03T00:00:00Z"]
+              },
+              {
+                "Id": "client_connections",
+                "Label": "ClientConnectionCount - Avg",
+                "Values": [184.0],
+                "Timestamps": ["2026-05-03T00:00:00Z"]
+              }
+            ]
+          },
+          "aws_client_information": {
+            "msk_cluster_config": {
+              "ClusterArn": "arn:aws:kafka:us-east-1:123456789012:cluster/acme-events-prod/00000000-0000-0000-0000-000000000001-1",
+              "ClusterName": "acme-events-prod",
+              "ClusterType": "PROVISIONED",
+              "State": "ACTIVE",
+              "StateInfo": null,
+              "CreationTime": "2024-09-15T12:00:00Z",
+              "CurrentVersion": "K3AEGXETSR30VB",
+              "ActiveOperationArn": null,
+              "Tags": {
+                "env": "prod",
+                "team": "platform-data"
+              },
+              "Provisioned": {
+                "BrokerNodeGroupInfo": {
+                  "ClientSubnets": [
+                    "subnet-acme00000001",
+                    "subnet-acme00000002",
+                    "subnet-acme00000003"
+                  ],
+                  "InstanceType": "kafka.m7g.2xlarge",
+                  "BrokerAZDistribution": "DEFAULT",
+                  "ConnectivityInfo": {
+                    "PublicAccess": {
+                      "Type": "DISABLED"
+                    },
+                    "VpcConnectivity": null
+                  },
+                  "SecurityGroups": ["sg-acme00000001"],
+                  "StorageInfo": {
+                    "EbsStorageInfo": {
+                      "ProvisionedThroughput": {
+                        "Enabled": true,
+                        "VolumeThroughput": 250
+                      },
+                      "VolumeSize": 1000
+                    }
+                  },
+                  "ZoneIds": ["use1-az1", "use1-az2", "use1-az4"]
+                },
+                "ClientAuthentication": {
+                  "Sasl": {
+                    "Iam": {"Enabled": true},
+                    "Scram": {"Enabled": false}
+                  },
+                  "Tls": {
+                    "Enabled": false,
+                    "CertificateAuthorityArnList": []
+                  },
+                  "Unauthenticated": {"Enabled": false}
+                },
+                "CurrentBrokerSoftwareInfo": {
+                  "ConfigurationArn": "arn:aws:kafka:us-east-1:123456789012:configuration/acme-events-config/00000000-0000-0000-0000-00000000aaaa-1",
+                  "ConfigurationRevision": 1,
+                  "KafkaVersion": "3.6.0"
+                },
+                "EncryptionInfo": {
+                  "EncryptionAtRest": {
+                    "DataVolumeKMSKeyId": "arn:aws:kms:us-east-1:123456789012:key/acme-key-0001"
+                  },
+                  "EncryptionInTransit": {
+                    "ClientBroker": "TLS",
+                    "InCluster": true
+                  }
+                },
+                "EnhancedMonitoring": "PER_TOPIC_PER_PARTITION",
+                "LoggingInfo": {
+                  "BrokerLogs": {
+                    "CloudWatchLogs": {"Enabled": false},
+                    "Firehose": {"Enabled": false},
+                    "S3": {"Enabled": true, "Bucket": "acme-msk-logs", "Prefix": "events-prod/"}
+                  }
+                },
+                "NumberOfBrokerNodes": 6,
+                "OpenMonitoring": {
+                  "Prometheus": {
+                    "JmxExporter": {"EnabledInBroker": true},
+                    "NodeExporter": {"EnabledInBroker": true}
+                  }
+                },
+                "Rebalancing": {"BrokerCount": 6},
+                "StorageMode": "TIERED",
+                "ZookeeperConnectString": "z-1.acme-events-prod.acme01.kafka.us-east-1.amazonaws.com:2181,z-2.acme-events-prod.acme01.kafka.us-east-1.amazonaws.com:2181,z-3.acme-events-prod.acme01.kafka.us-east-1.amazonaws.com:2181",
+                "ZookeeperConnectStringTls": "z-1.acme-events-prod.acme01.kafka.us-east-1.amazonaws.com:2182,z-2.acme-events-prod.acme01.kafka.us-east-1.amazonaws.com:2182,z-3.acme-events-prod.acme01.kafka.us-east-1.amazonaws.com:2182",
+                "CustomerActionStatus": "NONE"
+              },
+              "Serverless": null
+            },
+            "client_vpc_connections": [],
+            "cluster_operations": [],
+            "nodes": [],
+            "ScramSecrets": [],
+            "bootstrap_brokers": {
+              "BootstrapBrokerString": null,
+              "BootstrapBrokerStringPublicSaslIam": null,
+              "BootstrapBrokerStringPublicSaslScram": null,
+              "BootstrapBrokerStringPublicTls": null,
+              "BootstrapBrokerStringSaslIam": "boot-acme01.c01.kafka.us-east-1.amazonaws.com:9098,boot-acme02.c01.kafka.us-east-1.amazonaws.com:9098,boot-acme03.c01.kafka.us-east-1.amazonaws.com:9098",
+              "BootstrapBrokerStringSaslScram": null,
+              "BootstrapBrokerStringTls": null,
+              "BootstrapBrokerStringVpcConnectivitySaslIam": null,
+              "BootstrapBrokerStringVpcConnectivitySaslScram": null,
+              "BootstrapBrokerStringVpcConnectivityTls": null,
+              "ResultMetadata": {}
+            },
+            "policy": {
+              "CurrentVersion": null,
+              "Policy": null,
+              "ResultMetadata": {}
+            },
+            "compatible_versions": {
+              "CompatibleKafkaVersions": [
+                {"SourceVersion": "3.6.0", "TargetVersions": ["3.7.x", "3.8.x"]}
+              ],
+              "ResultMetadata": {}
+            },
+            "cluster_networking": {
+              "vpc_id": "vpc-acme00000001",
+              "subnet_ids": [
+                "subnet-acme00000001",
+                "subnet-acme00000002",
+                "subnet-acme00000003"
+              ],
+              "security_groups": ["sg-acme00000001"],
+              "subnets": [
+                {
+                  "subnet_id": "subnet-acme00000001",
+                  "availability_zone": "us-east-1a",
+                  "private_ip_address": "10.10.1.10",
+                  "cidr_block": "10.10.1.0/24"
+                },
+                {
+                  "subnet_id": "subnet-acme00000002",
+                  "availability_zone": "us-east-1b",
+                  "private_ip_address": "10.10.2.10",
+                  "cidr_block": "10.10.2.0/24"
+                },
+                {
+                  "subnet_id": "subnet-acme00000003",
+                  "availability_zone": "us-east-1d",
+                  "private_ip_address": "10.10.3.10",
+                  "cidr_block": "10.10.3.0/24"
+                }
+              ]
+            },
+            "connectors": []
+          },
+          "kafka_admin_client_information": {
+            "cluster_id": "acmeCluster000000000001",
+            "topics": {
+              "details": [
+                {
+                  "name": "acme.orders.events",
+                  "partitions": 24,
+                  "replication_factor": 3,
+                  "configurations": {
+                    "cleanup.policy": "delete",
+                    "retention.ms": "604800000",
+                    "min.insync.replicas": "2",
+                    "remote.storage.enable": "true"
+                  }
+                },
+                {
+                  "name": "acme.payments.events",
+                  "partitions": 12,
+                  "replication_factor": 3,
+                  "configurations": {
+                    "cleanup.policy": "delete",
+                    "retention.ms": "1209600000",
+                    "min.insync.replicas": "2",
+                    "remote.storage.enable": "true"
+                  }
+                },
+                {
+                  "name": "acme.users.signup",
+                  "partitions": 6,
+                  "replication_factor": 3,
+                  "configurations": {
+                    "cleanup.policy": "delete",
+                    "retention.ms": "604800000",
+                    "min.insync.replicas": "2"
+                  }
+                },
+                {
+                  "name": "acme.inventory.updates",
+                  "partitions": 8,
+                  "replication_factor": 3,
+                  "configurations": {
+                    "cleanup.policy": "compact",
+                    "retention.ms": "-1",
+                    "min.insync.replicas": "2"
+                  }
+                },
+                {
+                  "name": "acme.shipments.events",
+                  "partitions": 12,
+                  "replication_factor": 3,
+                  "configurations": {
+                    "cleanup.policy": "delete",
+                    "retention.ms": "604800000",
+                    "min.insync.replicas": "2"
+                  }
+                },
+                {
+                  "name": "acme.notifications.outbound",
+                  "partitions": 6,
+                  "replication_factor": 3,
+                  "configurations": {
+                    "cleanup.policy": "delete",
+                    "retention.ms": "259200000",
+                    "min.insync.replicas": "2"
+                  }
+                },
+                {
+                  "name": "acme.audit.events",
+                  "partitions": 4,
+                  "replication_factor": 3,
+                  "configurations": {
+                    "cleanup.policy": "delete",
+                    "retention.ms": "2592000000",
+                    "min.insync.replicas": "2"
+                  }
+                },
+                {
+                  "name": "__consumer_offsets",
+                  "partitions": 50,
+                  "replication_factor": 3,
+                  "configurations": {
+                    "cleanup.policy": "compact",
+                    "min.insync.replicas": "2"
+                  }
+                },
+                {
+                  "name": "__amazon_msk_canary",
+                  "partitions": 1,
+                  "replication_factor": 3,
+                  "configurations": {
+                    "cleanup.policy": "delete",
+                    "retention.ms": "86400000",
+                    "min.insync.replicas": "2"
+                  }
+                }
+              ],
+              "summary": {
+                "topics": 7,
+                "internal_topics": 2,
+                "total_partitions": 72,
+                "total_internal_partitions": 51,
+                "compact_topics": 1,
+                "compact_internal_topics": 1,
+                "compact_partitions": 8,
+                "compact_internal_partitions": 50,
+                "remote_storage_topics": 2
+              }
+            },
+            "acls": null,
+            "self_managed_connectors": null
+          },
+          "discovered_clients": []
+        },
+        {
+          "name": "acme-events-cdc",
+          "arn": "arn:aws:kafka:us-east-1:123456789012:cluster/acme-events-cdc/00000000-0000-0000-0000-000000000002-1",
+          "region": "us-east-1",
+          "metrics": {
+            "metadata": {
+              "cluster_type": "PROVISIONED",
+              "number_of_broker_nodes": 3,
+              "kafka_version": "3.5.1",
+              "broker_az_distribution": "DEFAULT",
+              "enhanced_monitoring": "DEFAULT",
+              "start_date": "2026-04-04T00:00:00Z",
+              "end_date": "2026-05-04T00:00:00Z",
+              "period": 86400,
+              "follower_fetching": false,
+              "instance_type": "kafka.m7g.large",
+              "tiered_storage": false,
+              "broker_type": "standard"
+            },
+            "results": [
+              {
+                "Id": "ingress_p95",
+                "Label": "BytesInPerSec - P95 (cluster MB/s)",
+                "Values": [11.2],
+                "Timestamps": ["2026-05-03T00:00:00Z"]
+              },
+              {
+                "Id": "ingress_peak",
+                "Label": "BytesInPerSec - Peak (cluster MB/s)",
+                "Values": [21.5],
+                "Timestamps": ["2026-04-18T09:00:00Z"]
+              },
+              {
+                "Id": "egress_p95",
+                "Label": "BytesOutPerSec - P95 (cluster MB/s)",
+                "Values": [33.6],
+                "Timestamps": ["2026-05-03T00:00:00Z"]
+              },
+              {
+                "Id": "egress_peak",
+                "Label": "BytesOutPerSec - Peak (cluster MB/s)",
+                "Values": [62.0],
+                "Timestamps": ["2026-04-18T09:00:00Z"]
+              },
+              {
+                "Id": "storage_used_gb",
+                "Label": "KafkaDataLogsDiskUsed - GB (cluster total)",
+                "Values": [620.0],
+                "Timestamps": ["2026-05-03T00:00:00Z"]
+              },
+              {
+                "Id": "client_connections",
+                "Label": "ClientConnectionCount - Avg",
+                "Values": [42.0],
+                "Timestamps": ["2026-05-03T00:00:00Z"]
+              }
+            ]
+          },
+          "aws_client_information": {
+            "msk_cluster_config": {
+              "ClusterArn": "arn:aws:kafka:us-east-1:123456789012:cluster/acme-events-cdc/00000000-0000-0000-0000-000000000002-1",
+              "ClusterName": "acme-events-cdc",
+              "ClusterType": "PROVISIONED",
+              "State": "ACTIVE",
+              "StateInfo": null,
+              "CreationTime": "2024-11-22T08:30:00Z",
+              "CurrentVersion": "K3AEGXETSR30VB",
+              "ActiveOperationArn": null,
+              "Tags": {
+                "env": "prod",
+                "team": "data-integration"
+              },
+              "Provisioned": {
+                "BrokerNodeGroupInfo": {
+                  "ClientSubnets": [
+                    "subnet-acme00000001",
+                    "subnet-acme00000002",
+                    "subnet-acme00000003"
+                  ],
+                  "InstanceType": "kafka.m7g.large",
+                  "BrokerAZDistribution": "DEFAULT",
+                  "ConnectivityInfo": {
+                    "PublicAccess": {
+                      "Type": "DISABLED"
+                    },
+                    "VpcConnectivity": null
+                  },
+                  "SecurityGroups": ["sg-acme00000002"],
+                  "StorageInfo": {
+                    "EbsStorageInfo": {
+                      "ProvisionedThroughput": {
+                        "Enabled": false,
+                        "VolumeThroughput": 0
+                      },
+                      "VolumeSize": 500
+                    }
+                  },
+                  "ZoneIds": ["use1-az1", "use1-az2", "use1-az4"]
+                },
+                "ClientAuthentication": {
+                  "Sasl": {
+                    "Iam": {"Enabled": false},
+                    "Scram": {"Enabled": true}
+                  },
+                  "Tls": {
+                    "Enabled": false,
+                    "CertificateAuthorityArnList": []
+                  },
+                  "Unauthenticated": {"Enabled": false}
+                },
+                "CurrentBrokerSoftwareInfo": {
+                  "ConfigurationArn": "arn:aws:kafka:us-east-1:123456789012:configuration/acme-events-config/00000000-0000-0000-0000-00000000aaaa-1",
+                  "ConfigurationRevision": 1,
+                  "KafkaVersion": "3.5.1"
+                },
+                "EncryptionInfo": {
+                  "EncryptionAtRest": {
+                    "DataVolumeKMSKeyId": "arn:aws:kms:us-east-1:123456789012:key/acme-key-0002"
+                  },
+                  "EncryptionInTransit": {
+                    "ClientBroker": "TLS",
+                    "InCluster": true
+                  }
+                },
+                "EnhancedMonitoring": "DEFAULT",
+                "LoggingInfo": {
+                  "BrokerLogs": {
+                    "CloudWatchLogs": {"Enabled": false},
+                    "Firehose": {"Enabled": false},
+                    "S3": {"Enabled": false}
+                  }
+                },
+                "NumberOfBrokerNodes": 3,
+                "OpenMonitoring": {
+                  "Prometheus": {
+                    "JmxExporter": {"EnabledInBroker": false},
+                    "NodeExporter": {"EnabledInBroker": false}
+                  }
+                },
+                "Rebalancing": {"BrokerCount": 3},
+                "StorageMode": "LOCAL",
+                "ZookeeperConnectString": "z-1.acme-events-cdc.acme02.kafka.us-east-1.amazonaws.com:2181,z-2.acme-events-cdc.acme02.kafka.us-east-1.amazonaws.com:2181,z-3.acme-events-cdc.acme02.kafka.us-east-1.amazonaws.com:2181",
+                "ZookeeperConnectStringTls": "z-1.acme-events-cdc.acme02.kafka.us-east-1.amazonaws.com:2182,z-2.acme-events-cdc.acme02.kafka.us-east-1.amazonaws.com:2182,z-3.acme-events-cdc.acme02.kafka.us-east-1.amazonaws.com:2182",
+                "CustomerActionStatus": "NONE"
+              },
+              "Serverless": null
+            },
+            "client_vpc_connections": [],
+            "cluster_operations": [],
+            "nodes": [],
+            "ScramSecrets": [
+              "arn:aws:secretsmanager:us-east-1:123456789012:secret:AmazonMSK_acme-cdc-debezium-acme00000001"
+            ],
+            "bootstrap_brokers": {
+              "BootstrapBrokerString": null,
+              "BootstrapBrokerStringPublicSaslIam": null,
+              "BootstrapBrokerStringPublicSaslScram": null,
+              "BootstrapBrokerStringPublicTls": null,
+              "BootstrapBrokerStringSaslIam": null,
+              "BootstrapBrokerStringSaslScram": "boot-acme01.c02.kafka.us-east-1.amazonaws.com:9096,boot-acme02.c02.kafka.us-east-1.amazonaws.com:9096,boot-acme03.c02.kafka.us-east-1.amazonaws.com:9096",
+              "BootstrapBrokerStringTls": null,
+              "BootstrapBrokerStringVpcConnectivitySaslIam": null,
+              "BootstrapBrokerStringVpcConnectivitySaslScram": null,
+              "BootstrapBrokerStringVpcConnectivityTls": null,
+              "ResultMetadata": {}
+            },
+            "policy": {
+              "CurrentVersion": null,
+              "Policy": null,
+              "ResultMetadata": {}
+            },
+            "compatible_versions": {
+              "CompatibleKafkaVersions": [
+                {"SourceVersion": "3.5.1", "TargetVersions": ["3.6.0", "3.7.x", "3.8.x"]}
+              ],
+              "ResultMetadata": {}
+            },
+            "cluster_networking": {
+              "vpc_id": "vpc-acme00000001",
+              "subnet_ids": [
+                "subnet-acme00000001",
+                "subnet-acme00000002",
+                "subnet-acme00000003"
+              ],
+              "security_groups": ["sg-acme00000002"],
+              "subnets": [
+                {
+                  "subnet_id": "subnet-acme00000001",
+                  "availability_zone": "us-east-1a",
+                  "private_ip_address": "10.10.1.20",
+                  "cidr_block": "10.10.1.0/24"
+                },
+                {
+                  "subnet_id": "subnet-acme00000002",
+                  "availability_zone": "us-east-1b",
+                  "private_ip_address": "10.10.2.20",
+                  "cidr_block": "10.10.2.0/24"
+                },
+                {
+                  "subnet_id": "subnet-acme00000003",
+                  "availability_zone": "us-east-1d",
+                  "private_ip_address": "10.10.3.20",
+                  "cidr_block": "10.10.3.0/24"
+                }
+              ]
+            },
+            "connectors": []
+          },
+          "kafka_admin_client_information": {
+            "cluster_id": "acmeCluster000000000002",
+            "topics": {
+              "details": [
+                {
+                  "name": "acme.users.cdc",
+                  "partitions": 8,
+                  "replication_factor": 3,
+                  "configurations": {
+                    "cleanup.policy": "delete",
+                    "retention.ms": "604800000",
+                    "min.insync.replicas": "2"
+                  }
+                },
+                {
+                  "name": "acme.orders.cdc",
+                  "partitions": 12,
+                  "replication_factor": 3,
+                  "configurations": {
+                    "cleanup.policy": "delete",
+                    "retention.ms": "604800000",
+                    "min.insync.replicas": "2"
+                  }
+                },
+                {
+                  "name": "acme.products.cdc",
+                  "partitions": 4,
+                  "replication_factor": 3,
+                  "configurations": {
+                    "cleanup.policy": "delete",
+                    "retention.ms": "604800000",
+                    "min.insync.replicas": "2"
+                  }
+                },
+                {
+                  "name": "acme.inventory.cdc",
+                  "partitions": 4,
+                  "replication_factor": 3,
+                  "configurations": {
+                    "cleanup.policy": "delete",
+                    "retention.ms": "604800000",
+                    "min.insync.replicas": "2"
+                  }
+                },
+                {
+                  "name": "connect-offsets",
+                  "partitions": 25,
+                  "replication_factor": 3,
+                  "configurations": {
+                    "cleanup.policy": "compact",
+                    "min.insync.replicas": "2"
+                  }
+                },
+                {
+                  "name": "connect-status",
+                  "partitions": 5,
+                  "replication_factor": 3,
+                  "configurations": {
+                    "cleanup.policy": "compact",
+                    "min.insync.replicas": "2"
+                  }
+                },
+                {
+                  "name": "connect-configs",
+                  "partitions": 1,
+                  "replication_factor": 3,
+                  "configurations": {
+                    "cleanup.policy": "compact",
+                    "min.insync.replicas": "2"
+                  }
+                },
+                {
+                  "name": "__debezium-heartbeat.acme-orders-db",
+                  "partitions": 1,
+                  "replication_factor": 3,
+                  "configurations": {
+                    "cleanup.policy": "delete",
+                    "retention.ms": "86400000",
+                    "min.insync.replicas": "2"
+                  }
+                },
+                {
+                  "name": "__debezium-heartbeat.acme-users-db",
+                  "partitions": 1,
+                  "replication_factor": 3,
+                  "configurations": {
+                    "cleanup.policy": "delete",
+                    "retention.ms": "86400000",
+                    "min.insync.replicas": "2"
+                  }
+                },
+                {
+                  "name": "__debezium-heartbeat.acme-inventory-db",
+                  "partitions": 1,
+                  "replication_factor": 3,
+                  "configurations": {
+                    "cleanup.policy": "delete",
+                    "retention.ms": "86400000",
+                    "min.insync.replicas": "2"
+                  }
+                },
+                {
+                  "name": "__consumer_offsets",
+                  "partitions": 50,
+                  "replication_factor": 3,
+                  "configurations": {
+                    "cleanup.policy": "compact",
+                    "min.insync.replicas": "2"
+                  }
+                },
+                {
+                  "name": "__amazon_msk_canary",
+                  "partitions": 1,
+                  "replication_factor": 3,
+                  "configurations": {
+                    "cleanup.policy": "delete",
+                    "retention.ms": "86400000",
+                    "min.insync.replicas": "2"
+                  }
+                }
+              ],
+              "summary": {
+                "topics": 10,
+                "internal_topics": 2,
+                "total_partitions": 62,
+                "total_internal_partitions": 51,
+                "compact_topics": 3,
+                "compact_internal_topics": 1,
+                "compact_partitions": 31,
+                "compact_internal_partitions": 50,
+                "remote_storage_topics": 0
+              }
+            },
+            "acls": [
+              {
+                "principal": "User:debezium-cdc",
+                "host": "*",
+                "operation": "WRITE",
+                "permission": "ALLOW",
+                "resource_type": "TOPIC",
+                "resource_name": "acme.",
+                "pattern_type": "PREFIXED"
+              },
+              {
+                "principal": "User:debezium-cdc",
+                "host": "*",
+                "operation": "READ",
+                "permission": "ALLOW",
+                "resource_type": "GROUP",
+                "resource_name": "connect-",
+                "pattern_type": "PREFIXED"
+              },
+              {
+                "principal": "User:analytics-consumer",
+                "host": "*",
+                "operation": "READ",
+                "permission": "ALLOW",
+                "resource_type": "TOPIC",
+                "resource_name": "acme.",
+                "pattern_type": "PREFIXED"
+              }
+            ],
+            "self_managed_connectors": null
+          },
+          "discovered_clients": []
+        }
+      ]
+    }
+  ],
+  "schema_registries": [
+    {
+      "type": "confluent",
+      "url": "http://schema-registry.acme.internal:8081",
+      "default_compatibility": "BACKWARD",
+      "contexts": ["."],
+      "subjects": [
+        {
+          "name": "acme.orders.OrderCreated-value",
+          "schema_type": "AVRO",
+          "compatibility": "BACKWARD",
+          "versions": [
+            {
+              "schema": "{\"type\":\"record\",\"name\":\"OrderCreated\",\"namespace\":\"com.acme.orders\",\"fields\":[{\"name\":\"orderId\",\"type\":\"string\"},{\"name\":\"customerId\",\"type\":\"string\"},{\"name\":\"createdAt\",\"type\":{\"type\":\"long\",\"logicalType\":\"timestamp-millis\"}},{\"name\":\"totalCents\",\"type\":\"long\"}]}",
+              "schemaType": "AVRO",
+              "id": 101,
+              "subject": "acme.orders.OrderCreated-value",
+              "version": 1
+            }
+          ],
+          "latest_schema": {
+            "schema": "{\"type\":\"record\",\"name\":\"OrderCreated\",\"namespace\":\"com.acme.orders\",\"fields\":[{\"name\":\"orderId\",\"type\":\"string\"},{\"name\":\"customerId\",\"type\":\"string\"},{\"name\":\"createdAt\",\"type\":{\"type\":\"long\",\"logicalType\":\"timestamp-millis\"}},{\"name\":\"totalCents\",\"type\":\"long\"}]}",
+            "schemaType": "AVRO",
+            "id": 101,
+            "subject": "acme.orders.OrderCreated-value",
+            "version": 1
+          }
+        },
+        {
+          "name": "acme.payments.PaymentAuthorized-value",
+          "schema_type": "AVRO",
+          "compatibility": "BACKWARD",
+          "versions": [
+            {
+              "schema": "{\"type\":\"record\",\"name\":\"PaymentAuthorized\",\"namespace\":\"com.acme.payments\",\"fields\":[{\"name\":\"paymentId\",\"type\":\"string\"},{\"name\":\"orderId\",\"type\":\"string\"},{\"name\":\"amountCents\",\"type\":\"long\"},{\"name\":\"currency\",\"type\":\"string\"}]}",
+              "schemaType": "AVRO",
+              "id": 102,
+              "subject": "acme.payments.PaymentAuthorized-value",
+              "version": 1
+            }
+          ],
+          "latest_schema": {
+            "schema": "{\"type\":\"record\",\"name\":\"PaymentAuthorized\",\"namespace\":\"com.acme.payments\",\"fields\":[{\"name\":\"paymentId\",\"type\":\"string\"},{\"name\":\"orderId\",\"type\":\"string\"},{\"name\":\"amountCents\",\"type\":\"long\"},{\"name\":\"currency\",\"type\":\"string\"}]}",
+            "schemaType": "AVRO",
+            "id": 102,
+            "subject": "acme.payments.PaymentAuthorized-value",
+            "version": 1
+          }
+        },
+        {
+          "name": "acme.users.UserSignedUp-value",
+          "schema_type": "AVRO",
+          "compatibility": "BACKWARD",
+          "versions": [
+            {
+              "schema": "{\"type\":\"record\",\"name\":\"UserSignedUp\",\"namespace\":\"com.acme.users\",\"fields\":[{\"name\":\"userId\",\"type\":\"string\"},{\"name\":\"email\",\"type\":\"string\"},{\"name\":\"signedUpAt\",\"type\":{\"type\":\"long\",\"logicalType\":\"timestamp-millis\"}}]}",
+              "schemaType": "AVRO",
+              "id": 103,
+              "subject": "acme.users.UserSignedUp-value",
+              "version": 1
+            }
+          ],
+          "latest_schema": {
+            "schema": "{\"type\":\"record\",\"name\":\"UserSignedUp\",\"namespace\":\"com.acme.users\",\"fields\":[{\"name\":\"userId\",\"type\":\"string\"},{\"name\":\"email\",\"type\":\"string\"},{\"name\":\"signedUpAt\",\"type\":{\"type\":\"long\",\"logicalType\":\"timestamp-millis\"}}]}",
+            "schemaType": "AVRO",
+            "id": 103,
+            "subject": "acme.users.UserSignedUp-value",
+            "version": 1
+          }
+        },
+        {
+          "name": "acme.inventory.InventoryUpdated-value",
+          "schema_type": "AVRO",
+          "compatibility": "BACKWARD",
+          "versions": [
+            {
+              "schema": "{\"type\":\"record\",\"name\":\"InventoryUpdated\",\"namespace\":\"com.acme.inventory\",\"fields\":[{\"name\":\"sku\",\"type\":\"string\"},{\"name\":\"quantity\",\"type\":\"int\"},{\"name\":\"updatedAt\",\"type\":{\"type\":\"long\",\"logicalType\":\"timestamp-millis\"}}]}",
+              "schemaType": "AVRO",
+              "id": 104,
+              "subject": "acme.inventory.InventoryUpdated-value",
+              "version": 1
+            }
+          ],
+          "latest_schema": {
+            "schema": "{\"type\":\"record\",\"name\":\"InventoryUpdated\",\"namespace\":\"com.acme.inventory\",\"fields\":[{\"name\":\"sku\",\"type\":\"string\"},{\"name\":\"quantity\",\"type\":\"int\"},{\"name\":\"updatedAt\",\"type\":{\"type\":\"long\",\"logicalType\":\"timestamp-millis\"}}]}",
+            "schemaType": "AVRO",
+            "id": 104,
+            "subject": "acme.inventory.InventoryUpdated-value",
+            "version": 1
+          }
+        },
+        {
+          "name": "acme.shipments.ShipmentDispatched-value",
+          "schema_type": "AVRO",
+          "compatibility": "BACKWARD",
+          "versions": [
+            {
+              "schema": "{\"type\":\"record\",\"name\":\"ShipmentDispatched\",\"namespace\":\"com.acme.shipments\",\"fields\":[{\"name\":\"shipmentId\",\"type\":\"string\"},{\"name\":\"orderId\",\"type\":\"string\"},{\"name\":\"carrier\",\"type\":\"string\"}]}",
+              "schemaType": "AVRO",
+              "id": 105,
+              "subject": "acme.shipments.ShipmentDispatched-value",
+              "version": 1
+            }
+          ],
+          "latest_schema": {
+            "schema": "{\"type\":\"record\",\"name\":\"ShipmentDispatched\",\"namespace\":\"com.acme.shipments\",\"fields\":[{\"name\":\"shipmentId\",\"type\":\"string\"},{\"name\":\"orderId\",\"type\":\"string\"},{\"name\":\"carrier\",\"type\":\"string\"}]}",
+            "schemaType": "AVRO",
+            "id": 105,
+            "subject": "acme.shipments.ShipmentDispatched-value",
+            "version": 1
+          }
+        },
+        {
+          "name": "acme.notifications.NotificationSent-value",
+          "schema_type": "AVRO",
+          "compatibility": "BACKWARD",
+          "versions": [
+            {
+              "schema": "{\"type\":\"record\",\"name\":\"NotificationSent\",\"namespace\":\"com.acme.notifications\",\"fields\":[{\"name\":\"notificationId\",\"type\":\"string\"},{\"name\":\"userId\",\"type\":\"string\"},{\"name\":\"channel\",\"type\":\"string\"}]}",
+              "schemaType": "AVRO",
+              "id": 106,
+              "subject": "acme.notifications.NotificationSent-value",
+              "version": 1
+            }
+          ],
+          "latest_schema": {
+            "schema": "{\"type\":\"record\",\"name\":\"NotificationSent\",\"namespace\":\"com.acme.notifications\",\"fields\":[{\"name\":\"notificationId\",\"type\":\"string\"},{\"name\":\"userId\",\"type\":\"string\"},{\"name\":\"channel\",\"type\":\"string\"}]}",
+            "schemaType": "AVRO",
+            "id": 106,
+            "subject": "acme.notifications.NotificationSent-value",
+            "version": 1
+          }
+        },
+        {
+          "name": "acme.audit.AuditEvent-value",
+          "schema_type": "AVRO",
+          "compatibility": "BACKWARD",
+          "versions": [
+            {
+              "schema": "{\"type\":\"record\",\"name\":\"AuditEvent\",\"namespace\":\"com.acme.audit\",\"fields\":[{\"name\":\"eventId\",\"type\":\"string\"},{\"name\":\"actor\",\"type\":\"string\"},{\"name\":\"action\",\"type\":\"string\"},{\"name\":\"timestamp\",\"type\":{\"type\":\"long\",\"logicalType\":\"timestamp-millis\"}}]}",
+              "schemaType": "AVRO",
+              "id": 107,
+              "subject": "acme.audit.AuditEvent-value",
+              "version": 1
+            }
+          ],
+          "latest_schema": {
+            "schema": "{\"type\":\"record\",\"name\":\"AuditEvent\",\"namespace\":\"com.acme.audit\",\"fields\":[{\"name\":\"eventId\",\"type\":\"string\"},{\"name\":\"actor\",\"type\":\"string\"},{\"name\":\"action\",\"type\":\"string\"},{\"name\":\"timestamp\",\"type\":{\"type\":\"long\",\"logicalType\":\"timestamp-millis\"}}]}",
+            "schemaType": "AVRO",
+            "id": 107,
+            "subject": "acme.audit.AuditEvent-value",
+            "version": 1
+          }
+        }
+      ]
+    }
+  ],
+  "kcp_build_info": {
+    "version": "0.6.5",
+    "commit": "0000000000000000000000000000000000000000",
+    "date": "2026-05-04T00:00:00Z"
+  },
+  "timestamp": "2026-05-04T12:00:00Z"
+}
