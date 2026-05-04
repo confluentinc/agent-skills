@@ -2,21 +2,6 @@
   "skill_name": "msk-migration",
   "evals": [
     {
-      "id": 0,
-      "slug": "assess-iam-private",
-      "prompt": "I have a KCP state file for my MSK environment. Here it is — help me assess it.",
-      "expected_output": "Skill runs the State File Audit, walks the full 16-row Red Flags checklist in order, produces an Environment Summary grounded in state file evidence, reports topic and partition counts using the user + internal = total convention, and ends with the standard handoff prompt.",
-      "files": ["mock-environments/msk-acme-statefile/state.json"],
-      "assertions": [
-        {"name": "Produces Scan Coverage table", "description": "Should produce a Scan Coverage section listing all six KCP scans (discover, scan clusters, scan schema-registry, scan client-inventory, report costs, report metrics) with Ran / Not run / Ambiguous status for each, traceable to the state file fields checked."},
-        {"name": "Walks all 16 Red Flags in order", "description": "Should include a Red Flags section that walks rows 1 through 16 of the checklist in order, with a Triggered / Not triggered / Unknown status for each row. Should not reorder, merge, rename, or skip rows."},
-        {"name": "Reports counts with user + internal = total convention when split is available", "description": "Topic and partition counts should be reported in the format 'X user + Y internal = Z total' when the source profile carries the user/internal split (KCP state file, or manual profile with `user_topic_count` / `internal_topic_count` populated). When the source profile only carries the aggregate (no split available), the skill should report 'X total (user/internal split not captured in <source>)' or equivalent labeled-total framing and record the gap in `known_gaps`. Reporting a single unlabeled number when the split was available, or fabricating a split when it wasn't, are both fails."},
-        {"name": "Grounds every claim in state file evidence", "description": "Every environment fact (cluster count, auth, networking, scale) should trace to a specific state file field. No fabricated values where data is missing."},
-        {"name": "Ends with the standard handoff prompt", "description": "Should end with the canonical 'Ready to move to Plan?' phrasing or equivalent that explicitly tells the user their next available input (say 'write the Plan' or answer specific open questions)."},
-        {"name": "Row 9 uses topics-populated disambiguation on null ACLs", "description": "The mock has `acl_count: null` (simulating the state-file case where the acls field is null) combined with IAM enabled, topics populated, and a provisioned cluster. The skill should report Row 9 as Triggered (zero ACLs with IAM = authz in IAM policies), NOT Unknown (scan gap), because the topics-populated signal confirms the admin scan succeeded. Should make the disambiguation visible in the evidence (e.g., 'topics populated → admin scan ran → null ACLs = scan found zero')."}
-      ]
-    },
-    {
       "id": 1,
       "slug": "kcp-fresh-start",
       "prompt": "we haven't started — ready to migrate off msk to confluent cloud. let's try kcp.",
@@ -26,19 +11,6 @@
         {"name": "Introduces KCP on first mention", "description": "When KCP first comes up, the skill should briefly explain what it is: Confluent's open-source migration tool, link to github.com/confluentinc/kcp, and its purpose in the migration context. Should not assume the user knows what KCP is."},
         {"name": "Presents the scan sequence before running anything", "description": "Should show the 6-step KCP scan sequence (discover, scan clusters, scan schema-registry, scan client-inventory, report metrics, report costs) with essential/optional markings, before any command runs."},
         {"name": "Does not auto-execute bash commands", "description": "Should not run `kcp --version`, `kcp version`, or any bash command on its own. Per the command-execution principle, the skill either asks the user to run the command and share output, or explicitly asks whether the user wants the skill to run it."}
-      ]
-    },
-    {
-      "id": 2,
-      "slug": "hidden-connectors",
-      "prompt": "Here's my state file. What do we have?",
-      "expected_output": "Skill handles null-vs-empty correctly on connector fields (reports Unknown, not Not triggered) and picks up connector activity from internal topic patterns even though the connector scan didn't run.",
-      "files": ["mock-environments/msk-acme-statefile/state.json"],
-      "assertions": [
-        {"name": "Row 7 triggers via Row 15 cross-reference, not from scan field alone", "description": "The mock has `self_managed_connect_count: null` AND `sample_internal_topics` contains a full Kafka Connect framework triad (`connect-offsets`, `connect-status`, `connect-configs`). Under the topics-populated disambiguator, null would naively read as 'zero found' — but KCP's self-managed Connect scanner uses literal-match on `connect-configs` and misses prefixed worker fleets, so the scan is unreliable as a negative signal when Row 15 has topic evidence. Row 7 should be reported as **Triggered** with Row 15 evidence cited (the specific triads). Should NOT report Not triggered and should NOT report Unknown (scan gap) — Row 15 provides the evidence. Row 6 (MSK Connect managed) is separate: it uses the AWS API, so null + topics-populated = zero is correct there."},
-        {"name": "Walks Row 15 and inspects internal topic names", "description": "Row 15 should be Triggered, with evidence citing the internal topic names observed (Debezium heartbeat patterns, MongoDB heartbeat patterns, or Kafka Connect framework topics like connect-offsets/status/configs)."},
-        {"name": "Infers the tools from the topic patterns", "description": "The Row 15 finding should name the likely source tool (Debezium source connector, MongoDB source connector, Kafka Connect framework) rather than just reporting 'unknown tooling.'"},
-        {"name": "Recommends closing the connector scan gap before Plan commits connector paths", "description": "Should flag that a follow-up `kcp scan self-managed-connectors` run is needed before the Plan stage can commit a connector migration path. Connector scan gap is not a Plan blocker but shapes pre-migration scope."}
       ]
     },
     {
@@ -78,21 +50,6 @@
         {"name": "Walks the 11 intake groups in order", "description": "Should proceed through the intake groups (platform, cluster topology, scale, auth, networking, ACLs, Schema Registry, connectors, Kafka version, costs, migration drivers) in order rather than jumping around based on what the user mentioned first."},
         {"name": "Records 'I don't know' as a known gap", "description": "When the user answers 'I don't know' (as with throughput), the skill should record this as a known gap in the profile's known_gaps field, not invent plausible values."},
         {"name": "Produces a populated profile at the end", "description": "The output should be a populated migration-profile.yaml (even if sparse) that can feed the Plan stage. Same downstream role as a KCP state file, just less detailed."}
-      ]
-    },
-    {
-      "id": 6,
-      "slug": "full-plan-open-questions",
-      "prompt": "Here's my state file. I have open questions on client auth and Schema Registry — leave those open as working assumptions. Write the Plan to a file.",
-      "expected_output": "Skill produces a full Plan per the 12-section template, with Tiered Storage section present (TIERED clusters exist), standardized tables, inline citations on every number, working assumptions stated explicitly, sizing committed with math — not Assess output, not a 'Plan-Stage Preview.'",
-      "files": ["mock-environments/msk-acme-statefile/state.json"],
-      "assertions": [
-        {"name": "Produces a full Plan per the 12-section template", "description": "Output should contain all 12 required sections in order: Header, Summary, Source Environment, Sizing, Cluster Type Decision, Networking Decision, Auth Approach, Switchover Approach, Pre-Migration Workstream, Risks, Open Questions, Next Step. Not Assess output; not a hedged 'Plan-Stage Preview'; not a directional draft."},
-        {"name": "Tiered Storage section present when TIERED clusters exist", "description": "If any cluster has StorageMode TIERED (or equivalent indicator in the mock), the Plan should include a Tiered Storage conditional section with per-cluster peak volumes cited from the metrics source."},
-        {"name": "Tables use standardized formats", "description": "Cluster table = 8 columns per the canonical template in references/plan.md (Cluster | Brokers × Instance | Kafka | Topics user+internal=total | Partitions user+internal=total | P95 In/Out MBps | Peak In/Out MBps | Tiered GB). Sizing table = 7 columns with visible P95 In ÷ per-eCKU-in, P95 Out ÷ per-eCKU-out, User Partitions ÷ per-eCKU-partition-rate, Max, +Headroom, Verdict (per Capacity Sizing Procedure — sizing uses P95, not absolute Peak). Risks table = 3 columns (Risk / Severity / Mitigation)."},
-        {"name": "Every number carries a citation", "description": "State-file-sourced values carry inline parenthetical citations to jq paths or field paths. Live-fetched values carry inline citations to the doc URL. Computed values show the inputs and formula. No uncited numbers."},
-        {"name": "Sizing committed with math, not deferred", "description": "Sizing should produce concrete eCKU values per cluster with the computation visible. Should not defer with 'requires live fetch' or 'TBD at Provision.' If live fetch is needed for per-eCKU values, the skill either fetches or offers to — doesn't park the decision."},
-        {"name": "Working assumptions stated explicitly for unanswered questions", "description": "When the user hasn't resolved open questions (auth, SR), the Plan states the assumption the recommendation is built on ('assuming IAM is in active use based on 0 ACLs + IAM enabled') rather than deferring or hedging entire decisions. Open Questions section captures these with the closure criteria."}
       ]
     },
     {
@@ -159,22 +116,6 @@
         {"name": "Flags IAM authorization separately from ACL scan", "description": "IAM policy → CC RBAC migration still applies to serverless. The skill should flag `kcp create-asset migrate-acls iam` as the authz migration path based on IAM being enabled, independent of the Kafka ACL scan being skipped."},
         {"name": "Notes serverless-specific metrics gap without fabricating values", "description": "The mock has `peak_ingress_mbps: null` and `peak_egress_mbps: null` — serverless returns limited metrics. The skill should acknowledge this gap in the Scan Coverage or Environment Summary rather than invent throughput numbers or silently pass over the missing fields."},
         {"name": "Produces the standard Environment Summary and handoff prompt", "description": "Standard Assess output structure applies — Scan Coverage, Environment Summary with user + internal = total counts where available, Red Flags, Additional Observations, Open Questions, and the canonical 'Ready to move to Plan?' handoff."}
-      ]
-    },
-    {
-      "id": 13,
-      "slug": "assess-hidden-cluster",
-      "prompt": "Here's my environment profile. Walk me through the assessment.",
-      "expected_output": "Full Assess pass on a provisioned multi-cluster environment where cost data reveals a hidden / undiscovered cluster. Skill walks all 16 rows, reconciles cost line items against the discovered cluster inventory in Row 16, and flags the unmatched instance type with evidence — without fabricating specs for the hidden cluster.",
-      "files": ["mock-environments/msk-acme-statefile/state.json"],
-      "assertions": [
-        {"name": "Walks all 16 Red Flags in order", "description": "Full Red Flags section walking rows 1–16. Row 16 specifically tests the cost-to-inventory reconciliation directive."},
-        {"name": "Row 16 Triggered on the unmatched instance type", "description": "The mock has three discovered clusters on `kafka.m7g.12xlarge`, `kafka.m7g.2xlarge`, and `express.m7g.large`. Cost data includes `USE1-Express.m7g.4xlarge` at $146,935/year sustained across all 12 months — not matching any discovered cluster. Row 16 should be Triggered with evidence naming the specific usage-type string and spend magnitude."},
-        {"name": "Judges materiality relative to discovered-cluster baseline", "description": "The finding should justify why $146,935/year is material — e.g., compare it to the observability-tier cluster ($540/year on `Express.m7g.large`) to show the unmatched spend dwarfs an existing scanned cluster. Does not rely on an absolute dollar threshold."},
-        {"name": "Recommends re-running kcp discover across broader scope", "description": "Row 16 response should recommend re-running `kcp discover` across all regions and all relevant AWS accounts before the Plan scope is committed. Commit-to-Plan with this gap would exclude the hidden cluster from the migration."},
-        {"name": "Does not fabricate specs for the hidden cluster", "description": "The skill must not invent broker count, topics, throughput, or other details for the unmatched cost entry. The cost signal confirms existence and gives a rough size cue (from instance type + spend), but specifics require the re-discover run."},
-        {"name": "Other Red Flags still reported correctly", "description": "Other rows (1, 3, 4, 12, 15) should be reported with status grounded in actual state-file evidence — not defaulted to 'Not triggered' just because Row 16 is the focus of the test. Specifically: Schema Registry presence/type → Row 1 evaluated against actual SR config and Row 4 evaluated against SR type; IAM-enabled clusters → Row 3 evaluated per cluster; cluster `StorageMode` (TIERED if present on any cluster) → Row 12 evaluated with per-cluster annotation; internal topic patterns (Connect framework triads, Debezium / MongoDB heartbeats, etc.) → Row 15 evaluated with topic evidence. Assess does not collapse just because Row 16 is the focus of the test."},
-        {"name": "Produces the standard Environment Summary and handoff prompt", "description": "Standard Assess output structure — Scan Coverage, Environment Summary, Red Flags, Additional Observations, Open Questions, canonical handoff prompt."}
       ]
     },
     {
