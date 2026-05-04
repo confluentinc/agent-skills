@@ -1,0 +1,62 @@
+# Used to test Plan -> Provision handoff validation.
+# Plan stage is partially complete: cluster type, networking, auth, sizing decided.
+# Schema migration path, connector migration path, and pre-migration requirements NOT decided.
+# Skill should block the handoff and name the specific gaps.
+
+source:
+  platform: msk-provisioned
+  cloud_provider: aws
+  region: us-east-1
+  kafka_version: 3.5.1
+  migration_drivers: "Managed migration project."
+  monthly_cost_usd: 22000
+
+clusters:
+  - name: prod-cluster
+    broker_count: 6
+    broker_instance_type: kafka.m5.large
+    availability_zones: [us-east-1a, us-east-1b, us-east-1c]
+    topic_count: 96
+    partition_count_pre_replication: 2880
+    replication_factor: 3
+    peak_ingress_mbps: 210
+    peak_egress_mbps: 630
+    auth_types:
+      - scram
+    network_accessibility: private
+    vpc_topology: single-vpc
+    acl_count: 54
+    acl_source: kafka-acls
+
+schema_registry:
+  type: confluent-sr
+  subject_count: 78
+  migration_decision: null  # GAP — should block Plan->Provision handoff
+
+connectors:
+  msk_connect_count: 5
+  self_managed_connect_count: 0
+  connector_types:
+    - s3-sink
+    - elasticsearch-sink
+  # NOTE: connector migration path not yet decided per connector (GAP)
+
+plan:
+  target_cluster_type: enterprise
+  target_cloud: aws
+  target_region: us-east-1
+  target_networking: privatelink
+  sizing_ecku_or_cku: 8
+  sizing_headroom_percent: 35
+  auth_mapping:
+    scram: oauth
+  switchover_approach: zero-cut
+  pre_migration_requirements: []  # GAP — nothing identified or flagged
+  risks_acknowledged: []  # GAP — risks not documented
+
+red_flags: []
+known_gaps:
+  - "schema_registry.migration_decision not chosen"
+  - "connector migration path per connector not decided"
+  - "pre_migration_requirements empty — user has not walked through"
+  - "risks_acknowledged empty — user has not walked through"
