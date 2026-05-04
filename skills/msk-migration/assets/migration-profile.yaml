@@ -1,0 +1,93 @@
+# Migration profile template for msk-migration skill.
+#
+# Use this file when neither an MSK MCP server nor the KCP CLI is available
+# (restricted AWS accounts, pre-engagement intake). The skill walks you
+# through filling it out during Assess. Downstream stages consume the
+# populated profile to make decisions.
+#
+# Required fields are marked REQUIRED. Missing data should be recorded as
+# null, not fabricated.
+
+source:
+  platform: msk-provisioned  # REQUIRED. msk-provisioned | msk-serverless
+  cloud_provider: aws  # REQUIRED. aws (msk-migration is MSK-only)
+  region: us-east-1  # REQUIRED. Source AWS region.
+  kafka_version: null  # REQUIRED. Source Kafka version. Verify CL compatibility against docs.
+  migration_drivers: null  # Brief note: why migrate? timeline? hard cutover constraint?
+  monthly_cost_usd: null  # Rough MSK spend. Populate from kcp report costs if available.
+
+clusters:
+  # One entry per MSK cluster in scope. Multi-cluster migrations expand this list.
+  - name: null  # REQUIRED. Cluster name or ARN.
+    broker_count: null  # REQUIRED for provisioned. Null for serverless.
+    broker_instance_type: null  # e.g. kafka.m5.large. Null for serverless.
+    availability_zones: []  # List of AZ identifiers the brokers span.
+
+    # Scale (REQUIRED — drives sizing)
+    topic_count: null  # Total topics on this cluster (user + internal). Required.
+    user_topic_count: null  # Optional. User-created topics only. Populate when known so Assess can report counts as "X user + Y internal = Z total".
+    internal_topic_count: null  # Optional. Internal topics (Connect framework, Streams changelogs, MM2 artifacts, etc.). Populate when known. user + internal should equal topic_count.
+    partition_count_pre_replication: null  # Total partitions across all topics, pre-replication.
+    user_partition_count: null  # Optional. Partitions on user_topic_count topics only. Populate when known.
+    internal_partition_count: null  # Optional. Partitions on internal topics only. Populate when known.
+    replication_factor: null
+    peak_ingress_mbps: null
+    peak_egress_mbps: null
+
+    # Auth (REQUIRED — drives Plan auth mapping)
+    auth_types:  # List all in use. Values: scram | mtls | iam | unauthenticated
+      - null
+
+    # Networking (REQUIRED — drives cluster type and networking selection)
+    network_accessibility: private  # private | public
+    vpc_topology: single-vpc  # single-vpc | hub-and-spoke | direct-peering | transit-gateway
+
+    # ACLs
+    acl_count: null
+    acl_source: kafka-acls  # kafka-acls | iam-policies | both
+
+    # Optional — sample of internal topic names observed on this cluster.
+    # Used by the Red Flags Row 15 check (Connect / tooling activity inferred
+    # from internal topic names). Include any topic names that look like
+    # connector output (Debezium heartbeats, MongoDB heartbeats), Connect
+    # framework topics (connect-offsets/status/configs), Streams artifacts
+    # (*-changelog, *-repartition), or MirrorMaker 2 artifacts. Leave empty
+    # if all topic names are application-scoped or if you don't have visibility
+    # into the topic list.
+    sample_internal_topics: []
+
+schema_registry:
+  type: none  # REQUIRED. confluent-sr | confluent-sr-cp | aws-glue | karapace | none
+  cp_version: null  # If confluent-sr-cp, the CP version. Verify against Schema Linking floor live.
+  subject_count: null
+  migration_decision: null  # Filled during Plan. Values: schema-linking | rest-api | adopt-sr | migrate-without-schemas
+
+connectors:
+  msk_connect_count: 0
+  self_managed_connect_count: 0
+  connector_types: []  # e.g. s3-sink, debezium-mysql
+
+downstream:
+  # Out of scope for this skill. Recorded only so we don't re-ask.
+  tableflow_planned: null  # true | false | unknown
+  flink_planned: null
+  lakehouse_planned: null
+
+# Plan-stage decisions (filled during Plan)
+plan:
+  target_cluster_type: null  # enterprise | dedicated
+  target_cloud: aws  # aws | azure | gcp
+  target_region: null
+  target_networking: null  # privatelink | pni | vpc-peering | transit-gateway | public
+  sizing_ecku_or_cku: null
+  sizing_headroom_percent: null
+  auth_mapping: {}  # map of source auth type → target CC auth
+  switchover_approach: null  # zero-cut | topic-by-topic | app-by-app | big-bang
+  pre_migration_requirements: []  # e.g., "migrate IAM auth to SCRAM before Zero-Cut"
+  risks_acknowledged: []
+
+# Red flags raised during Assess
+red_flags: []
+
+# Known gaps (fields the user couldn't answer; do not fabricate)
+known_gaps: []
