@@ -8,7 +8,7 @@
 
 ## Docs
 
-If adding a new skill, I have reached out to reviewers to make sure the docs are updated to reflect the new skill.
+- [ ] If adding a new skill, I have reached out to reviewers to make sure the docs are updated to reflect the new skill.
 
 ## Testing
 
