@@ -6,6 +6,10 @@
     If adding a skill, what does it do? What use case does it address?
 -->
 
+## Docs
+
+- [ ] If adding a new skill, I have reached out to reviewers to make sure the docs are updated to reflect the new skill.
+
 ## Testing
 
 - [ ] Evals pass at 90%+ threshold
