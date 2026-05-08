@@ -15,7 +15,7 @@ Begin by announcing: "Using the Confluent Kafka Python Client skill to guide thi
 
 # Confluent Kafka Python Client Creation
 
-Generate a production-ready Python project for producing to and/or consuming from Kafka using `confluent-kafka-python`. Supports two target environments: **Confluent Cloud** (managed) and **Local Docker** (open-source Kafka), and two producer styles: **AsyncIO** (non-blocking) and **Synchronous** (blocking). The generated code follows Confluent's best practices.
+Generate a production-ready Python project for producing to and/or consuming from Kafka using `confluent-kafka-python`. Supports three target environments: **Confluent Cloud** (managed), **Local Docker** (open-source Kafka), and **WarpStream** (Kafka-compatible, object-storage-backed), and two producer styles: **AsyncIO** (non-blocking) and **Synchronous** (blocking). The generated code follows Confluent's best practices.
 
 ## Step 1: Gather Requirements
 

@@ -83,7 +83,7 @@ Ask (skip if already answered):
 2. **Topics & data flow**: Input/output topics? Schematized? If yes, retrieve schema (don't generate new ones). How do topics connect (joins/lookups/independent)?
 3. **Schema format** (skip if using existing): Avro (default) | Protobuf | JSON Schema
 4. **Build tool**: Gradle (default) | Maven
-5. **Target environment** (REQUIRED): Apache Kafka | Confluent Platform | Confluent Cloud (read `references/config-baseline.md` when generating config)
+5. **Target environment** (REQUIRED): Apache Kafka | Confluent Platform | Confluent Cloud | WarpStream (read `references/config-baseline.md` when generating config; if WarpStream, also read `../shared/warpstream-optimization.md` for client overrides)
 6. **Credentials**: CC needs 2 API keys (Kafka + SR). CP/AK needs bootstrap + SR URLs + auth type (read `references/cli-commands.md` if needed)
 7. **Deployment sizing**: Partitions? Instances? State size? (read `references/architecture.md` or `references/production-hardening.md` § Deployment Sizing if needed)
 8. **Test data**: Has data or wants sample data generated?
