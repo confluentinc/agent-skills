@@ -1,6 +1,6 @@
 ---
 name: confluent-cloud-cdc-tableflow
-description: Set up end-to-end Change Data Capture (CDC) pipelines on Confluent Cloud using Debezium source connectors, Flink for transformation, and Tableflow for data lake integration. Supports JSON_SR, Avro, and Protobuf formats. Handles schemaless topics (plain JSON without SR) and multi-event topics. This skill handles the complete workflow from database to Iceberg/Delta tables. Use this skill when users want to capture database changes and materialize them into Iceberg or Delta Lake tables via Confluent Cloud Tableflow. Also use when users want to set up CDC pipelines with WarpStream as the Kafka layer. Trigger phrases include "CDC to Tableflow", "database to Iceberg", "database to Delta Lake", "stream database changes to data lake", "set up Tableflow pipeline", "schemaless topic to Tableflow", or "multi-event topic to Iceberg". Do NOT trigger for general CDC, Debezium, or database replication requests that do not involve Tableflow or Iceberg/Delta Lake as the destination.
+description: Set up end-to-end Change Data Capture (CDC) pipelines on Confluent Cloud using Debezium source connectors, Flink for transformation, and Tableflow for data lake integration. Supports JSON_SR, Avro, and Protobuf formats. Handles schemaless topics (plain JSON without SR) and multi-event topics. This skill handles the complete workflow from database to Iceberg/Delta tables. Use this skill when users want to capture database changes and materialize them into Iceberg or Delta Lake tables via Confluent Cloud Tableflow. Trigger phrases include "CDC to Tableflow", "database to Iceberg", "database to Delta Lake", "stream database changes to data lake", "set up Tableflow pipeline", "schemaless topic to Tableflow", or "multi-event topic to Iceberg". Do NOT trigger for general CDC, Debezium, or database replication requests that do not involve Tableflow or Iceberg/Delta Lake as the destination.
 ---
 
 # Confluent Cloud CDC to Tableflow Pipeline
@@ -129,13 +129,6 @@ Ask the user to provide the following Confluent Cloud details:
 2. Run `mcp__confluent__list-schemas` to verify Schema Registry is accessible
 
 Schema Registry is shared at the environment level across all clusters.
-
-#### 0.4 WarpStream as Kafka Layer
-
-If the user is running WarpStream as their Kafka-compatible broker (instead of standard Confluent Cloud Kafka), read `../shared/warpstream-optimization.md` and apply the **Kafka Connect Overrides** section. Key impacts for CDC pipelines:
-- Kafka Connect worker configs need WarpStream-specific overrides (larger batches, disabled idempotence, larger fetch sizes). See the environment variable table in the shared reference.
-- CDC pipeline latency will be ~250-500ms higher per hop compared to standard Kafka, which may matter for near-real-time use cases. Set this expectation with the user.
-- Zone-aware routing via `client.id` with `ws_az=<az>` reduces cross-AZ costs.
 
 ### Phase 1: Discovery & Validation
 
@@ -524,5 +517,4 @@ After successful setup, provide the user with:
 - Confluent Cloud Flink Docs: https://docs.confluent.io/cloud/current/flink/overview.html
 - Tableflow Docs: https://docs.confluent.io/cloud/current/topics/tableflow/overview.html
 - Debezium CDC Docs: https://debezium.io/documentation/
-- WarpStream Optimization: `../shared/warpstream-optimization.md`
 - Confluent MCP Server: https://github.com/confluentinc/mcp-confluent
