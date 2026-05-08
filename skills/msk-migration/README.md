@@ -1,19 +1,19 @@
 # MSK Migration Skill
 
-Plan and execute migrations from AWS MSK (Managed Streaming for Apache Kafka) to Confluent Cloud.
+Assess and plan migrations from AWS MSK (Managed Streaming for Apache Kafka) to Confluent Cloud.
 
 ## Scope (V0.1 — MVP)
 
 Covers **Assess and Plan** stages:
 
 - **Assess** — runs a 16-row Red Flags audit on a KCP state file or manual profile, produces an Environment Summary grounded in state-file evidence, and scope-checks before the Plan stage.
-- **Plan** — produces a 12-section Plan document with cluster type, sizing (P95 + peak), networking decision, auth approach, switchover approach, pre-migration workstream, risks, open questions, and next step. Tables follow standardized formats. Every number carries an inline citation to a state-file path or live doc URL.
+- **Plan** — produces a 13-section Plan document with cluster type, sizing (P95 + peak), networking decision, auth approach, switchover approach, pre-migration workstream, risks, open questions, and next step. Tables follow standardized formats. Every number carries an inline citation to a state-file path or live doc URL.
 
 Provision / Migrate / Switchover / Monitor stages are scoped for the next iteration following DTX review. The Plan stage emits structured decisions about networking, auth, switchover approach, and pre-migration steps that will feed those downstream stages when they ship. When users ask about downstream execution today, the skill redirects to docs.confluent.io and the Confluent account team rather than fabricating coverage.
 
 ## Validation
 
-Validated via automated eval-driven iteration following the [agentskills.io spec](https://agentskills.io/skill-creation/evaluating-skills). The eval suite covers 18 scenarios across Assess and Plan, exercising both intake paths (KCP state file + manual `migration-profile.yaml`). All 18 evals pass with the skill loaded; the without-skill baseline runs at ~37% — a delta of ~+63pp.
+Validated via automated eval-driven iteration following the [agentskills.io spec](https://agentskills.io/skill-creation/evaluating-skills). The eval suite covers 14 scenarios across Assess and Plan, exercising both intake paths (KCP state file + manual `migration-profile.yaml`). All 14 evals pass with the skill loaded; the without-skill baseline runs at ~37% — a delta of ~+63pp.
 
 Stopping criterion is dual-gate: the loop continues until both the mean pass rate **and** the minimum per-eval pass rate clear 90%. A high mean with one weak eval doesn't pass — that prevents shipping with hidden quality gaps.
 
@@ -42,11 +42,11 @@ Lazy-load dispatcher pattern. `SKILL.md` is a router with cross-stage decision t
 |---|---|
 | `SKILL.md` | Dispatcher with mode detection, intake routing, cross-stage decision tables (cluster type, auth, networking, switchover approach), and invariants |
 | `references/assess.md` | Assess stage procedure: 16-row Red Flags audit, scan coverage, environment summary, handoff |
-| `references/plan.md` | Plan stage procedure: 12-section template, sizing math, decision tables, citation conventions |
+| `references/plan.md` | Plan stage procedure: 13-section template, sizing math, decision tables, citation conventions |
 | `references/kcp-commands.md` | Reference for the KCP CLI surface — what each command does, what to look for in the output |
 | `references/mcp-integration.md` | Reference for Local Confluent MCP — when to prefer MCP over CLI, write-tool guardrails |
 | `assets/migration-profile.yaml` | Manual intake template for users who don't have KCP installed |
-| `evals/evals.json` | 13 behavioral test scenarios with assertions |
+| `evals/evals.json` | 14 behavioral test scenarios with assertions |
 | `evals/mock-environments/` | Fixture profiles for evals |
 
 **Source-of-truth design.** Stable judgment lives in the skill (decision frameworks, trigger categories, stage handoffs, routing logic). Volatile product facts (cluster caps, version cutoffs, feature availability per cloud, command surfaces) are routed to live docs and fetched on demand. Hardcoded values are explicitly labeled and carry conditional framing in user-facing recommendations.

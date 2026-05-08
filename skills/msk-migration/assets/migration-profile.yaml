@@ -31,8 +31,26 @@ clusters:
     user_partition_count: null  # Optional. Partitions on user_topic_count topics only. Populate when known.
     internal_partition_count: null  # Optional. Partitions on internal topics only. Populate when known.
     replication_factor: null
-    peak_ingress_mbps: null
-    peak_egress_mbps: null
+
+    # Throughput. P95 is preferred — pass `p95_ingress_mbps` / `p95_egress_mbps`
+    # when you can pull P95 from CloudWatch (BytesInPerSec / BytesOutPerSec over a
+    # representative 14-30 day window). P95 captures sustained busy-period load
+    # while excluding once-a-year spikes that Enterprise elasticity is designed to
+    # absorb. If P95 isn't available, fill `peak_*_mbps` instead — the skill will
+    # size on peak as a conservative bound and flag the resulting eCKU as likely
+    # overestimated vs. true P95 sizing.
+    p95_ingress_mbps: null   # PREFERRED for sizing.
+    p95_egress_mbps: null    # PREFERRED for sizing.
+    peak_ingress_mbps: null  # Fallback if P95 isn't available.
+    peak_egress_mbps: null   # Fallback if P95 isn't available.
+
+    # Tiered storage. Optional. Populate if the cluster uses MSK tiered storage.
+    # Cluster Linking does NOT transfer historical tiered (S3-backed) data —
+    # the Plan stage's Tiered Storage section covers backfill vs. keep-source-
+    # accessible decisions. Leave null if the cluster does not use tiered
+    # storage; the Plan stage treats absence as "not in use" rather than unknown.
+    storage_mode: null              # "TIERED" if MSK tiered storage is enabled; null otherwise. Mirrors KCP state file's StorageMode field.
+    peak_tiered_storage_gb: null    # Peak observed tiered (S3-backed) storage volume in GB. Sizes the backfill-cost discussion in Plan.
 
     # Auth (REQUIRED — drives Plan auth mapping)
     auth_types:  # List all in use. Values: scram | mtls | iam | unauthenticated
@@ -66,6 +84,21 @@ connectors:
   msk_connect_count: 0
   self_managed_connect_count: 0
   connector_types: []  # e.g. s3-sink, debezium-mysql
+
+# AWS Cost Explorer broker-instance line items by usage_type. Optional.
+# Populate from `kcp report costs` output or AWS Cost Explorer if available.
+# Drives Row 16 of the Red Flags audit — the skill compares these usage_type
+# strings against the broker_instance_type values on enumerated clusters
+# above to detect undiscovered clusters (an instance type appearing in cost
+# data with no matching enumerated cluster suggests `kcp discover` missed
+# clusters in another region or account). Leave empty if cost data isn't
+# available; Row 16 will be Not triggered with a "cost data not provided"
+# note rather than treated as a scan gap.
+cost_line_items: []
+  # Example shape:
+  # - usage_type: "USE1-Kafka.m7g.12xlarge"
+  #   annual_spend_usd: 402000
+  #   months_observed: 12
 
 downstream:
   # Out of scope for this skill. Recorded only so we don't re-ask.

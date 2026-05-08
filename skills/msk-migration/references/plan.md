@@ -11,6 +11,14 @@ Plan turns the environment profile into architecture decisions: cluster type, ne
 1. Extract throughput time-series from KCP metrics (`kcp report metrics`) or the environment profile. If throughput data is missing, flag as a scan gap — recommend re-running `kcp report metrics` before committing sizing.
 2. Compute **P95** of `BytesInPerSec` and `BytesOutPerSec` from the full `.metrics.results[].Values` array per cluster. Convert bytes/sec → MBps using 1 MB = 1,048,576 bytes (binary). Keep exact precision — do not pre-round.
 3. Also record the **absolute peak** (max of the same Values array) for reference — report it in the Source Environment table alongside the P95 used for sizing so the user can see both.
+
+**Manual-intake fallback when P95 is not provided.** Manual `migration-profile.yaml` profiles ask the user to provide P95 directly (`p95_ingress_mbps`, `p95_egress_mbps`) — preferred for accurate sizing. When P95 is provided, use it the same way you would CloudWatch-derived P95. **When only peak is provided** (the user fills `peak_ingress_mbps` / `peak_egress_mbps` and leaves P95 fields null), size on peak AND emit a **prominent overestimation flag** in the Plan doc. The flag must appear in three places — not as a footnote:
+
+- **At the top of the Sizing section** as a callout: *"⚠ Sizing computed on peak throughput, not P95. The recommended eCKU count below is **likely overestimated** vs. what P95 sizing would produce. Peak captures once-a-year spikes that Enterprise elasticity is designed to absorb; sizing for them inflates eCKU. To refine, provide P95 ingress/egress in MBps from CloudWatch `BytesInPerSec` / `BytesOutPerSec` over a representative 14-30 day window."*
+- **As a row in Inputs & Default Assumptions** with `Sizing percentile = peak (P95 not provided — fallback)` and an Implication-of-Change note pointing to the overestimation.
+- **As an Open Question** the user can close: "Provide P95 throughput to replace peak fallback in sizing."
+
+Do NOT silently size on peak without surfacing the overestimation. The user needs to know the eCKU number is conservative-bound so they can decide whether to refine or accept.
 4. **Spiky-workload flag.** If `peak > 2× P95` on any throughput metric, the workload is spiky. Surface as an Open Question: "Is this spike a steady-state or a seasonal event? P95 sizing handles sustained load + elasticity absorbs spikes. If you want to size for the absolute peak instead, say so and we'll re-run with max."
 5. Fetch per-eCKU values live from [cluster-types.html](https://docs.confluent.io/cloud/current/clusters/cluster-types.html):
    - per-eCKU ingress (MBps)
@@ -75,7 +83,7 @@ Show both numbers in the Networking Decision justification: the peak-burst eCKU 
 **Operational-consistency exceptions are permitted but must be flagged explicitly.** If the user or the skill prefers a uniform networking substrate (e.g., all-PNI for fleet-wide operational consistency) even where sizing doesn't require it, that's a valid architectural preference — but treat it as an **override**, not a default:
 
 - Make the sizing-driven recommendation per cluster first (per the table above).
-- Then flag: "If Coinbase prefers a single networking pattern for operational consistency, alternative is all-PNI. This is a preference, not a capacity requirement."
+- Then flag: "If the user prefers a single networking pattern for operational consistency, alternative is all-PNI. This is a preference, not a capacity requirement."
 - Do NOT use "operational consistency" as the primary justification for a cluster whose projected eCKU doesn't warrant PNI. "Operational consistency" is valid as an override, not as a sizing reason.
 
 This keeps the Plan's recommendations traceable to capacity math and separates preference decisions from sizing decisions so the user can evaluate both on their own merits.
