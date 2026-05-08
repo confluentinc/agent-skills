@@ -288,7 +288,7 @@ GROUP_ID=python-consumer-group
 **WarpStream:**
 ```
 KAFKA_ENV=warpstream
-BOOTSTRAP_SERVER=your-warpstream-boostrap-url:9092
+BOOTSTRAP_SERVER=your-warpstream-bootstrap-url:9092
 TOPIC=demo-topic
 SCHEMA_REGISTRY_URL=http://your-schema-registry:8081
 CLIENT_ID=python-client,ws_az=us-east-1a
