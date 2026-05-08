@@ -140,6 +140,15 @@ You usually cannot run end-to-end yourself because the cluster + SR API keys are
    - List the exact commands the user must run to verify (`./create-topics.sh --cloud`, `./gradlew run`, the consume command from `references/verification.md` § Confluent Cloud) and what success looks like (`State transition from REBALANCING to RUNNING`, records on the output topic)
    - Tell the user explicitly: "I couldn't run this against your CC cluster because I don't have your API keys — please run the steps above and paste any errors back."
 
+**WarpStream:**
+You usually cannot run end-to-end yourself because the WarpStream cluster and credentials are the user's. Follow the same approach as Confluent Cloud:
+1. If `.env` has real WarpStream creds: run the app locally (`./gradlew run` auto-loads `.env`) and follow the Local steps 3–5 above. Note that `State transition from REBALANCING to RUNNING` may take longer due to WarpStream's higher metadata latency.
+2. If creds are placeholders or not provided: do **not** fabricate a successful run. Instead:
+   - Run `./gradlew build` (compile + unit tests) and report the result
+   - List the exact commands the user must run to verify (`./create-topics.sh`, `./gradlew run`) and what success looks like (`State transition from REBALANCING to RUNNING`, records on the output topic)
+   - Remind the user to set `client.id` with `ws_az=<az>` in their `.env` for zone-aware routing
+   - Tell the user explicitly: "I couldn't run this against your WarpStream cluster because I don't have your credentials — please run the steps above and paste any errors back."
+
 In the handoff, state plainly which of the above you did. If you ran it and saw `RUNNING`, say so. If you only compiled, say only that. Don't imply a runtime verification you didn't perform.
 
 For CC consume commands, schema-aware producers, and reset procedures, read `references/verification.md`.
