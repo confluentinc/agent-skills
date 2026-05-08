@@ -475,6 +475,42 @@
         "Uses Confluent Platform config (not CC SASL_SSL)",
         "Includes the confluent Maven repository in pom.xml"
       ]
+    },
+    {
+      "id": 30,
+      "prompt": "Build me a Kafka Streams app that filters and transforms order events. I'm running WarpStream. Avro format.",
+      "expected_output": "A stateless filter/transform project with WarpStream-optimized config: idempotence disabled, large batch sizes, high in-flight requests, large fetch sizes, zone-aware client.id, at-least-once processing guarantee.",
+      "files": [],
+      "expectations": [
+        "Asks about or confirms the target environment before generating code",
+        "Recognizes WarpStream as the target environment and applies WarpStream-specific config overrides",
+        "Sets producer.enable.idempotence=false (or enable.idempotence=false)",
+        "Sets producer.max.in.flight.requests.per.connection to 1000 or higher",
+        "Sets producer.batch.size to 100000 or higher",
+        "Sets producer.linger.ms to 100 (or a value appropriate for WarpStream)",
+        "Sets consumer.fetch.max.bytes to 50242880 or similar large value",
+        "Sets consumer.max.partition.fetch.bytes to 50242880 or similar large value",
+        "Sets consumer.fetch.max.wait.ms to 10000 or similar",
+        "Does NOT set consumer.fetch.min.bytes (unsupported on WarpStream)",
+        "Sets metadata.max.age.ms to 60000",
+        "Includes ws_az= in client.id for zone-aware routing, or mentions zone-aware routing in guidance",
+        "Does NOT use processing.guarantee=exactly_once_v2 (defaults to at_least_once)"
+      ]
+    },
+    {
+      "id": 31,
+      "prompt": "I need a Kafka Streams app with exactly-once processing for payment transactions on WarpStream. Avro, production deployment.",
+      "expected_output": "Should inform the user about the EOS throughput tradeoff on WarpStream before proceeding. If user still wants EOS, generates the project with EOS config plus WarpStream overrides where possible. Should mention at-least-once with downstream deduplication as an alternative.",
+      "files": [],
+      "expectations": [
+        "Asks about or confirms the target environment before generating code",
+        "Informs the user that EOS has a significant throughput cost on WarpStream due to idempotent producer concurrency limits",
+        "Suggests at-least-once with downstream deduplication as an alternative",
+        "Does NOT refuse to use EOS — explains the tradeoff and lets the user decide",
+        "If EOS is chosen: sets processing.guarantee=exactly_once_v2",
+        "Applies other WarpStream-specific overrides that are compatible with EOS (large fetch sizes, metadata.max.age.ms, zone-aware routing)",
+        "Includes production hardening (health checks, Dockerfile, logging)"
+      ]
     }
   ]
 }
