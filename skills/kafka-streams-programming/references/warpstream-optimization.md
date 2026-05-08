@@ -16,24 +16,7 @@ Read this reference whenever the user's target environment is WarpStream. Apply 
 | Each broker owns specific partitions | Any Agent can serve any partition — Agents are stateless and interchangeable |
 | `fetch.min.bytes` controls batching | `fetch.min.bytes` is **not supported** by WarpStream |
 | Replication factor controls durability | Durability comes from object storage (11 nines); `replication.factor` is cosmetic (hard-coded to 3) |
-| Idempotent producers have minimal overhead | Idempotent producers **significantly reduce throughput** (see below) |
-
----
-
-## Important: Idempotent Producers and EOS
-
-**Enabling idempotent producers (`enable.idempotence=true`) or Exactly-Once Semantics (`processing.guarantee=exactly_once_v2`) significantly reduces throughput on WarpStream.** This is the most important configuration to be aware of.
-
-Why:
-1. Idempotence limits `max.in.flight.requests.per.connection` to 5.
-2. WarpStream's higher produce latency means those 5 slots are occupied much longer.
-3. WarpStream's service discovery routes all partitions to a single Agent per client, so there is only one connection to saturate.
-4. The Java client gets retriable `KAFKA_STORAGE_ERROR` errors because WarpStream frequently shifts partition ownership between Agents for load balancing.
-
-**Recommendation:**
-- Disable idempotence when it is not needed: `enable.idempotence=false`
-- For Kafka Streams: prefer `processing.guarantee=at_least_once` (the default) with downstream deduplication when possible.
-- If EOS is required, it will work — but expect reduced throughput and plan capacity accordingly.
+| Idempotent producers have minimal overhead | Idempotent producers reduce throughput (see [Idempotent Producers and EOS](#idempotent-producers-and-eos)) |
 
 ---
 
@@ -173,6 +156,16 @@ CONNECT_PRODUCER_METADATA_RECOVERY_STRATEGY=rebootstrap
 ```
 
 **Note:** CDC pipelines targeting WarpStream will have ~250-500ms additional latency per hop compared to standard Kafka, which may matter for near-real-time use cases.
+
+---
+
+## Idempotent Producers and EOS
+
+Enabling idempotent producers (`enable.idempotence=true`) or Exactly-Once Semantics (`processing.guarantee=exactly_once_v2`) reduces throughput on WarpStream. This is because idempotence limits `max.in.flight.requests.per.connection` to 5, and WarpStream's higher produce latency means those slots are occupied longer. The Java client may also see retriable `KAFKA_STORAGE_ERROR` errors due to frequent partition ownership shifts between Agents.
+
+The client config overrides above already set `enable.idempotence=false` — this is the recommended default. If EOS is required, it will work — plan for additional capacity to compensate for the reduced concurrency.
+
+For Kafka Streams specifically: prefer `processing.guarantee=at_least_once` (the default) with downstream deduplication when possible.
 
 ---
 
