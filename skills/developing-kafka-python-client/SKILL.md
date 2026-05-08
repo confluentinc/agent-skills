@@ -35,7 +35,7 @@ Do not assume defaults for #1, #2, or #3 — if any of these are not answered by
    - If the user already produces to Kafka without Schema Registry (schemaless), help them migrate: (1) generate a JSON Schema from their existing message structure, (2) register it, and (3) replace their raw `producer.produce()` calls with serializer-backed calls. Do not discard their existing code.
    - If starting from scratch, proceed with the full scaffold below.
 2. **Target environment?** — Confluent Cloud, local Kafka (Docker), or WarpStream. **Always prompt for this, even if the user didn't mention it.** If they mention "open source", "local", "docker", "self-hosted", or just want to try Kafka without a cloud account, choose **local Docker**. If they mention "Confluent Cloud", "CC", or have existing cloud credentials, choose **Confluent Cloud**. If they mention "WarpStream", choose **WarpStream**. Default to Confluent Cloud if they confirm they don't have a preference, but always ask first.
-   - **If WarpStream:** Read `../shared/warpstream-optimization.md` and apply the librdkafka overrides from that reference. Key changes: disable idempotence, dramatically increase batch sizes and in-flight requests, set large fetch sizes, add `ws_az=<az>` to `client.id` for zone-aware routing. Prefer null message keys for sticky partitioning unless entity-based ordering is required.
+   - **If WarpStream:** Read `../references/warpstream-optimization.md` and apply the librdkafka overrides from that reference. Key changes: disable idempotence, dramatically increase batch sizes and in-flight requests, set large fetch sizes, add `ws_az=<az>` to `client.id` for zone-aware routing. Prefer null message keys for sticky partitioning unless entity-based ordering is required.
 3. **Producer, consumer, or both?**
 4. **Async or synchronous producer?** (Only if producer is requested.) Help the user choose:
    - **AsyncIO Producer** (`AIOProducer`): Use when code runs under an event loop — FastAPI/Starlette, aiohttp, Sanic, asyncio workers — and must not block.
@@ -89,10 +89,10 @@ digraph decisions {
   "Q1: Existing app?" -> "Q2: Environment?" [label="no / greenfield"];
   "Q2: Environment?" -> "Cloud config\n(SASL_SSL)" [label="Confluent Cloud"];
   "Q2: Environment?" -> "Local Docker config\n(PLAINTEXT) + docker-compose.yml" [label="local / docker / OSS"];
-  "Q2: Environment?" -> "WarpStream config\n(apply overrides from\n../shared/warpstream-optimization.md)" [label="WarpStream"];
+  "Q2: Environment?" -> "WarpStream config\n(apply overrides from\n../references/warpstream-optimization.md)" [label="WarpStream"];
   "Cloud config\n(SASL_SSL)" -> "Q3: Components?";
   "Local Docker config\n(PLAINTEXT) + docker-compose.yml" -> "Q3: Components?";
-  "WarpStream config\n(apply overrides from\n../shared/warpstream-optimization.md)" -> "Q3: Components?";
+  "WarpStream config\n(apply overrides from\n../references/warpstream-optimization.md)" -> "Q3: Components?";
   "Q3: Components?" -> "Q4: Async or sync?" [label="producer requested"];
   "Q3: Components?" -> "Generate consumer\n(always async AIOConsumer)" [label="consumer only"];
   "Q4: Async or sync?" -> "AIOProducer path\nAsyncJSONSerializer\n(no headers support)" [label="async / event-loop"];
@@ -139,7 +139,7 @@ These principles matter because they prevent the most common production issues w
 
 4. **Graceful shutdown.** Async producers must `flush()` and `close()` (both awaited) before exiting. Synchronous producers must call `flush()` before exiting — otherwise buffered messages are lost. Consumers must `unsubscribe()` then `close()` to leave the consumer group cleanly (avoiding unnecessary rebalances). Use `try/finally` blocks and handle `KeyboardInterrupt` / signals.
 
-5. **Support Confluent Cloud, local Docker, and WarpStream.** When targeting Confluent Cloud, configure `SASL_SSL` with `PLAIN` mechanism and load API keys from `.env`. When targeting local Docker, use `PLAINTEXT` with no authentication. When targeting WarpStream, use `SASL_SSL` or `PLAINTEXT` depending on the user's WarpStream deployment, and apply the librdkafka overrides from `../shared/warpstream-optimization.md` (large batches, disabled idempotence, large fetches, zone-aware `client.id`). The `KAFKA_ENV` environment variable (`cloud`, `local`, or `warpstream`) controls which path is used. Load all settings from environment variables via `.env`.
+5. **Support Confluent Cloud, local Docker, and WarpStream.** When targeting Confluent Cloud, configure `SASL_SSL` with `PLAIN` mechanism and load API keys from `.env`. When targeting local Docker, use `PLAINTEXT` with no authentication. When targeting WarpStream, use `SASL_SSL` or `PLAINTEXT` depending on the user's WarpStream deployment, and apply the librdkafka overrides from `../references/warpstream-optimization.md` (large batches, disabled idempotence, large fetches, zone-aware `client.id`). The `KAFKA_ENV` environment variable (`cloud`, `local`, or `warpstream`) controls which path is used. Load all settings from environment variables via `.env`.
 
 6. **Verify connectivity before running.** Use `AdminClient.list_topics()` to verify the broker is reachable and the topic exists before producing or consuming. Verify Schema Registry connectivity with an HTTP health check.
 
@@ -377,4 +377,4 @@ Remind them that they can find their bootstrap server, API keys, and Schema Regi
 4. Run the producer (if generated): `python producer.py`
 5. Run the consumer (if generated): `python consumer.py`
 
-Remind them that WarpStream has higher produce latency (~250ms p50) than standard Kafka — this is expected. If throughput is lower than expected, verify that the WarpStream-specific config overrides from `../shared/warpstream-optimization.md` are applied (especially `enable.idempotence=false` and large batch/fetch sizes).
+Remind them that WarpStream has higher produce latency (~250ms p50) than standard Kafka — this is expected. If throughput is lower than expected, verify that the WarpStream-specific config overrides from `../references/warpstream-optimization.md` are applied (especially `enable.idempotence=false` and large batch/fetch sizes).

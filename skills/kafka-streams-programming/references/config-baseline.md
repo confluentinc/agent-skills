@@ -138,7 +138,7 @@ schema.registry.url=<https://psrc-xxxxx.region.provider.confluent.cloud>
 **CLI:** Standard Kafka CLI tools work. WarpStream has its own `warpstream` CLI for Agent management.
 **UI:** User interfaces that are commonly used with Kafka can be used with WarpStream. 
 
-**Full WarpStream config reference:** `../../shared/warpstream-optimization.md` — read this for complete overrides.
+**Full WarpStream config reference:** `../../references/warpstream-optimization.md` — read this for complete overrides.
 
 ```properties
 bootstrap.servers=<warpstream-agent-endpoint:9092>
@@ -147,7 +147,7 @@ bootstrap.servers=<warpstream-agent-endpoint:9092>
 # --- WarpStream-specific overrides (layer on top of core properties) ---
 
 # Disable idempotence for better throughput on WarpStream.
-# EOS (exactly_once_v2) enables idempotence internally — see ../../shared/warpstream-optimization.md for tradeoffs.
+# EOS (exactly_once_v2) enables idempotence internally — see ../../references/warpstream-optimization.md for tradeoffs.
 producer.enable.idempotence=false
 producer.max.in.flight.requests.per.connection=1000
 
@@ -220,7 +220,7 @@ Or expose via JMX for Prometheus/Grafana.
 
 Dedicated configuration reference for Exactly-Once Semantics. See `topology-patterns.md` for the decision framework on whether EOS is appropriate.
 
-> **WarpStream:** EOS (`exactly_once_v2`) has a significant throughput cost on WarpStream. It enables idempotent producers internally, limiting concurrency to 5 in-flight requests — combined with WarpStream's higher produce latency, this reduces throughput and may produce `KAFKA_STORAGE_ERROR` retries. Prefer `at_least_once` with downstream deduplication when possible. If EOS is required, it will work — plan for additional capacity. See `../../shared/warpstream-optimization.md`.
+> **WarpStream:** EOS (`exactly_once_v2`) has a significant throughput cost on WarpStream. It enables idempotent producers internally, limiting concurrency to 5 in-flight requests — combined with WarpStream's higher produce latency, this reduces throughput and may produce `KAFKA_STORAGE_ERROR` retries. Prefer `at_least_once` with downstream deduplication when possible. If EOS is required, it will work — plan for additional capacity. See `../../references/warpstream-optimization.md`.
 
 ### Required Properties
 
@@ -294,7 +294,7 @@ consumer.session.timeout.ms=45000
 
 Configuration parameters with the strongest impact on throughput.
 
-> **WarpStream:** The defaults in this table are for standard Kafka. WarpStream requires significantly larger batch sizes, higher linger, and larger fetch sizes. See the WarpStream section under [Environment-Specific Configuration](#warpstream) and `../../shared/warpstream-optimization.md` for exact values.
+> **WarpStream:** The defaults in this table are for standard Kafka. WarpStream requires significantly larger batch sizes, higher linger, and larger fetch sizes. See the WarpStream section under [Environment-Specific Configuration](#warpstream) and `../../references/warpstream-optimization.md` for exact values.
 
 ### High-Impact Parameters
 
