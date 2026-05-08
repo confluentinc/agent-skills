@@ -1,6 +1,6 @@
 ---
 name: developing-kafka-python-client
-description: "Use when the user wants to build a Python Kafka producer or consumer, add Schema Registry to existing Python code, migrate from raw JSON to schema-backed serialization, or scaffold a confluent-kafka-python project for Confluent Cloud or local Docker."
+description: "Use when the user wants to build a Python Kafka producer or consumer, add Schema Registry to existing Python code, migrate from raw JSON to schema-backed serialization, or scaffold a confluent-kafka-python project for Confluent Cloud, local Docker, or WarpStream. Also use when user wants to optimize Python Kafka client configuration for WarpStream."
 ---
 
 <HARD-GATE>
@@ -34,7 +34,8 @@ Do not assume defaults for #1, #2, or #3 — if any of these are not answered by
    - If the user has existing Python code (mentions an existing project, has a `main.py`, uses Flask/FastAPI/Django, etc.), do **not** scaffold a new project. Instead: (a) identify their existing producer or data-sending code, (b) ask whether they already have schemas registered in Schema Registry, (c) add Schema Registry integration to their existing code following the patterns in the reference files. Generate only the files they are missing (e.g., `common.py`, `schemas/value.schema.json`) and modify their existing code inline.
    - If the user already produces to Kafka without Schema Registry (schemaless), help them migrate: (1) generate a JSON Schema from their existing message structure, (2) register it, and (3) replace their raw `producer.produce()` calls with serializer-backed calls. Do not discard their existing code.
    - If starting from scratch, proceed with the full scaffold below.
-2. **Target environment?** — Confluent Cloud or local Kafka (Docker). **Always prompt for this, even if the user didn't mention it.** If they mention "open source", "local", "docker", "self-hosted", or just want to try Kafka without a cloud account, choose **local Docker**. If they mention "Confluent Cloud", "CC", or have existing cloud credentials, choose **Confluent Cloud**. Default to Confluent Cloud if they confirm they don't have a preference, but always ask first.
+2. **Target environment?** — Confluent Cloud, local Kafka (Docker), or WarpStream. **Always prompt for this, even if the user didn't mention it.** If they mention "open source", "local", "docker", "self-hosted", or just want to try Kafka without a cloud account, choose **local Docker**. If they mention "Confluent Cloud", "CC", or have existing cloud credentials, choose **Confluent Cloud**. If they mention "WarpStream", choose **WarpStream**. Default to Confluent Cloud if they confirm they don't have a preference, but always ask first.
+   - **If WarpStream:** Read `../shared/warpstream-optimization.md` and apply the librdkafka overrides from that reference. Key changes: disable idempotence, dramatically increase batch sizes and in-flight requests, set large fetch sizes, add `ws_az=<az>` to `client.id` for zone-aware routing. Prefer null message keys for sticky partitioning unless entity-based ordering is required.
 3. **Producer, consumer, or both?**
 4. **Async or synchronous producer?** (Only if producer is requested.) Help the user choose:
    - **AsyncIO Producer** (`AIOProducer`): Use when code runs under an event loop — FastAPI/Starlette, aiohttp, Sanic, asyncio workers — and must not block.
@@ -66,7 +67,7 @@ After gathering all answers, present a confirmation summary before generating an
 ```
 Before I generate the project, let me confirm:
 - Project type: [Greenfield scaffold / Migration of existing code]
-- Environment: [Confluent Cloud (SASL_SSL) / Local Docker (PLAINTEXT)]
+- Environment: [Confluent Cloud (SASL_SSL) / Local Docker (PLAINTEXT) / WarpStream]
 - Components: [Producer only / Consumer only / Both]
 - Producer style: [AsyncIO (AIOProducer) / Synchronous (Producer)] (if applicable)
 - Schema: [brief description of user's data fields]
@@ -88,8 +89,10 @@ digraph decisions {
   "Q1: Existing app?" -> "Q2: Environment?" [label="no / greenfield"];
   "Q2: Environment?" -> "Cloud config\n(SASL_SSL)" [label="Confluent Cloud"];
   "Q2: Environment?" -> "Local Docker config\n(PLAINTEXT) + docker-compose.yml" [label="local / docker / OSS"];
+  "Q2: Environment?" -> "WarpStream config\n(apply overrides from\nshared/warpstream-optimization.md)" [label="WarpStream"];
   "Cloud config\n(SASL_SSL)" -> "Q3: Components?";
   "Local Docker config\n(PLAINTEXT) + docker-compose.yml" -> "Q3: Components?";
+  "WarpStream config\n(apply overrides from\nshared/warpstream-optimization.md)" -> "Q3: Components?";
   "Q3: Components?" -> "Q4: Async or sync?" [label="producer requested"];
   "Q3: Components?" -> "Generate consumer\n(always async AIOConsumer)" [label="consumer only"];
   "Q4: Async or sync?" -> "AIOProducer path\nAsyncJSONSerializer\n(no headers support)" [label="async / event-loop"];
