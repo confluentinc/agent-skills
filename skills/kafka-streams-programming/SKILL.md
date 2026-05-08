@@ -1,6 +1,6 @@
 ---
 name: kafka-streams-programming
-description: Architect, build, and debug Kafka Streams apps (JVM-embedded stream processing). Use when user mentions KStream, KTable, topology, TopologyTestDriver, StreamsBuilder, interactive queries, GlobalKTable, joins/windows/aggregations, or debugging issues (rebalancing, state stores, lag, deserialization errors). Do NOT trigger for Flink, connectors, CDC, or plain producer/consumer.
+description: Architect, build, and debug Kafka Streams apps (JVM-embedded stream processing). Use when user mentions KStream, KTable, topology, TopologyTestDriver, StreamsBuilder, interactive queries, GlobalKTable, joins/windows/aggregations, or debugging issues (rebalancing, state stores, lag, deserialization errors). Also use when user wants to optimize Kafka Streams for WarpStream or tune Kafka Streams client configuration for WarpStream. Do NOT trigger for Flink, connectors, CDC, or plain producer/consumer.
 ---
 
 # Kafka Streams — Architect, Build, Debug
@@ -19,7 +19,15 @@ JVM-embedded stream processing library with no separate cluster.
 
 ## Always Confirm Target Environment First
 
-Before answering in any mode (Architect, Build, Debug), confirm the target environment if the user hasn't stated it: **Apache Kafka | Confluent Platform | Confluent Cloud**. Versions/auth shape every recommendation — KIP-1071 support, SASL config, ACL model, transactional-id expiry, CLI tool names all branch on this. Skip the question only if the user already named the environment.
+Before answering in any mode (Architect, Build, Debug), confirm the target environment if the user hasn't stated it: **Apache Kafka | Confluent Platform | Confluent Cloud | WarpStream**. Versions/auth shape every recommendation — KIP-1071 support, SASL config, ACL model, transactional-id expiry, CLI tool names all branch on this. Skip the question only if the user already named the environment.
+
+**If the user selects WarpStream:** Read `../shared/warpstream-optimization.md` and apply its overrides on top of the standard config baseline. Key impacts for Kafka Streams:
+- **EOS has a significant throughput cost** — `exactly_once_v2` enables idempotent producers internally, which reduces throughput on WarpStream due to limited in-flight request concurrency. Default to `at_least_once` with downstream deduplication unless the user has a strong need for EOS.
+- Producer and consumer configs must be overridden (larger batches, higher linger, larger fetches). See the "Kafka Streams Specific" section in the shared reference.
+- `fetch.min.bytes` is not supported — do not set it.
+- `replication.factor` is cosmetic (always 3) — do not tune it.
+- Zone-aware routing via `client.id` with `ws_az=<az>` suffix is critical for cost.
+- Latency is higher (~250ms p50 produce vs single-digit ms on Kafka) — set expectations with the user.
 
 ## Mode Detection
 
@@ -75,7 +83,7 @@ Ask (skip if already answered):
 2. **Topics & data flow**: Input/output topics? Schematized? If yes, retrieve schema (don't generate new ones). How do topics connect (joins/lookups/independent)?
 3. **Schema format** (skip if using existing): Avro (default) | Protobuf | JSON Schema
 4. **Build tool**: Gradle (default) | Maven
-5. **Target environment** (REQUIRED): Apache Kafka | Confluent Platform | Confluent Cloud (read `references/config-baseline.md` when generating config)
+5. **Target environment** (REQUIRED): Apache Kafka | Confluent Platform | Confluent Cloud | WarpStream (read `references/config-baseline.md` when generating config; if WarpStream, also read `../shared/warpstream-optimization.md` for client overrides)
 6. **Credentials**: CC needs 2 API keys (Kafka + SR). CP/AK needs bootstrap + SR URLs + auth type (read `references/cli-commands.md` if needed)
 7. **Deployment sizing**: Partitions? Instances? State size? (read `references/architecture.md` or `references/production-hardening.md` § Deployment Sizing if needed)
 8. **Test data**: Has data or wants sample data generated?
@@ -132,6 +140,15 @@ You usually cannot run end-to-end yourself because the cluster + SR API keys are
    - List the exact commands the user must run to verify (`./create-topics.sh --cloud`, `./gradlew run`, the consume command from `references/verification.md` § Confluent Cloud) and what success looks like (`State transition from REBALANCING to RUNNING`, records on the output topic)
    - Tell the user explicitly: "I couldn't run this against your CC cluster because I don't have your API keys — please run the steps above and paste any errors back."
 
+**WarpStream:**
+You usually cannot run end-to-end yourself because the WarpStream cluster and credentials are the user's. Follow the same approach as Confluent Cloud:
+1. If `.env` has real WarpStream creds: run the app locally (`./gradlew run` auto-loads `.env`) and follow the Local steps 3–5 above. Note that `State transition from REBALANCING to RUNNING` may take longer due to WarpStream's higher metadata latency.
+2. If creds are placeholders or not provided: do **not** fabricate a successful run. Instead:
+   - Run `./gradlew build` (compile + unit tests) and report the result
+   - List the exact commands the user must run to verify (`./create-topics.sh`, `./gradlew run`) and what success looks like (`State transition from REBALANCING to RUNNING`, records on the output topic)
+   - Remind the user to set `client.id` with `ws_az=<az>` in their `.env` for zone-aware routing
+   - Tell the user explicitly: "I couldn't run this against your WarpStream cluster because I don't have your credentials — please run the steps above and paste any errors back."
+
 In the handoff, state plainly which of the above you did. If you ran it and saw `RUNNING`, say so. If you only compiled, say only that. Don't imply a runtime verification you didn't perform.
 
 For CC consume commands, schema-aware producers, and reset procedures, read `references/verification.md`.
@@ -152,6 +169,7 @@ For CC consume commands, schema-aware producers, and reset procedures, read `ref
 | State store issues (corruption, growth, recovery) | **State** | `references/debugging.md` § State Store Issues |
 | Thread failures / `StreamsUncaughtExceptionHandler` | **Thread health** | `references/debugging.md` § Thread Failures |
 | Memory issues (OOM, high heap, RocksDB) | **Memory** | `references/debugging.md` § Memory Issues |
+| Low throughput or KAFKA_STORAGE_ERROR on WarpStream | **WarpStream config** | `../shared/warpstream-optimization.md` |
 
 ### Step 2: Gather Context
 
@@ -188,4 +206,4 @@ Non-negotiable defaults. Apply all. Read reference files only if you need implem
 
 ## Reference Files (read on-demand only)
 
-`references/topology-patterns.md` — design, joins, windows, aggregations | `references/architecture.md` — internals, sizing | `references/debugging.md` — troubleshooting | `references/config-baseline.md` — config | `references/build-templates.md` — project structure | `references/schema-patterns.md` — Avro/Protobuf/JSON | `references/production-hardening.md` — prod setup | `references/cli-commands.md` — CLI | `references/docker-compose.md` — local dev | `references/verification.md` — checklists
+`references/topology-patterns.md` — design, joins, windows, aggregations | `references/architecture.md` — internals, sizing | `references/debugging.md` — troubleshooting | `references/config-baseline.md` — config | `references/build-templates.md` — project structure | `references/schema-patterns.md` — Avro/Protobuf/JSON | `references/production-hardening.md` — prod setup | `references/cli-commands.md` — CLI | `references/docker-compose.md` — local dev | `references/verification.md` — checklists | `../shared/warpstream-optimization.md` — WarpStream client config overrides
