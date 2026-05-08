@@ -132,6 +132,45 @@ schema.registry.url=<https://psrc-xxxxx.region.provider.confluent.cloud>
 # + SR basic auth pattern
 ```
 
+### WarpStream
+**Connection:** [SASL_SSL with PLAIN](#sasl-ssl) or PLAINTEXT, depending on the WarpStream deployment.
+**Schema Registry:** Separate service — same SR config as the user's chosen SR provider (Confluent Cloud SR, WarpStream BYOC SR, self-hosted, Amazon Glue, etc.).
+**CLI:** Standard Kafka CLI tools work. WarpStream has its own `warpstream` CLI for Agent management.
+**UI:** User interfaces that are commonly used with Kafka can be used with WarpStream. 
+
+**Full WarpStream config reference:** `../../references/warpstream-optimization.md` — read this for complete overrides.
+
+```properties
+bootstrap.servers=<warpstream-agent-endpoint:9092>
+# + auth pattern matching your WarpStream setup
+
+# --- WarpStream-specific overrides (layer on top of core properties) ---
+
+# Disable idempotence for better throughput on WarpStream.
+# EOS (exactly_once_v2) enables idempotence internally — see ../../references/warpstream-optimization.md for tradeoffs.
+producer.enable.idempotence=false
+producer.max.in.flight.requests.per.connection=1000
+
+# Larger batches amortize object-storage write latency
+producer.batch.size=100000
+producer.linger.ms=100
+producer.buffer.memory=128000000
+producer.max.request.size=64000000
+producer.request.timeout.ms=30000
+
+# Large fetch sizes — WarpStream appears as a single broker
+consumer.fetch.max.bytes=50242880
+consumer.max.partition.fetch.bytes=50242880
+consumer.fetch.max.wait.ms=10000
+# Do NOT set consumer.fetch.min.bytes — unsupported by WarpStream
+
+# Reduce metadata refresh frequency
+metadata.max.age.ms=60000
+
+# Zone-aware routing to avoid cross-AZ costs
+client.id=<application.id>,ws_az=<availability-zone>
+```
+
 ## Default Serde Selection
 
 | Schema Format | Default Value Serde | Dependency |
@@ -180,6 +219,8 @@ Or expose via JMX for Prometheus/Grafana.
 ## EOS Configuration
 
 Dedicated configuration reference for Exactly-Once Semantics. See `topology-patterns.md` for the decision framework on whether EOS is appropriate.
+
+> **WarpStream:** EOS (`exactly_once_v2`) has a significant throughput cost on WarpStream. It enables idempotent producers internally, limiting concurrency to 5 in-flight requests — combined with WarpStream's higher produce latency, this reduces throughput and may produce `KAFKA_STORAGE_ERROR` retries. Prefer `at_least_once` with downstream deduplication when possible. If EOS is required, it will work — plan for additional capacity. See `../../references/warpstream-optimization.md`.
 
 ### Required Properties
 
@@ -252,6 +293,8 @@ consumer.session.timeout.ms=45000
 ## Performance Tuning
 
 Configuration parameters with the strongest impact on throughput.
+
+> **WarpStream:** The defaults in this table are for standard Kafka. WarpStream requires significantly larger batch sizes, higher linger, and larger fetch sizes. See the WarpStream section under [Environment-Specific Configuration](#warpstream) and `../../references/warpstream-optimization.md` for exact values.
 
 ### High-Impact Parameters
 
