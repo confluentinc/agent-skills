@@ -106,6 +106,7 @@ consumer.fetch.max.wait.ms=10000
 
 # Metadata
 metadata.max.age.ms=60000
+metadata.recovery.strategy=rebootstrap
 ```
 
 **EOS note for Kafka Streams:** If the user's existing app uses `processing.guarantee=exactly_once_v2`, inform them of the tradeoff:
