@@ -89,10 +89,10 @@ digraph decisions {
   "Q1: Existing app?" -> "Q2: Environment?" [label="no / greenfield"];
   "Q2: Environment?" -> "Cloud config\n(SASL_SSL)" [label="Confluent Cloud"];
   "Q2: Environment?" -> "Local Docker config\n(PLAINTEXT) + docker-compose.yml" [label="local / docker / OSS"];
-  "Q2: Environment?" -> "WarpStream config\n(apply overrides from\nshared/warpstream-optimization.md)" [label="WarpStream"];
+  "Q2: Environment?" -> "WarpStream config\n(apply overrides from\n../shared/warpstream-optimization.md)" [label="WarpStream"];
   "Cloud config\n(SASL_SSL)" -> "Q3: Components?";
   "Local Docker config\n(PLAINTEXT) + docker-compose.yml" -> "Q3: Components?";
-  "WarpStream config\n(apply overrides from\nshared/warpstream-optimization.md)" -> "Q3: Components?";
+  "WarpStream config\n(apply overrides from\n../shared/warpstream-optimization.md)" -> "Q3: Components?";
   "Q3: Components?" -> "Q4: Async or sync?" [label="producer requested"];
   "Q3: Components?" -> "Generate consumer\n(always async AIOConsumer)" [label="consumer only"];
   "Q4: Async or sync?" -> "AIOProducer path\nAsyncJSONSerializer\n(no headers support)" [label="async / event-loop"];
@@ -139,7 +139,7 @@ These principles matter because they prevent the most common production issues w
 
 4. **Graceful shutdown.** Async producers must `flush()` and `close()` (both awaited) before exiting. Synchronous producers must call `flush()` before exiting — otherwise buffered messages are lost. Consumers must `unsubscribe()` then `close()` to leave the consumer group cleanly (avoiding unnecessary rebalances). Use `try/finally` blocks and handle `KeyboardInterrupt` / signals.
 
-5. **Support both Confluent Cloud and local Docker.** When targeting Confluent Cloud, configure `SASL_SSL` with `PLAIN` mechanism and load API keys from `.env`. When targeting local Docker, use `PLAINTEXT` with no authentication. The `KAFKA_ENV` environment variable (`cloud` or `local`) controls which path is used. Load all settings from environment variables via `.env`.
+5. **Support Confluent Cloud, local Docker, and WarpStream.** When targeting Confluent Cloud, configure `SASL_SSL` with `PLAIN` mechanism and load API keys from `.env`. When targeting local Docker, use `PLAINTEXT` with no authentication. When targeting WarpStream, use `SASL_SSL` or `PLAINTEXT` depending on the user's WarpStream deployment, and apply the librdkafka overrides from `../shared/warpstream-optimization.md` (large batches, disabled idempotence, large fetches, zone-aware `client.id`). The `KAFKA_ENV` environment variable (`cloud`, `local`, or `warpstream`) controls which path is used. Load all settings from environment variables via `.env`.
 
 6. **Verify connectivity before running.** Use `AdminClient.list_topics()` to verify the broker is reachable and the topic exists before producing or consuming. Verify Schema Registry connectivity with an HTTP health check.
 
@@ -285,6 +285,22 @@ CLIENT_ID=python-client
 GROUP_ID=python-consumer-group
 ```
 
+**WarpStream:**
+```
+KAFKA_ENV=warpstream
+BOOTSTRAP_SERVER=your-warpstream-boostrap-url:9092
+TOPIC=demo-topic
+SCHEMA_REGISTRY_URL=http://your-schema-registry:8081
+CLIENT_ID=python-client,ws_az=us-east-1a
+GROUP_ID=python-consumer-group
+# If your WarpStream deployment requires SASL auth, uncomment:
+# API_KEY=your-api-key
+# API_SECRET=your-api-secret
+# If using Confluent Cloud Schema Registry, uncomment:
+# SR_API_KEY=your-sr-api-key
+# SR_API_SECRET=your-sr-api-secret
+```
+
 ### requirements.txt
 
 ```
@@ -352,3 +368,13 @@ Remind them that they can find their bootstrap server, API keys, and Schema Regi
 5. Run the producer (if generated): `python producer.py`
 6. Run the consumer (if generated): `python consumer.py`
 7. When done, stop the containers: `docker compose down` (add `-v` to also remove stored data)
+
+**WarpStream:**
+
+1. Copy `.env.example` to `.env` and fill in the WarpStream bootstrap server, Schema Registry URL, and (if applicable) credentials. Set `CLIENT_ID` to include `ws_az=<availability-zone>` for zone-aware routing (e.g., `python-client,ws_az=us-east-1a`)
+2. Create a virtualenv and install dependencies: `pip install -r requirements.txt`
+3. Create the topic if it doesn't exist: `kafka-topics.sh --create --topic demo-topic --bootstrap-server <warpstream-agent>:9092`
+4. Run the producer (if generated): `python producer.py`
+5. Run the consumer (if generated): `python consumer.py`
+
+Remind them that WarpStream has higher produce latency (~250ms p50) than standard Kafka — this is expected. If throughput is lower than expected, verify that the WarpStream-specific config overrides from `../shared/warpstream-optimization.md` are applied (especially `enable.idempotence=false` and large batch/fetch sizes).
