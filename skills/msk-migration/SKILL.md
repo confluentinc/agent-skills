@@ -1,6 +1,6 @@
 ---
 name: msk-migration
-description: Use this skill to plan and execute a migration from AWS MSK (Managed Streaming for Apache Kafka) to Confluent Cloud. Triggers on user intent like "migrate MSK to Confluent Cloud", "move off MSK", "MSK to CC cutover", "Zero-Cut migration from MSK", "kcp scan my MSK", or any discussion of MSK-to-CC assessment, planning, cluster sizing, Cluster Linking setup, Gateway-based switchover, or post-cutover validation. Do NOT trigger for non-MSK Kafka sources (open-source Kafka, Aiven, Confluent Platform, Redpanda) — this skill is MSK-only. Do NOT trigger for greenfield Confluent Cloud projects with no existing Kafka source. Do NOT trigger for general Kafka programming questions (producer/consumer code, Kafka Streams) unrelated to migration.
+description: Use this skill to assess and plan a migration from AWS MSK (Managed Streaming for Apache Kafka) to Confluent Cloud. Triggers on user intent like "migrate MSK to Confluent Cloud", "move off MSK", "MSK to CC cutover", "Zero-Cut migration from MSK", "kcp scan my MSK", or any discussion of MSK-to-CC assessment, planning, cluster sizing, Cluster Linking setup, Gateway-based switchover, or post-cutover validation. Do NOT trigger for non-MSK Kafka sources (open-source Kafka, Aiven, Confluent Platform, Redpanda) — this skill is MSK-only. Do NOT trigger for greenfield Confluent Cloud projects with no existing Kafka source. Do NOT trigger for general Kafka programming questions (producer/consumer code, Kafka Streams) unrelated to migration.
 ---
 
 # AWS MSK Migration to Confluent Cloud
@@ -8,8 +8,6 @@ description: Use this skill to plan and execute a migration from AWS MSK (Manage
 ## Scope (MVP)
 
 This skill covers **Assess and Plan** stages of an MSK to Confluent Cloud migration. It produces an Assessment document (Red Flags audit, Environment Summary) and a Plan document (cluster type, sizing, networking, auth, switchover approach, pre-migration workstream). It does **not** execute Provision, Migrate, Switchover, or Monitor stages — those are scoped for the next iteration. When the user asks about downstream execution (target cluster provisioning, Cluster Linking setup, client cutover, post-cutover monitoring), redirect to [docs.confluent.io](https://docs.confluent.io) and the Confluent account team rather than fabricating coverage. The Plan stage still emits structured decisions about networking, auth, switchover approach, and pre-migration steps — those decisions feed downstream execution that the user (or a future skill version) carries out.
-
-IMPORTANT: Do NOT read all reference files upfront. Read only the reference file for the stage the user is currently in. Load references lazily as needed. Exception: the decision tables, invariants, and Sources of Truth map below are always available — they are referenced across multiple stages.
 
 ## Skill Conduct
 
@@ -31,6 +29,7 @@ This stage menu is the default opening when the user's intent is unclear. Presen
 |---|---|---|
 | "scan my MSK clusters" / "assess my environment" / "starting fresh" | Assess | references/assess.md |
 | "what cluster type should I use" / "plan my migration" | Plan | references/plan.md |
+| "set up Cluster Linking" / "switch my clients over" / "monitor post-cutover" / "provision target cluster" | Out of scope (Provision / Migrate / Switchover / Monitor) | Decline and redirect to docs.confluent.io and the Confluent account team. Still offer Assess or Plan if useful. |
 
 If the user asks about KCP commands or MCP tools directly, load `references/kcp-commands.md` or `references/mcp-integration.md` respectively — these are reference files loaded on demand, not user-facing stages.
 
@@ -74,6 +73,7 @@ Enterprise is the recommended target for every migration. It is elastic, support
   - **Doc-cited HARDCODED** — a doc URL is given, but the fact lives in prose rather than a structured row. Before recommending, fetch the cited URL and check whether a structured representation now exists (table row, bullet list, version matrix). If yes, use the doc's value and tell the user "Skill's cached value was X; doc now says Y; using the doc value." If no structured representation exists, present the recommendation **conditionally on the cached assumption** — phrase it as "If [cached condition] still holds (the docs do not currently publish a structured matrix to confirm — see [URL]), then [recommendation]; otherwise [alternative]." Do NOT date-stamp the cached value to the user; the cited URL is the live-verification signal.
   - **Uncited HARDCODED** — no public doc URL exists for this fact (e.g., "no canonical public doc found"). Keep the "last verified YYYY-MM-DD" stamp on these rows. Without a URL the user can verify against, the date stamp is the only staleness signal they have. Still apply the conditional framing in the recommendation.
 - **Multi-trigger profiles.** When more than one row applies, apply each independently and cite every trigger. Do not stop at the first match.
+- **Maintenance for uncited HARDCODED rows.** Uncited rows have no public URL to drift-check against, so the date stamp is the only staleness signal. Review uncited HARDCODED rows on a quarterly cadence: confirm cached values with the relevant Confluent product team (Cluster Linking, Networking, Schema Registry, etc.) or internal product docs. Update both the cached value and the "last verified YYYY-MM-DD" stamp when reviewed. If a structured public doc emerges that exposes the fact, convert the row from HARDCODED to ROUTE.
 
 | Trigger Category | Escalation Condition | Source |
 |---|---|---|
@@ -215,6 +215,7 @@ The skill encodes judgment, not product facts. Decision frameworks, trigger cate
 - Before quoting a cluster-type capacity, version cutoff, or feature-availability state, fetch docs.confluent.io.
 - Before claiming Gateway or Zero-Cut support for a given configuration, fetch the KCP zero-cut guide.
 - **The live source always wins.** If it disagrees with anything cached in this skill, use the live value and tell the user the cached value was stale.
+- **Failure handling.** If a ROUTE URL returns a 404 or the page structure has changed materially, surface this to the user, fall back to the HARDCODED value with conditional framing if available, and flag the URL for update.
 
 **Fetch tool — use `WebFetch`, not shell.** `WebFetch` is the only tool to use for every live source in the map below. Do NOT use `curl`, `wget`, `python3 -c`, `python3 <<EOF`, `node -e`, or any shell-based HTML stripping. `WebFetch` handles HTML→markdown conversion and targeted extraction in one call. Pass a focused prompt (e.g., "Extract per-eCKU ingress MBps, egress MBps, partition rate, and eCKU cap from the Enterprise column") rather than fetching raw content and parsing. For GitHub-hosted sources (KCP repo, zero-cut guide), `WebFetch` against the rendered URL works; the `gh` CLI is also acceptable for KCP repo reads. No Confluent MCP tool exposes a `fetch-docs` capability — `WebFetch` is the only fetch path.
 
