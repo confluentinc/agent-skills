@@ -145,6 +145,8 @@ These principles matter because they prevent the most common production issues w
 
 7. **Always set a message key for domain events.** Pass `key=<entity_id>.encode("utf-8")` to `producer.produce()` for any message that represents an entity or event stream (order events, user actions, device telemetry, transactions). Kafka partitions by key, so messages with the same key land on the same partition and preserve ordering — critical for event streams like `OrderCreated → OrderUpdated → OrderCancelled` where consumers must see events in order. The `produce()` helper in every reference file accepts a `key_field` parameter naming the field to use as the key (e.g., `key_field="order_id"`, `key_field="transaction_id"`). Ask the user which field identifies the entity and pass it to `produce()`. Only leave `key_field=None` if the user explicitly states ordering does not matter (e.g., stateless metrics where any partition is fine).
 
+   **WarpStream exception:** On WarpStream, null keys enable sticky partitioning, which builds larger batches and significantly improves throughput and cost. When the user's use case does **not** require per-entity ordering (e.g., independent telemetry readings, stateless metrics, logs), recommend `key_field=None` and explain the throughput benefit. When per-entity ordering **is** required (e.g., `OrderCreated → OrderUpdated → OrderCancelled` for the same order), still set a message key — correctness takes priority over batching efficiency. Ask the user whether their events need per-key ordering to decide.
+
 ### common.py
 
 This module handles configuration loading and connectivity verification. Use `references/common.py` as the template.
