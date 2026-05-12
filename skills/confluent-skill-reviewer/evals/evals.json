@@ -1,9 +1,9 @@
 {
-  "skill_name": "skill-review",
+  "skill_name": "confluent-skill-reviewer",
   "evals": [
     {
       "id": 0,
-      "prompt": "Review the skill at skills/skill-review/evals/mock-skills/good-skill/ — I'm about to ship it.",
+      "prompt": "Review the skill at skills/confluent-skill-reviewer/evals/mock-skills/good-skill/ — I'm about to ship it.",
       "expected_output": "A single Markdown report with zero Blocking findings and the recommendation 'approve'. No false positives flagged.",
       "files": ["evals/mock-skills/good-skill"],
       "expectations": [
@@ -17,7 +17,7 @@
     },
     {
       "id": 1,
-      "prompt": "Review skills/skill-review/evals/mock-skills/inlined-refs/ before I merge.",
+      "prompt": "Review skills/confluent-skill-reviewer/evals/mock-skills/inlined-refs/ before I merge.",
       "expected_output": "A Blocking finding citing CLAUDE.md's lazy-load rule, identifying inlined content from references/exporters.md.",
       "files": ["evals/mock-skills/inlined-refs"],
       "expectations": [
@@ -30,7 +30,7 @@
     },
     {
       "id": 2,
-      "prompt": "Audit skills/skill-review/evals/mock-skills/trigger-overlap/ — its description feels too broad.",
+      "prompt": "Audit skills/confluent-skill-reviewer/evals/mock-skills/trigger-overlap/ — its description feels too broad.",
       "expected_output": "Flags missing 'Do NOT trigger for...' clause; cross-references the keyword overlap with good-skill (both about topic provisioning); suggests an anti-trigger that names good-skill's domain.",
       "files": ["evals/mock-skills/trigger-overlap", "evals/mock-skills/good-skill"],
       "expectations": [
@@ -43,7 +43,7 @@
     },
     {
       "id": 3,
-      "prompt": "Validate skills/skill-review/evals/mock-skills/bad-frontmatter/ — something is off about it.",
+      "prompt": "Validate skills/confluent-skill-reviewer/evals/mock-skills/bad-frontmatter/ — something is off about it.",
       "expected_output": "Blocking findings for uppercase/underscore name, name/directory mismatch, and a too-vague description; cites agentskills.io spec.",
       "files": ["evals/mock-skills/bad-frontmatter"],
       "expectations": [
@@ -56,7 +56,7 @@
     },
     {
       "id": 4,
-      "prompt": "Look at skills/skill-review/evals/mock-skills/stale-expectations/ — I'm worried the evals aren't pulling their weight.",
+      "prompt": "Look at skills/confluent-skill-reviewer/evals/mock-skills/stale-expectations/ — I'm worried the evals aren't pulling their weight.",
       "expected_output": "Phase D flags aspirational expectations, an abstract prompt, and a missing fixture path.",
       "files": ["evals/mock-skills/stale-expectations"],
       "expectations": [
@@ -83,7 +83,7 @@
     },
     {
       "id": 6,
-      "prompt": "Run a full audit on skills/skill-review/evals/mock-skills/good-skill — assume skill-validator is installed.",
+      "prompt": "Run a full audit on skills/confluent-skill-reviewer/evals/mock-skills/good-skill — assume skill-validator is installed.",
       "expected_output": "Invokes scripts/run_skill_validator.sh, parses JSON results, maps level=error to Blocking and level=warning to Warning.",
       "files": ["evals/mock-skills/good-skill"],
       "expectations": [
@@ -96,7 +96,7 @@
     },
     {
       "id": 7,
-      "prompt": "Audit skills/skill-review/evals/mock-skills/good-skill when skill-validator is NOT installed on this machine.",
+      "prompt": "Audit skills/confluent-skill-reviewer/evals/mock-skills/good-skill when skill-validator is NOT installed on this machine.",
       "expected_output": "Wrapper script exits 0 with install hint on stderr; the review continues with native spec checks per references/spec-conformance.md.",
       "files": ["evals/mock-skills/good-skill"],
       "expectations": [
