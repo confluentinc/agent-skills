@@ -1,0 +1,15 @@
+{
+  "skill_name": "inlined-refs",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "Set up a lag dashboard for my Kafka cluster.",
+      "expected_output": "Picks an exporter and generates Grafana config",
+      "files": [],
+      "expectations": [
+        "Recommends kafka-exporter for small clusters",
+        "Provides Grafana dashboard ID"
+      ]
+    }
+  ]
+}
