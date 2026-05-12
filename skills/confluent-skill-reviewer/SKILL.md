@@ -1,9 +1,9 @@
 ---
-name: skill-review
+name: confluent-skill-reviewer
 description: Review a Confluent agent skill in this repo against the Agent Skills spec (agentskills.io), Confluent conventions in CLAUDE.md, the PR template gates, and the evals-as-contract rule. Use this skill whenever the user asks to review, audit, validate, or lint a skill; opens or inspects a PR that adds or modifies anything under `skills/`; asks about spec conformance, lazy-loading, frontmatter shape, trigger overlap, or eval coverage; or wants a pre-merge sanity check on skill changes. Do NOT trigger for: general code review of application code; security review; auditing schemas, producer/consumer configs, PII tagging, or Terraform generation for Schema Registry (that is `kafka-schema-registry`); runtime/log analysis of skill behavior (use `tools/skill_review_dashboard.py`); or any changes that don't touch the `skills/` tree.
 ---
 
-# skill-review — audit a Confluent agent skill
+# confluent-skill-reviewer — audit a Confluent agent skill
 
 Three bars every skill in this repo must clear:
 

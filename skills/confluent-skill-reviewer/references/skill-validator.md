@@ -28,7 +28,7 @@ No config file. All flags via CLI; LLM-scoring features pick up `ANTHROPIC_API_K
 
 ```json
 {
-  "skill_dir": "skills/skill-review",
+  "skill_dir": "skills/confluent-skill-reviewer",
   "passed": false,
   "errors": 2,
   "warnings": 1,
@@ -37,14 +37,14 @@ No config file. All flags via CLI; LLM-scoring features pick up `ANTHROPIC_API_K
       "level": "error",
       "category": "frontmatter",
       "message": "description exceeds 1024 characters",
-      "file": "skills/skill-review/SKILL.md",
+      "file": "skills/confluent-skill-reviewer/SKILL.md",
       "line": 3
     },
     {
       "level": "warning",
       "category": "tokens",
       "message": "SKILL.md exceeds 5000 tokens",
-      "file": "skills/skill-review/SKILL.md",
+      "file": "skills/confluent-skill-reviewer/SKILL.md",
       "line": null
     }
   ],

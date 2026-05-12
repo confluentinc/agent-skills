@@ -105,4 +105,4 @@ The PR template requires `Evals pass at 90%+ threshold`. The math is:
 score = (sum of passing expectations across all evals) / (total expectations)
 ```
 
-If `score < 0.9`, the PR cannot merge. This is verified by the skill author (and SME reviewer) running the skill-creator harness — `skill-review` does not run evals itself, but checks that the score has been declared.
+If `score < 0.9`, the PR cannot merge. This is verified by the skill author (and SME reviewer) running the skill-creator harness — `confluent-skill-reviewer` does not run evals itself, but checks that the score has been declared.
