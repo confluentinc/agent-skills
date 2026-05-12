@@ -46,14 +46,14 @@ Do not assume defaults for #1, #2, or #3 — if any of these are not answered by
 7. **Topic name?** (Default: `demo-topic`)
 8. **Consumer group ID?** (Only if consumer; default: `python-consumer-group`)
 
-Don't ask about Schema Registry — always include it.
+Don't ask about Schema Registry — always include it. For Confluent Cloud and local Docker, always use JSON Schema. If the target is WarpStream, ask which Schema Registry implementation they are using — WarpStream's built-in schema registry only supports Avro and Protobuf (`GET /schemas/types` returns `["AVRO","PROTOBUF"]`), so if they are using it, ask whether they prefer Avro or Protobuf (default to Avro). If they are using a different SR (e.g., Confluent Cloud Schema Registry), JSON Schema is fine.
 
 ### Common Agent Mistakes
 
 | Thought | Reality |
 |---------|---------|
 | "The user mentioned FastAPI, so I know it's async — skip the questions" | Still confirm. They might want a sync background worker alongside FastAPI. |
-| "I'll use Avro since it's more widely used" | This skill uses JSON Schema exclusively. Explain why if asked, but don't switch. |
+| "I'll use Avro since it's more widely used" | This skill uses JSON Schema by default. **Exception:** WarpStream's built-in schema registry only supports Avro and Protobuf — if the user is using WarpStream SR, use Avro by default. If they're using a different SR (e.g., Confluent Cloud SR), JSON Schema is fine regardless of the Kafka environment. |
 | "I'll skip Schema Registry to keep it simple" | Schema Registry is non-negotiable. Every project includes it. |
 | "I'll use `auto.register.schemas=True` for convenience" | Always `False`. Explicit registration is a core principle. |
 | "I'll create a producer in `produce()` — it's cleaner" | One producer instance, created in `main()`, passed as a parameter. Always. |
@@ -68,6 +68,7 @@ After gathering all answers, present a confirmation summary before generating an
 Before I generate the project, let me confirm:
 - Project type: [Greenfield scaffold / Migration of existing code]
 - Environment: [Confluent Cloud (SASL_SSL) / Local Docker (PLAINTEXT) / WarpStream]
+- Schema format: [JSON Schema / Avro / Protobuf] (Avro or Protobuf if using WarpStream's built-in SR)
 - Components: [Producer only / Consumer only / Both]
 - Producer style: [AsyncIO (AIOProducer) / Synchronous (Producer)] (if applicable)
 - Schema: [brief description of user's data fields]
@@ -92,7 +93,8 @@ digraph decisions {
   "Q2: Environment?" -> "WarpStream config\n(apply overrides from\nreferences/warpstream-optimization.md)" [label="WarpStream"];
   "Cloud config\n(SASL_SSL)" -> "Q3: Components?";
   "Local Docker config\n(PLAINTEXT) + docker-compose.yml" -> "Q3: Components?";
-  "WarpStream config\n(apply overrides from\nreferences/warpstream-optimization.md)" -> "Q3: Components?";
+  "WarpStream config\n(apply overrides from\nreferences/warpstream-optimization.md)" -> "Which SR?\n(WarpStream SR → Avro/Protobuf;\nother SR → JSON Schema)";
+  "Which SR?\n(WarpStream SR → Avro/Protobuf;\nother SR → JSON Schema)" -> "Q3: Components?";
   "Q3: Components?" -> "Q4: Async or sync?" [label="producer requested"];
   "Q3: Components?" -> "Generate consumer\n(always async AIOConsumer)" [label="consumer only"];
   "Q4: Async or sync?" -> "AIOProducer path\nAsyncJSONSerializer\n(no headers support)" [label="async / event-loop"];
@@ -108,7 +110,7 @@ Create this file structure in the user's chosen directory:
 ├── consumer.py          # (if requested)
 ├── common.py            # shared config loading + verification helpers
 ├── schemas/
-│   └── value.schema.json # JSON Schema for the message value
+│   └── value.schema.json # JSON Schema (or value.avsc / value.proto when using WarpStream SR)
 ├── tests/
 │   └── test_project.py  # unit tests (always generated)
 ├── .env.example         # template for credentials
@@ -126,11 +128,16 @@ These principles matter because they prevent the most common production issues w
 
 1. **Reuse the producer instance.** Creating a new producer per message is expensive — each one opens new TCP connections, does SASL handshakes, and fetches metadata. Create one producer and reuse it for all messages. The produce function should accept the producer as a parameter, not instantiate one.
 
-2. **Always use Schema Registry with JSON Schema.** Schema Registry enforces a contract between producers and consumers. Without it, schema changes silently break downstream consumers. This skill uses **JSON Schema** exclusively. Schema Registry supports Avro, Protobuf, and JSON Schema — JSON Schema is chosen because: (1) Python has first-class JSON support with no code generation step, (2) `confluent-kafka-python` provides `JSONSerializer`/`JSONDeserializer` out of the box, (3) it is the most approachable format for Python developers already working with JSON/dict data. If the user specifically requests Avro or Protobuf, explain this rationale and note they can switch using `AvroSerializer`/`ProtobufSerializer` from `confluent_kafka.schema_registry` — do not generate Avro or Protobuf code.
+2. **Always use Schema Registry with JSON Schema.** Schema Registry enforces a contract between producers and consumers. Without it, schema changes silently break downstream consumers. This skill uses **JSON Schema** by default. Schema Registry supports Avro, Protobuf, and JSON Schema — JSON Schema is chosen because: (1) Python has first-class JSON support with no code generation step, (2) `confluent-kafka-python` provides `JSONSerializer`/`JSONDeserializer` out of the box, (3) it is the most approachable format for Python developers already working with JSON/dict data.
+
+   **WarpStream Schema Registry exception:** WarpStream's built-in schema registry only supports Avro and Protobuf — its `GET /schemas/types` endpoint returns `["AVRO","PROTOBUF"]`. JSON Schema is **not available** when using WarpStream's SR. If the user is running WarpStream and using its built-in SR, use **Avro** by default (or Protobuf if the user prefers). Use `AvroSerializer`/`AvroDeserializer` from `confluent_kafka.schema_registry.avro` (or `ProtobufSerializer`/`ProtobufDeserializer` from `confluent_kafka.schema_registry.protobuf`). For async producers, use `AsyncAvroSerializer` from `confluent_kafka.schema_registry._async.avro` (or `AsyncProtobufSerializer` from `confluent_kafka.schema_registry._async.protobuf`). Generate an Avro schema file at `schemas/value.avsc` (or `schemas/value.proto` for Protobuf) instead of `schemas/value.schema.json`. If the user is running WarpStream but pointing at a different SR (e.g., Confluent Cloud Schema Registry), JSON Schema works fine — use the default path.
 
    **Register schemas as a separate explicit step** before creating the serializer. Use a dedicated `register_schema()` function that calls `sr_client.register_schema()` and lets errors (auth failures, network errors, permission denials) propagate immediately — never wrap registration in a bare `try/except`. Then configure the serializer with `auto.register.schemas=False` and `use.latest.version=True`. This ensures the serializer never silently auto-registers and aligns with production practice where CI/CD registers schemas, not application startup.
 
-   Use the appropriate serializer for the chosen producer style: `AsyncJSONSerializer` / `AsyncJSONDeserializer` from `confluent_kafka.schema_registry._async.json_schema` for async, or `JSONSerializer` / `JSONDeserializer` from `confluent_kafka.schema_registry.json_schema` for synchronous.
+   Use the appropriate serializer for the chosen producer style and schema format:
+   - **JSON Schema (default):** `AsyncJSONSerializer` / `AsyncJSONDeserializer` from `confluent_kafka.schema_registry._async.json_schema` for async, or `JSONSerializer` / `JSONDeserializer` from `confluent_kafka.schema_registry.json_schema` for synchronous.
+   - **Avro (default when using WarpStream SR):** `AsyncAvroSerializer` / `AsyncAvroDeserializer` from `confluent_kafka.schema_registry._async.avro` for async, or `AvroSerializer` / `AvroDeserializer` from `confluent_kafka.schema_registry.avro` for synchronous.
+   - **Protobuf (alternative when using WarpStream SR):** `AsyncProtobufSerializer` / `AsyncProtobufDeserializer` from `confluent_kafka.schema_registry._async.protobuf` for async, or `ProtobufSerializer` / `ProtobufDeserializer` from `confluent_kafka.schema_registry.protobuf` for synchronous.
 
 3. **Choose the right producer style.** The `confluent-kafka-python` library offers two producer APIs:
    - **AsyncIO Producer** (`AIOProducer` from `confluent_kafka.aio`): Non-blocking, integrates with `asyncio` event loops. Use with `AsyncJSONSerializer` from `confluent_kafka.schema_registry._async.json_schema` and `AsyncSchemaRegistryClient`. Best for applications already running an event loop (FastAPI, aiohttp, Sanic, asyncio workers).
@@ -162,8 +169,8 @@ Key points:
 - `AIOProducer.produce()` is async and returns an `asyncio.Future`. You must `await` the method to get the Future, then `await` the Future to get the delivered `Message`: `future = await producer.produce(...); result = await future`
 - `AIOProducer.flush()` and `close()` are coroutines — they must be `await`ed in the `finally` block
 - Signal handlers set a shutdown event for graceful termination
-- Schema registration and serializer creation are separate steps. `register_schema()` explicitly registers the schema and returns the schema ID — errors propagate immediately. `create_json_serializer()` creates the serializer with `conf={'auto.register.schemas': False, 'use.latest.version': True}`. The serializer's constructor signature is `AsyncJSONSerializer(schema_str, schema_registry_client=sr_client, conf=conf)` — the schema string is the first positional argument, the client and conf are keyword arguments
-- **Headers are NOT supported with `AIOProducer` batch mode.** Do not pass `headers=` to `AIOProducer.produce()` — it will raise `NotImplementedError`. Schema identification is handled automatically by the JSON Schema serializer's wire format prefix. See "Schema ID in Headers vs Wire Format" below for details
+- Schema registration and serializer creation are separate steps. `register_schema()` explicitly registers the schema and returns the schema ID — errors propagate immediately. `create_json_serializer()` (or `create_avro_serializer()` / `create_protobuf_serializer()` when using Avro/Protobuf) creates the serializer with `conf={'auto.register.schemas': False, 'use.latest.version': True}`. The serializer's constructor signature is `AsyncJSONSerializer(schema_str, schema_registry_client=sr_client, conf=conf)` — the schema string is the first positional argument, the client and conf are keyword arguments. When using Avro/Protobuf, use `AsyncAvroSerializer(schema_str, schema_registry_client=sr_client, conf=conf)` or `AsyncProtobufSerializer(schema_str, schema_registry_client=sr_client, conf=conf)` with the same pattern
+- **Headers are NOT supported with `AIOProducer` batch mode.** Do not pass `headers=` to `AIOProducer.produce()` — it will raise `NotImplementedError`. Schema identification is handled automatically by the serializer's wire format prefix (applies to JSON Schema, Avro, and Protobuf serializers). See "Schema ID in Headers vs Wire Format" below for details
 
 ### producer.py Pattern (Synchronous)
 
@@ -172,13 +179,13 @@ When the user chooses the **synchronous producer**, use `references/producer_syn
 Key points:
 - `produce()` takes a producer instance as a parameter — it never creates one
 - The producer is created once in `main()` and can be passed to multiple `produce()` calls
-- Uses `JSONSerializer` (synchronous) from `confluent_kafka.schema_registry.json_schema` and `SchemaRegistryClient` from `confluent_kafka.schema_registry`
+- Uses `JSONSerializer` (synchronous) from `confluent_kafka.schema_registry.json_schema` and `SchemaRegistryClient` from `confluent_kafka.schema_registry`. When using Avro/Protobuf (e.g., with WarpStream SR), use `AvroSerializer` from `confluent_kafka.schema_registry.avro` or `ProtobufSerializer` from `confluent_kafka.schema_registry.protobuf`
 - `Producer.produce()` is non-blocking — it enqueues the message. Call `producer.poll(0)` after each produce to serve delivery callbacks and keep the internal queue from filling up
 - Call `producer.flush()` after a batch to block until all in-flight messages are delivered
 - Use a `delivery_callback(err, msg)` function to handle per-message delivery reports
 - Signal handlers set a flag for graceful termination
 - `flush()` in the `finally` block ensures no buffered messages are lost
-- Schema registration and serializer creation are separate steps, same as the async pattern. `register_schema()` explicitly registers the schema. `create_json_serializer()` creates the serializer with `conf={'auto.register.schemas': False, 'use.latest.version': True}`. Both return the schema ID
+- Schema registration and serializer creation are separate steps, same as the async pattern. `register_schema()` explicitly registers the schema. `create_json_serializer()` (or `create_avro_serializer()` / `create_protobuf_serializer()` when using Avro/Protobuf) creates the serializer with `conf={'auto.register.schemas': False, 'use.latest.version': True}`. Both return the schema ID
 - The schema ID is passed as a Kafka record header (`confluent.value.schemaId`) on every produced message — this is the header-based schema identification pattern. It keeps the JSON payload clean and readable by non-Confluent consumers. See "Schema ID in Headers vs Wire Format" below for details
 
 ### consumer.py Pattern
@@ -187,7 +194,7 @@ Use `references/consumer.py` as the template.
 
 Key points in the consumer:
 - Signal-based graceful shutdown — `unsubscribe()` then `close()` to leave the consumer group cleanly
-- Deserialization via Schema Registry using `AsyncJSONDeserializer` (no fallback to raw JSON parsing — Schema Registry is required)
+- Deserialization via Schema Registry using `AsyncJSONDeserializer` (or `AsyncAvroDeserializer` / `AsyncProtobufDeserializer` when using Avro/Protobuf) — no fallback to raw parsing, Schema Registry is required
 - Continuous polling loop until shutdown signal
 
 ### Schema ID in Headers vs Wire Format
@@ -200,7 +207,9 @@ Key points in the consumer:
 
 ### schemas/
 
-Generate a JSON Schema file matching the user's data domain. The file should be placed at `schemas/value.schema.json`.
+Generate a schema file matching the user's data domain in the appropriate format for the chosen schema registry.
+
+**JSON Schema (default):** Generate a JSON Schema file at `schemas/value.schema.json`.
 
 For example, if the user is producing financial transactions:
 
@@ -242,6 +251,25 @@ For example, if the user is producing financial transactions:
     }
   },
   "required": ["transaction_id", "amount", "currency", "timestamp", "status"]
+}
+```
+
+**Avro (when using WarpStream SR):** Generate an Avro schema file at `schemas/value.avsc` (or `schemas/value.proto` for Protobuf). For the same financial transactions example in Avro:
+
+```json
+{
+  "type": "record",
+  "name": "Transaction",
+  "namespace": "com.example.kafka",
+  "doc": "A financial transaction event produced to Kafka.",
+  "fields": [
+    {"name": "transaction_id", "type": "string", "doc": "Unique identifier for this transaction."},
+    {"name": "amount", "type": "double", "default": 0, "doc": "Transaction amount in the specified currency."},
+    {"name": "currency", "type": "string", "default": "", "doc": "ISO 4217 currency code."},
+    {"name": "timestamp", "type": "string", "doc": "Time the transaction occurred, in ISO 8601 format."},
+    {"name": "status", "type": {"type": "enum", "name": "Status", "symbols": ["pending", "completed", "failed", "refunded"]}, "default": "pending", "doc": "Current state of the transaction."},
+    {"name": "metadata", "type": ["null", "string"], "default": null, "doc": "Optional metadata associated with the transaction."}
+  ]
 }
 ```
 
@@ -305,9 +333,38 @@ GROUP_ID=python-consumer-group
 
 ### requirements.txt
 
+**JSON Schema (default):**
 ```
 confluent-kafka[json,schema_registry]>=2.13.2
 jsonschema
+python-dotenv
+requests>=2.25.0
+httpx
+authlib
+cachetools
+attrs
+typing_extensions
+pytest
+pytest-asyncio
+```
+
+**Avro (e.g., when using WarpStream SR):**
+```
+confluent-kafka[avro,schema_registry]>=2.13.2
+python-dotenv
+requests>=2.25.0
+httpx
+authlib
+cachetools
+attrs
+typing_extensions
+pytest
+pytest-asyncio
+```
+
+**Protobuf (e.g., when using WarpStream SR):**
+```
+confluent-kafka[protobuf,schema_registry]>=2.13.2
 python-dotenv
 requests>=2.25.0
 httpx
@@ -339,7 +396,7 @@ The tests should verify these properties of the generated code:
 
 3. **consumer.py** (if generated): Uses `JSONDeserializer` or `AsyncJSONDeserializer` (no raw JSON parsing fallback). Calls `unsubscribe()` before `close()` for graceful shutdown.
 
-4. **schemas/value.schema.json**: Valid JSON Schema with `type: object`, a `title`, and `properties` with at least one property. Each property has a `type`.
+4. **Schema file**: When using JSON Schema: `schemas/value.schema.json` is valid JSON Schema with `type: object`, a `title`, and `properties` with at least one property. When using Avro: `schemas/value.avsc` is a valid Avro schema with `type: record`, a `name`, and `fields` with at least one field. When using Protobuf: `schemas/value.proto` is valid Protobuf.
 
 5. **Project structure**: `requirements.txt` exists and contains `confluent-kafka`, `python-dotenv`, and `requests`. `.env.example` exists.
 
