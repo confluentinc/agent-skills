@@ -4,7 +4,7 @@ Source of truth: `CLAUDE.md` and `.github/pull_request_template.md` at the repo 
 
 ## The three non-negotiables from `CLAUDE.md`
 
-### 1. Lazy-load references (CLAUDE.md lines 29–30)
+### 1. Lazy-load references (CLAUDE.md § Skill anatomy — "Lazy-load references" bullet)
 
 > SKILL.md bodies are deliberately short and route the agent to `references/<topic>.md` only when needed. Do NOT inline the contents of reference files into SKILL.md, and do not have SKILL.md instruct the agent to read all references upfront.
 
@@ -15,7 +15,7 @@ How to detect inlining:
 
 Severity: **Blocking**. Every activation pays the full context cost when references are inlined; the design intent is progressive disclosure.
 
-### 2. Description field is the trigger (CLAUDE.md lines 32–33)
+### 2. Description field is the trigger (CLAUDE.md § Skill anatomy — "The `description:` field is the trigger" bullet)
 
 > The `description:` field is the trigger. It must include positive trigger phrases *and* explicit "Do NOT trigger for…" exclusions where adjacent skills could fight over the same prompt.
 
@@ -30,7 +30,7 @@ Canonical example — `kafka-streams-programming` description ends with:
 
 This explicitly hands off to `confluent-cloud-cdc-tableflow` (CDC) and `developing-kafka-python-client` (plain producer/consumer).
 
-### 3. Mode detection table (CLAUDE.md lines 34–35)
+### 3. Mode detection table (CLAUDE.md § Skill anatomy — "Mode detection" bullet)
 
 > Larger skills branch internally into Build / Architect / Debug modes. Keep that table-driven structure when extending — don't fork mode logic into separate skills.
 
@@ -40,13 +40,13 @@ How to detect:
 
 Severity: **Warning**. The repo's convention is to keep related modes in one skill (see `skills/kafka-streams-programming/SKILL.md:26-34`).
 
-## The evals contract (CLAUDE.md lines 47–53)
+## The evals contract (CLAUDE.md § Evals are the contract)
 
 > PRs must keep evals passing at the **90%+ threshold**. `expectations[]` frequently encode hard-won correctness — treat them as regression tests, not aspirations.
 
 This is checked in Phase D. The shape rules live in `references/evals-contract.md`.
 
-Fixture sync (lines 52–53):
+Fixture sync (§ Evals are the contract — closing paragraph):
 > `skills/kafka-schema-registry/evals/mock-repos/` holds fixture repos that evals point the skill at; keep fixtures and expectations in sync.
 
 If `evals/evals.json` references a fixture path that doesn't exist on disk → **Blocking**.

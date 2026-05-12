@@ -94,30 +94,75 @@ def validate(evals_path: Path) -> dict:
     saw_expectations = False
     saw_assertions = False
 
+    skill_root_resolved = skill_root.resolve()
+
     for idx, eval_obj in enumerate(data["evals"]):
         where = f"evals[{idx}]"
         if not isinstance(eval_obj, dict):
             findings.append(_finding("blocking", where, "eval entry is not an object"))
             continue
-        for key in ("id", "prompt", "expected_output"):
+        expected_types = {"id": int, "prompt": str, "expected_output": str}
+        for key, expected_type in expected_types.items():
             if key not in eval_obj:
                 findings.append(_finding("blocking", f"{where}.{key}", "missing required field"))
-        if "files" in eval_obj:
-            if not isinstance(eval_obj["files"], list):
-                findings.append(_finding("blocking", f"{where}.files", "files must be an array"))
-            else:
-                for fi, fpath in enumerate(eval_obj["files"]):
-                    if not isinstance(fpath, str):
-                        continue
-                    resolved = (skill_root / fpath).resolve()
-                    if not resolved.exists():
-                        findings.append(
-                            _finding(
-                                "blocking",
-                                f"{where}.files[{fi}]",
-                                f"fixture path does not exist: {fpath}",
-                            )
+            elif not isinstance(eval_obj[key], expected_type):
+                findings.append(
+                    _finding(
+                        "blocking",
+                        f"{where}.{key}",
+                        f"must be {expected_type.__name__}, got {type(eval_obj[key]).__name__}",
+                    )
+                )
+        if "files" not in eval_obj:
+            findings.append(
+                _finding(
+                    "blocking",
+                    f"{where}.files",
+                    "missing required field (use [] for evals without fixtures)",
+                )
+            )
+        elif not isinstance(eval_obj["files"], list):
+            findings.append(_finding("blocking", f"{where}.files", "files must be an array"))
+        else:
+            for fi, fpath in enumerate(eval_obj["files"]):
+                if not isinstance(fpath, str):
+                    findings.append(
+                        _finding(
+                            "blocking",
+                            f"{where}.files[{fi}]",
+                            "fixture path must be a string",
                         )
+                    )
+                    continue
+                if Path(fpath).is_absolute() or ".." in Path(fpath).parts:
+                    findings.append(
+                        _finding(
+                            "blocking",
+                            f"{where}.files[{fi}]",
+                            f"fixture path must be relative to the skill root and stay inside it: {fpath}",
+                        )
+                    )
+                    continue
+                resolved = (skill_root / fpath).resolve()
+                try:
+                    resolved.relative_to(skill_root_resolved)
+                except ValueError:
+                    findings.append(
+                        _finding(
+                            "blocking",
+                            f"{where}.files[{fi}]",
+                            f"fixture path escapes the skill root: {fpath}",
+                        )
+                    )
+                    continue
+                if not resolved.exists():
+                    findings.append(
+                        _finding(
+                            "blocking",
+                            f"{where}.files[{fi}]",
+                            f"fixture path does not exist: {fpath}",
+                        )
+                    )
         prompt = eval_obj.get("prompt", "")
         if isinstance(prompt, str):
             findings.extend(_check_prompt(prompt, f"{where}.prompt"))

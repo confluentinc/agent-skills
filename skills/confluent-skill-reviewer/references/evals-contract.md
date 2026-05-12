@@ -49,7 +49,7 @@ OR (object form, used by `developing-kafka-python-client`):
 
 ## Strong vs weak expectations
 
-`CLAUDE.md` line 49 says expectations encode hard-won correctness. Each one should be:
+`CLAUDE.md` § Evals are the contract says expectations encode hard-won correctness. Each one should be:
 
 - **Specific** — names a file path, a class name, a config key, a CLI flag, an exact string.
 - **Verifiable** — a human (or grader) can decide pass/fail by reading the output.

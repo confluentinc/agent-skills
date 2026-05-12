@@ -19,7 +19,7 @@ Before producing any findings, confirm all three out loud (briefly):
 
 1. **Scope**: which mode are you in? See [Mode Detection](#mode-detection). If unclear, ask the user once.
 2. **Target paths exist**: list the `skills/<name>/` directories you will audit. Stop if none.
-3. **Tool availability**: run `bash scripts/run_skill_validator.sh --probe` to check whether the external `skill-validator` binary is installed. If absent, note it in the report and continue with native checks — do not block.
+3. **Tool availability**: run `bash skills/confluent-skill-reviewer/scripts/run_skill_validator.sh --probe` (from the repo root) to check whether the external `skill-validator` binary is installed. If absent, note it in the report and continue with native checks — do not block.
 
 Skipping these gates is the most common source of bad reviews. The point is to be *explicit* about scope so the user can redirect early.
 
@@ -43,7 +43,7 @@ Run phases in order. Each phase reads its reference only if a finding fires. Col
 
 ### Phase A — Structural & spec conformance
 
-Run `bash scripts/run_skill_validator.sh <skill-path>`. Three outcomes:
+Run `bash skills/confluent-skill-reviewer/scripts/run_skill_validator.sh <skill-path>` (from the repo root). Three outcomes:
 
 - Binary installed → script emits `skill-validator`'s JSON. Parse `results[].level == "error"` into **Blocking**, `"warning"` into **Warning**. Map each finding's `file` and `line` into the report.
 - Binary missing → script exits 0 with an install hint on stderr. Note "skill-validator not installed, skipping spec checks" as a **Warning** in the report and do the spec checks natively (read `references/spec-conformance.md` for the rule list and walk through them).
@@ -57,7 +57,7 @@ Read `references/spec-conformance.md` only when interpreting an unfamiliar findi
 
 ### Phase B — Confluent conventions
 
-Inspect the SKILL.md against rules in `CLAUDE.md` lines 15–62. The high-leverage checks:
+Inspect the SKILL.md against rules in `CLAUDE.md` § Skill anatomy and § Evals are the contract. The high-leverage checks:
 
 1. **Lazy-loading**: does the SKILL.md inline the contents of any file under `references/`? Grep for headings that also appear in references and for long fenced code blocks that duplicate reference material. Inlined reference content is **Blocking**.
 2. **Anti-trigger clause**: does the `description:` contain a `Do NOT trigger for…` clause? Absence is **Blocking** when neighbor descriptions share keywords (Phase C confirms); otherwise **Warning**.
@@ -68,22 +68,23 @@ Read `references/confluent-conventions.md` for the full rule list and PR-templat
 
 ### Phase C — Trigger overlap
 
-Run `python3 scripts/check_trigger_overlap.py <repo-root>`. The script parses every `skills/*/SKILL.md` frontmatter, tokenises the `description:` field, and reports keyword collisions. For each collision:
+Run `python3 skills/confluent-skill-reviewer/scripts/check_trigger_overlap.py <root>` (from the repo root). The script accepts either a repo root (it scans `<root>/skills/*/SKILL.md`) or a "skills root" directory (scans `<root>/*/SKILL.md`) — use the latter for `evals/mock-skills/` runs. It parses each SKILL.md frontmatter, tokenises the `description:` field (filtering stopwords and domain-broad terms like `confluent`, `kafka`, `schema`, `producer`, `consumer`, `topic`, `stream`), and reports keyword collisions. For each collision:
 
-- Both skills mention overlapping keywords (e.g. "schema", "Kafka", "producer") **and** at least one of them lacks a `Do NOT trigger for…` clause that names the other → **Blocking**.
-- Overlapping keywords with mutual anti-triggers naming each other → **pass** (do not report).
-- Single keyword overlap on a common domain term (e.g. "Confluent") → **Nit**.
+- ≥3 overlapping non-broad keywords (e.g. "topology", "rebalancing", "windowing") with no mutual anti-triggers naming each other → **Blocking**.
+- 2 overlapping non-broad keywords without mutual anti-triggers → **Warning**.
+- Single non-broad keyword overlap → **Nit**.
+- Overlap entirely on filtered domain-broad terms → script silently passes (these are coincidence, not collisions).
 
 Read `references/trigger-overlap.md` only when proposing the wording of an anti-trigger fix — it has worked examples drawn from this repo's existing skills.
 
 ### Phase D — Evals contract
 
-Run `python3 scripts/check_eval_schema.py <skill-path>/evals/evals.json`. The script validates:
+Run `python3 skills/confluent-skill-reviewer/scripts/check_eval_schema.py <skill-path>/evals/evals.json` (from the repo root). The script validates:
 
 - Top-level `skill_name` (string) and `evals` (array) keys present.
 - Each eval has `id`, `prompt`, `expected_output`, `files`, and either `expectations` (array of strings, kafka-streams style) **or** `assertions` (array of objects, developing-kafka-python-client style). Mixing the two within the same file is a **Warning** — pick one shape.
 - `prompt` is realistic user phrasing, not abstract (heuristic: ≥40 chars, not just "Build me an X"). Short prompts are a **Warning**.
-- `expectations[]`/`assertions[]` are specific (heuristic: contain a verb, a noun, and at least one concrete identifier — file path, class name, config key, or "NOT" clause). Vague expectations are a **Warning**; cite `CLAUDE.md` line 49: "expectations encode hard-won correctness — treat them as regression tests, not aspirations".
+- `expectations[]`/`assertions[]` are specific (heuristic: contain a verb, a noun, and at least one concrete identifier — file path, class name, config key, or "NOT" clause). Vague expectations are a **Warning**; cite `CLAUDE.md` § Evals are the contract: "expectations encode hard-won correctness — treat them as regression tests, not aspirations".
 
 Cross-check fixture sync: if the skill has an `evals/mock-repos/` or `evals/mock-skills/` directory, each `files: [path]` in evals.json must resolve. Missing fixtures are **Blocking**.
 
@@ -117,16 +118,8 @@ Emit one Markdown report. Group findings by severity, not by phase — reviewers
 
 ## Blocking (N)
 
-- `skills/<name>/SKILL.md:14` — Inlined contents of `references/build-templates.md` into the SKILL.md body. CLAUDE.md line 30 requires lazy-loaded references. Move the content back and route to it from a decision point.
+- `skills/<name>/SKILL.md:14` — Inlined contents of `references/build-templates.md` into the SKILL.md body. CLAUDE.md § Skill anatomy (lazy-load references bullet) requires lazy-loaded references. Move the content back and route to it from a decision point.
 - `skills/<name>/evals/evals.json:42` — Eval id 3 references `evals/mock-repos/missing/` which does not exist on disk. Add the fixture or update the path.
-
-## Warning (N)
-
-- ...
-
-## Nit (N)
-
-- ...
 
 ## PR-template checklist (PR-diff mode only)
 

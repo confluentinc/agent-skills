@@ -22,7 +22,7 @@
       "files": ["evals/mock-skills/inlined-refs"],
       "expectations": [
         "Emits at least one `Blocking` finding under Phase B (Confluent conventions / lazy-load)",
-        "Cites `CLAUDE.md` line 29 or 30 (lazy-load references)",
+        "Cites `CLAUDE.md` § Skill anatomy (lazy-load references bullet)",
         "Identifies the duplicated content between `SKILL.md` and `references/exporters.md` (the kafka-exporter / Confluent Control Center comparison)",
         "Suggests moving the content out of SKILL.md and routing to `references/exporters.md` from a decision point",
         "Final recommendation is `request changes`"
@@ -63,7 +63,7 @@
         "Reports a Blocking finding for the missing fixture path `evals/fixtures/missing-fixture`",
         "Flags `Build me a thing.` as a Warning (abstract prompt, no domain detail)",
         "Flags expectations like `Generates a working app`, `Includes error handling`, `Asks the right questions`, `Is well written` as Warnings (aspirational, not verifiable)",
-        "Cites CLAUDE.md line 49 (`expectations encode hard-won correctness — treat them as regression tests, not aspirations`)",
+        "Cites CLAUDE.md § Evals are the contract (`expectations encode hard-won correctness — treat them as regression tests, not aspirations`)",
         "Suggests concrete replacements that name files, classes, config keys, or NOT clauses"
       ]
     },
