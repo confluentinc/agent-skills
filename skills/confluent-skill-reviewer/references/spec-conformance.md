@@ -43,6 +43,7 @@ YAML frontmatter at the top of `SKILL.md`, followed by Markdown body.
 - Exceeds 1024 characters (very long descriptions with many trigger phrases).
 - Missing — empty or absent field is a hard fail.
 - Too vague to trigger ("Helps with Kafka.") — not a spec failure, but flagged by `skill-validator score evaluate` as low clarity, and by this repo's CLAUDE.md as a Confluent convention violation.
+- **Unquoted colon followed by space** inside the value (e.g. `Do NOT trigger for: general code review`). YAML interprets `: ` as a key/value separator inside a plain scalar and parsing fails with `mapping values are not allowed in this context`. The error line number often points at line 2 even when the offending colon is on line 3 — do not trust the line number. Fixes, in order of preference: (1) rephrase to drop the colon (`Do NOT trigger for general code review…`); (2) replace `: ` with ` — ` or `;`; (3) wrap the entire value in double quotes and escape any embedded `"`. Other punctuation that is safe to leave unquoted: `;`, `,`, `()`, backticks, `/`.
 
 ## Body content rules
 
