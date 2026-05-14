@@ -21,6 +21,10 @@ This lets you pick specific skills to install and supports most agents.
 npx skills add confluentinc/agent-skills
 ```
 
+### Note on IBM Bob
+
+If you are using IBM Bob, you must copy/paste your skill into your `/Users/lcerchie/.bob/skills` folder in order for the skill to load on startup.
+
 ## Quick start
 
 1. Install the skills using one of the methods above
