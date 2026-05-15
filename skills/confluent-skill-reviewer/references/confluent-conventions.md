@@ -80,6 +80,61 @@ This repo's larger skills lead with an explicit lazy-load warning. Wording from 
 
 Absence of this preamble in a multi-reference skill is a **Nit**, not Blocking — but worth recommending in the report.
 
+## Provenance metadata
+
+Skills authored in this repo carry attribution and freshness data in frontmatter:
+
+```yaml
+metadata:
+  author: confluent
+  version: "1.2"
+  last_updated: "2026-05-12"
+compatibility: Requires Python 3.9+, confluent-kafka, fastavro. Needs access to a Confluent environment (Cloud, Platform, local Docker, or WarpStream) for E2E testing.
+```
+
+- `metadata.author: confluent` — required on Confluent-authored skills.
+- `metadata.version` — semver string. Bump on user-visible behavior change.
+- `metadata.last_updated` — ISO date (YYYY-MM-DD). Useful for grading staleness.
+- `compatibility` — free text ≤500 chars (per spec). Required when the skill assumes packages, CLI tools, or specific environment access. Skip on pure-prose advisory skills.
+
+Severity: missing metadata fields → **Warning**. Missing `compatibility` on a skill that obviously needs env access → **Nit**.
+
+## Platform scoping
+
+Confluent skills serve four runtime targets: Confluent Cloud, Confluent Platform, Apache Kafka (OSS), WarpStream. The convention:
+
+- **Platform-specific skill** — the platform name appears in `name` (e.g. `confluent-cloud-cdc-tableflow`, `warpstream-producer-optimization`). The body must scope every instruction to that platform. Mentioning all four platforms in a skill named `confluent-cloud-*` is **Blocking** — the user will be misled.
+- **Cross-platform skill** — `name` has no platform token. The body must include a platform-detection step ("Which environment is this targeting?") near the top, and platform-divergent details live in dedicated reference files:
+  - `references/confluent-cloud.md` — managed services, Cloud API keys
+  - `references/confluent-platform.md` — self-managed security config
+  - `references/apache-kafka.md` — OSS defaults
+  - `references/warpstream.md` — object-storage architecture, agent config overrides
+
+A cross-platform skill missing the platform-detection step **or** the per-platform reference files is **Warning** — the skill will give Cloud-shaped advice when the user is on WarpStream.
+
+## Plan-before-execute (CRUD-capable skills)
+
+Any skill whose workflow creates, modifies, or deletes Confluent resources — Kafka topics, schemas, connectors, Flink statements, RBAC bindings, Terraform state — must:
+
+1. Present a numbered plan of every resource operation it will perform.
+2. List the MCP tools, CLI commands, or API endpoints involved, in execution order.
+3. **Wait for explicit user confirmation** before the first resource-modifying call.
+4. Never execute resource-modifying operations silently.
+
+Detection heuristic: grep the SKILL.md for resource-modifying verbs (`create`, `delete`, `register`, `deploy`, `apply`, `terraform`) paired with Confluent nouns (topic, schema, statement, connector). If matches exist and the SKILL.md has no "wait for confirmation" / "approve the plan" wording, **Blocking**.
+
+Read-only skills (advisory, debugging, architecture review) are exempt.
+
+## Credential handling
+
+A skill that consumes credentials via `.env` must not read the file's contents — even to "verify it exists". The contract:
+
+- Reference variables by name in scripts and prose: `$BOOTSTRAP_SERVERS`, `$CLUSTER_API_SECRET`.
+- To check presence without disclosing the value: `test -n "$VAR"`.
+- Never `cat .env`, `Read .env`, `head .env`, `grep .env`, or include `.env` in a `files: [...]` eval fixture.
+
+Detection: grep the SKILL.md and `scripts/` for `cat .env`, `Read.*\.env`, `head.*\.env`, `grep.*\.env`. Any hit is **Blocking**. A skill that takes credentials but contains no guardrail language at all (no mention of `.env`, no `test -n`, no warning) is **Warning** — the next contributor will reach for `cat .env` and won't be stopped.
+
 ## Where Confluent diverges from the bare spec
 
 | Spec says | Confluent adds |
@@ -89,3 +144,7 @@ Absence of this preamble in a multi-reference skill is a **Nit**, not Blocking �
 | `evals/` is non-standard | This repo requires `evals/evals.json` and treats `expectations[]` as regression tests |
 | No reviewer rules | SME + DTX/DevRel reviewer required per PR template |
 | No README rule | New skills must be added to README.md's skill table in the same PR |
+| `metadata` is optional | `metadata.author/version/last_updated` expected on repo-authored skills |
+| Platform-agnostic | Platform name in `name:` if scoped; otherwise per-platform reference files |
+| Silent execution allowed | CRUD-capable skills must plan-and-confirm before resource operations |
+| No credential rules | Skills must never read `.env` contents; reference vars by name only |

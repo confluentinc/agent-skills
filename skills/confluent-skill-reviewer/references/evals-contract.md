@@ -45,7 +45,7 @@ OR (object form, used by `developing-kafka-python-client`):
 }
 ```
 
-**Both shapes are valid in this repo.** Mixing both within the same file is a **Warning** — pick one and stay consistent.
+**Both shapes are valid in this repo.** Mixing both within the same file is a **Warning** — pick one and stay consistent. For *new* skills, prefer the string-`expectations` shape; it is the default in this repo's authoring workflow. The object-`assertions` shape stays supported for skills that already use it (`developing-kafka-python-client`).
 
 ## Strong vs weak expectations
 
