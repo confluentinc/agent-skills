@@ -1,0 +1,600 @@
+{
+  "kcp_build_info": {
+    "version": "0.6.5",
+    "commit": "fdaf0f66c9f7165a2d175ee4d0d8dce5b54f05d3",
+    "date": "2026-02-12T11:13:05Z"
+  },
+  "regions": [
+    {
+      "name": "us-east-2",
+      "configurations": [],
+      "costs": {
+        "metadata": {
+          "start_date": "2026-01-01T00:00:00Z",
+          "end_date": "2026-02-01T00:00:00Z",
+          "granularity": "MONTHLY",
+          "tags": null,
+          "services": [
+            "Amazon Managed Streaming for Apache Kafka"
+          ]
+        },
+        "results": [
+          {
+            "Estimated": false,
+            "Groups": [
+              {
+                "Keys": [
+                  "Amazon Managed Streaming for Apache Kafka",
+                  "USE2-Kafka.Serverless.PartitionHours"
+                ],
+                "Metrics": {
+                  "AmortizedCost": {
+                    "Amount": "1822.50",
+                    "Unit": "USD"
+                  },
+                  "BlendedCost": {
+                    "Amount": "1822.50",
+                    "Unit": "USD"
+                  },
+                  "NetAmortizedCost": {
+                    "Amount": "1403.33",
+                    "Unit": "USD"
+                  },
+                  "NetUnblendedCost": {
+                    "Amount": "1403.33",
+                    "Unit": "USD"
+                  },
+                  "UnblendedCost": {
+                    "Amount": "1822.50",
+                    "Unit": "USD"
+                  }
+                }
+              },
+              {
+                "Keys": [
+                  "Amazon Managed Streaming for Apache Kafka",
+                  "USE2-Kafka.Serverless.Storage"
+                ],
+                "Metrics": {
+                  "AmortizedCost": {
+                    "Amount": "612.40",
+                    "Unit": "USD"
+                  },
+                  "BlendedCost": {
+                    "Amount": "612.40",
+                    "Unit": "USD"
+                  },
+                  "NetAmortizedCost": {
+                    "Amount": "471.55",
+                    "Unit": "USD"
+                  },
+                  "NetUnblendedCost": {
+                    "Amount": "471.55",
+                    "Unit": "USD"
+                  },
+                  "UnblendedCost": {
+                    "Amount": "612.40",
+                    "Unit": "USD"
+                  }
+                }
+              },
+              {
+                "Keys": [
+                  "Amazon Managed Streaming for Apache Kafka",
+                  "USE2-Kafka.Serverless.ReadThroughput"
+                ],
+                "Metrics": {
+                  "AmortizedCost": {
+                    "Amount": "894.20",
+                    "Unit": "USD"
+                  },
+                  "BlendedCost": {
+                    "Amount": "894.20",
+                    "Unit": "USD"
+                  },
+                  "NetAmortizedCost": {
+                    "Amount": "688.53",
+                    "Unit": "USD"
+                  },
+                  "NetUnblendedCost": {
+                    "Amount": "688.53",
+                    "Unit": "USD"
+                  },
+                  "UnblendedCost": {
+                    "Amount": "894.20",
+                    "Unit": "USD"
+                  }
+                }
+              },
+              {
+                "Keys": [
+                  "Amazon Managed Streaming for Apache Kafka",
+                  "USE2-Kafka.Serverless.WriteThroughput"
+                ],
+                "Metrics": {
+                  "AmortizedCost": {
+                    "Amount": "871.10",
+                    "Unit": "USD"
+                  },
+                  "BlendedCost": {
+                    "Amount": "871.10",
+                    "Unit": "USD"
+                  },
+                  "NetAmortizedCost": {
+                    "Amount": "670.75",
+                    "Unit": "USD"
+                  },
+                  "NetUnblendedCost": {
+                    "Amount": "670.75",
+                    "Unit": "USD"
+                  },
+                  "UnblendedCost": {
+                    "Amount": "871.10",
+                    "Unit": "USD"
+                  }
+                }
+              }
+            ],
+            "TimePeriod": {
+              "End": "2026-02-01",
+              "Start": "2026-01-01"
+            },
+            "Total": {}
+          }
+        ]
+      },
+      "clusters": [
+        {
+          "name": "analytics-dev",
+          "arn": "arn:aws:kafka:us-east-2:123456789012:cluster/analytics-dev/00000000-0000-0000-0000-acmeclust101-0",
+          "region": "us-east-2",
+          "metrics": {
+            "metadata": {
+              "cluster_type": "SERVERLESS",
+              "kafka_version": "",
+              "broker_az_distribution": "",
+              "enhanced_monitoring": "",
+              "start_date": "2026-01-01T00:00:00Z",
+              "end_date": "2026-02-01T00:00:00Z",
+              "period": 86400,
+              "follower_fetching": false,
+              "instance_type": "",
+              "tiered_storage": false
+            },
+            "results": []
+          },
+          "aws_client_information": {
+            "msk_cluster_config": {
+              "ActiveOperationArn": null,
+              "ClusterArn": "arn:aws:kafka:us-east-2:123456789012:cluster/analytics-dev/00000000-0000-0000-0000-acmeclust101-0",
+              "ClusterName": "analytics-dev",
+              "ClusterType": "SERVERLESS",
+              "CreationTime": "2025-08-14T10:22:11.04Z",
+              "CurrentVersion": "K2EUQ1WTGCTBG2",
+              "Provisioned": null,
+              "Serverless": {
+                "VpcConfigs": [
+                  {
+                    "SubnetIds": [
+                      "subnet-acme00000001",
+                      "subnet-acme00000002",
+                      "subnet-acme00000003"
+                    ],
+                    "SecurityGroupIds": [
+                      "sg-acme00000001"
+                    ]
+                  }
+                ],
+                "ClientAuthentication": {
+                  "Sasl": {
+                    "Iam": {
+                      "Enabled": true
+                    }
+                  }
+                }
+              },
+              "State": "ACTIVE",
+              "StateInfo": null,
+              "Tags": {
+                "Environment": "dev",
+                "Team": "analytics"
+              }
+            },
+            "client_vpc_connections": [],
+            "cluster_operations": null,
+            "nodes": [],
+            "ScramSecrets": [],
+            "bootstrap_brokers": {
+              "BootstrapBrokerString": null,
+              "BootstrapBrokerStringPublicSaslIam": null,
+              "BootstrapBrokerStringPublicSaslScram": null,
+              "BootstrapBrokerStringPublicTls": null,
+              "BootstrapBrokerStringSaslIam": "boot-acme01.c01.kafka-serverless.us-east-2.amazonaws.com:9098",
+              "BootstrapBrokerStringSaslScram": null,
+              "BootstrapBrokerStringTls": null,
+              "BootstrapBrokerStringVpcConnectivitySaslIam": null,
+              "BootstrapBrokerStringVpcConnectivitySaslScram": null,
+              "BootstrapBrokerStringVpcConnectivityTls": null,
+              "ResultMetadata": {}
+            },
+            "policy": {
+              "CurrentVersion": null,
+              "Policy": null,
+              "ResultMetadata": {}
+            },
+            "compatible_versions": {
+              "CompatibleKafkaVersions": [],
+              "ResultMetadata": {}
+            },
+            "cluster_networking": {
+              "vpc_id": "",
+              "subnet_ids": null,
+              "security_groups": null,
+              "subnets": null
+            },
+            "connectors": []
+          },
+          "kafka_admin_client_information": {
+            "cluster_id": "Kafka-Cluster-acme-sl-01",
+            "topics": {
+              "summary": {
+                "topics": 28,
+                "internal_topics": 0,
+                "total_partitions": 180,
+                "total_internal_partitions": 0,
+                "compact_topics": 2,
+                "compact_internal_topics": 0,
+                "compact_partitions": 12,
+                "compact_internal_partitions": 0,
+                "remote_storage_topics": 0
+              },
+              "details": [
+                {
+                  "name": "acme-analytics-events-raw",
+                  "partitions": 12,
+                  "replication_factor": 3,
+                  "configurations": {
+                    "cleanup.policy": "delete",
+                    "compression.type": "producer",
+                    "min.insync.replicas": "2",
+                    "retention.ms": "604800000",
+                    "segment.bytes": "1073741824"
+                  }
+                },
+                {
+                  "name": "acme-analytics-events-enriched",
+                  "partitions": 12,
+                  "replication_factor": 3,
+                  "configurations": {
+                    "cleanup.policy": "delete",
+                    "compression.type": "producer",
+                    "min.insync.replicas": "2",
+                    "retention.ms": "604800000",
+                    "segment.bytes": "1073741824"
+                  }
+                },
+                {
+                  "name": "acme-clickstream-page-views",
+                  "partitions": 24,
+                  "replication_factor": 3,
+                  "configurations": {
+                    "cleanup.policy": "delete",
+                    "compression.type": "producer",
+                    "min.insync.replicas": "2",
+                    "retention.ms": "259200000",
+                    "segment.bytes": "1073741824"
+                  }
+                },
+                {
+                  "name": "acme-clickstream-conversions",
+                  "partitions": 6,
+                  "replication_factor": 3,
+                  "configurations": {
+                    "cleanup.policy": "delete",
+                    "compression.type": "producer",
+                    "min.insync.replicas": "2",
+                    "retention.ms": "604800000",
+                    "segment.bytes": "1073741824"
+                  }
+                },
+                {
+                  "name": "acme-experiments-assignments",
+                  "partitions": 6,
+                  "replication_factor": 3,
+                  "configurations": {
+                    "cleanup.policy": "compact",
+                    "compression.type": "producer",
+                    "min.insync.replicas": "2",
+                    "min.cleanable.dirty.ratio": "0.5",
+                    "segment.bytes": "1073741824"
+                  }
+                },
+                {
+                  "name": "acme-experiments-results",
+                  "partitions": 6,
+                  "replication_factor": 3,
+                  "configurations": {
+                    "cleanup.policy": "compact",
+                    "compression.type": "producer",
+                    "min.insync.replicas": "2",
+                    "min.cleanable.dirty.ratio": "0.5",
+                    "segment.bytes": "1073741824"
+                  }
+                },
+                {
+                  "name": "acme-marketing-attribution-events",
+                  "partitions": 12,
+                  "replication_factor": 3,
+                  "configurations": {
+                    "cleanup.policy": "delete",
+                    "compression.type": "producer",
+                    "min.insync.replicas": "2",
+                    "retention.ms": "1209600000",
+                    "segment.bytes": "1073741824"
+                  }
+                },
+                {
+                  "name": "acme-product-engagement-feed",
+                  "partitions": 12,
+                  "replication_factor": 3,
+                  "configurations": {
+                    "cleanup.policy": "delete",
+                    "compression.type": "producer",
+                    "min.insync.replicas": "2",
+                    "retention.ms": "604800000",
+                    "segment.bytes": "1073741824"
+                  }
+                },
+                {
+                  "name": "acme-product-engagement-aggregates",
+                  "partitions": 6,
+                  "replication_factor": 3,
+                  "configurations": {
+                    "cleanup.policy": "delete",
+                    "compression.type": "producer",
+                    "min.insync.replicas": "2",
+                    "retention.ms": "604800000",
+                    "segment.bytes": "1073741824"
+                  }
+                },
+                {
+                  "name": "acme-search-queries",
+                  "partitions": 6,
+                  "replication_factor": 3,
+                  "configurations": {
+                    "cleanup.policy": "delete",
+                    "compression.type": "producer",
+                    "min.insync.replicas": "2",
+                    "retention.ms": "259200000",
+                    "segment.bytes": "1073741824"
+                  }
+                },
+                {
+                  "name": "acme-search-impressions",
+                  "partitions": 6,
+                  "replication_factor": 3,
+                  "configurations": {
+                    "cleanup.policy": "delete",
+                    "compression.type": "producer",
+                    "min.insync.replicas": "2",
+                    "retention.ms": "259200000",
+                    "segment.bytes": "1073741824"
+                  }
+                },
+                {
+                  "name": "acme-funnel-events-raw",
+                  "partitions": 12,
+                  "replication_factor": 3,
+                  "configurations": {
+                    "cleanup.policy": "delete",
+                    "compression.type": "producer",
+                    "min.insync.replicas": "2",
+                    "retention.ms": "604800000",
+                    "segment.bytes": "1073741824"
+                  }
+                },
+                {
+                  "name": "acme-funnel-sessions",
+                  "partitions": 6,
+                  "replication_factor": 3,
+                  "configurations": {
+                    "cleanup.policy": "delete",
+                    "compression.type": "producer",
+                    "min.insync.replicas": "2",
+                    "retention.ms": "604800000",
+                    "segment.bytes": "1073741824"
+                  }
+                },
+                {
+                  "name": "acme-cohort-membership",
+                  "partitions": 6,
+                  "replication_factor": 3,
+                  "configurations": {
+                    "cleanup.policy": "delete",
+                    "compression.type": "producer",
+                    "min.insync.replicas": "2",
+                    "retention.ms": "1209600000",
+                    "segment.bytes": "1073741824"
+                  }
+                },
+                {
+                  "name": "acme-feature-flags-evaluations",
+                  "partitions": 6,
+                  "replication_factor": 3,
+                  "configurations": {
+                    "cleanup.policy": "delete",
+                    "compression.type": "producer",
+                    "min.insync.replicas": "2",
+                    "retention.ms": "259200000",
+                    "segment.bytes": "1073741824"
+                  }
+                },
+                {
+                  "name": "acme-realtime-dashboards-source",
+                  "partitions": 6,
+                  "replication_factor": 3,
+                  "configurations": {
+                    "cleanup.policy": "delete",
+                    "compression.type": "producer",
+                    "min.insync.replicas": "2",
+                    "retention.ms": "172800000",
+                    "segment.bytes": "1073741824"
+                  }
+                },
+                {
+                  "name": "acme-anomaly-detection-input",
+                  "partitions": 6,
+                  "replication_factor": 3,
+                  "configurations": {
+                    "cleanup.policy": "delete",
+                    "compression.type": "producer",
+                    "min.insync.replicas": "2",
+                    "retention.ms": "172800000",
+                    "segment.bytes": "1073741824"
+                  }
+                },
+                {
+                  "name": "acme-anomaly-alerts",
+                  "partitions": 3,
+                  "replication_factor": 3,
+                  "configurations": {
+                    "cleanup.policy": "delete",
+                    "compression.type": "producer",
+                    "min.insync.replicas": "2",
+                    "retention.ms": "604800000",
+                    "segment.bytes": "1073741824"
+                  }
+                },
+                {
+                  "name": "acme-data-quality-reports",
+                  "partitions": 3,
+                  "replication_factor": 3,
+                  "configurations": {
+                    "cleanup.policy": "delete",
+                    "compression.type": "producer",
+                    "min.insync.replicas": "2",
+                    "retention.ms": "1209600000",
+                    "segment.bytes": "1073741824"
+                  }
+                },
+                {
+                  "name": "acme-pipeline-audit-events",
+                  "partitions": 3,
+                  "replication_factor": 3,
+                  "configurations": {
+                    "cleanup.policy": "delete",
+                    "compression.type": "producer",
+                    "min.insync.replicas": "2",
+                    "retention.ms": "2592000000",
+                    "segment.bytes": "1073741824"
+                  }
+                },
+                {
+                  "name": "acme-rollup-hourly",
+                  "partitions": 3,
+                  "replication_factor": 3,
+                  "configurations": {
+                    "cleanup.policy": "delete",
+                    "compression.type": "producer",
+                    "min.insync.replicas": "2",
+                    "retention.ms": "604800000",
+                    "segment.bytes": "1073741824"
+                  }
+                },
+                {
+                  "name": "acme-rollup-daily",
+                  "partitions": 3,
+                  "replication_factor": 3,
+                  "configurations": {
+                    "cleanup.policy": "delete",
+                    "compression.type": "producer",
+                    "min.insync.replicas": "2",
+                    "retention.ms": "2592000000",
+                    "segment.bytes": "1073741824"
+                  }
+                },
+                {
+                  "name": "acme-segmentation-input",
+                  "partitions": 6,
+                  "replication_factor": 3,
+                  "configurations": {
+                    "cleanup.policy": "delete",
+                    "compression.type": "producer",
+                    "min.insync.replicas": "2",
+                    "retention.ms": "604800000",
+                    "segment.bytes": "1073741824"
+                  }
+                },
+                {
+                  "name": "acme-segmentation-output",
+                  "partitions": 3,
+                  "replication_factor": 3,
+                  "configurations": {
+                    "cleanup.policy": "delete",
+                    "compression.type": "producer",
+                    "min.insync.replicas": "2",
+                    "retention.ms": "604800000",
+                    "segment.bytes": "1073741824"
+                  }
+                },
+                {
+                  "name": "acme-personalization-signals",
+                  "partitions": 3,
+                  "replication_factor": 3,
+                  "configurations": {
+                    "cleanup.policy": "delete",
+                    "compression.type": "producer",
+                    "min.insync.replicas": "2",
+                    "retention.ms": "604800000",
+                    "segment.bytes": "1073741824"
+                  }
+                },
+                {
+                  "name": "acme-recommendations-feed",
+                  "partitions": 3,
+                  "replication_factor": 3,
+                  "configurations": {
+                    "cleanup.policy": "delete",
+                    "compression.type": "producer",
+                    "min.insync.replicas": "2",
+                    "retention.ms": "259200000",
+                    "segment.bytes": "1073741824"
+                  }
+                },
+                {
+                  "name": "acme-experiment-exposures",
+                  "partitions": 3,
+                  "replication_factor": 3,
+                  "configurations": {
+                    "cleanup.policy": "delete",
+                    "compression.type": "producer",
+                    "min.insync.replicas": "2",
+                    "retention.ms": "604800000",
+                    "segment.bytes": "1073741824"
+                  }
+                },
+                {
+                  "name": "acme-ab-test-events",
+                  "partitions": 3,
+                  "replication_factor": 3,
+                  "configurations": {
+                    "cleanup.policy": "delete",
+                    "compression.type": "producer",
+                    "min.insync.replicas": "2",
+                    "retention.ms": "604800000",
+                    "segment.bytes": "1073741824"
+                  }
+                }
+              ]
+            },
+            "acls": null,
+            "self_managed_connectors": null
+          },
+          "discovered_clients": []
+        }
+      ]
+    }
+  ],
+  "schema_registries": [],
+  "timestamp": "2026-02-12T11:13:05Z"
+}
