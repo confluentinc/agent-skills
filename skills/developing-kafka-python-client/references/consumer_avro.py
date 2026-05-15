@@ -6,20 +6,31 @@ import signal
 from confluent_kafka import KafkaError
 from confluent_kafka.aio import AIOConsumer
 from confluent_kafka.schema_registry import AsyncSchemaRegistryClient
-from confluent_kafka.schema_registry._async.json_schema import AsyncJSONDeserializer
+from confluent_kafka.schema_registry._async.avro import AsyncAvroDeserializer
 from confluent_kafka.serialization import MessageField, SerializationContext
 
 import common
 
 
-async def create_json_deserializer(sr_url, sr_key, sr_secret):
-    schema_file = os.path.join(os.path.dirname(__file__), "schemas", "value.schema.json")
+async def create_avro_deserializer(sr_url, sr_key, sr_secret):
+    """Create the Avro deserializer.
+
+    AvroDeserializer's positional signature is (schema_registry_client,
+    schema_str=None, ...) — NOT the same as JSONDeserializer. Always pass
+    both as keyword arguments so the call site is identical across formats.
+    Passing schema_str positionally produces:
+        TypeError: AsyncAvroDeserializer.__init_impl() got multiple values
+        for argument 'schema_registry_client'
+    """
+    schema_file = os.path.join(os.path.dirname(__file__), "schemas", "value.avsc")
     with open(schema_file) as f:
         schema_str = f.read()
 
-    sr_conf = {"url": sr_url, "basic.auth.user.info": f"{sr_key}:{sr_secret}"}
+    sr_conf = {"url": sr_url}
+    if sr_key and sr_secret:
+        sr_conf["basic.auth.user.info"] = f"{sr_key}:{sr_secret}"
     sr_client = AsyncSchemaRegistryClient(sr_conf)
-    return await AsyncJSONDeserializer(
+    return await AsyncAvroDeserializer(
         schema_str=schema_str,
         schema_registry_client=sr_client,
     )
@@ -55,7 +66,7 @@ async def consume(consumer, topic, deserializer):
             value = await deserializer(
                 msg.value(), SerializationContext(topic, MessageField.VALUE)
             )
-            print(json.dumps(value))
+            print(json.dumps(value, default=str))
     finally:
         await consumer.unsubscribe()
         await consumer.close()
@@ -76,7 +87,7 @@ async def main():
         raise RuntimeError("Failed to connect to Schema Registry")
     print(f"Connected to Schema Registry ({config['sr_url']})")
 
-    deserializer = await create_json_deserializer(
+    deserializer = await create_avro_deserializer(
         config["sr_url"], config["sr_key"], config["sr_secret"]
     )
 
