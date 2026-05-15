@@ -1,0 +1,69 @@
+# Mock environment for eval 2 (null-vs-empty + Connect inference from internal topics).
+#
+# Two behaviors tested:
+# 1. Connector scan fields are `null` (not `[]`). The skill should report
+#    Row 6 (MSK Connect) and Row 7 (self-managed Connect) as Unknown (scan gap),
+#    NOT Not triggered.
+# 2. sample_internal_topics contains Debezium, MongoDB, and Connect framework
+#    topic names. The skill should walk Row 15 and flag active connector/tooling
+#    activity inferred from these patterns, naming the inferred tools.
+
+source:
+  platform: msk-provisioned
+  cloud_provider: aws
+  region: us-east-1
+  kafka_version: 3.8.x
+  migration_drivers: "Moving off MSK; connector landscape partially unknown."
+  monthly_cost_usd: 42000
+
+clusters:
+  - name: cdc-pipeline
+    broker_count: 6
+    broker_instance_type: kafka.m7g.xlarge
+    availability_zones: [us-east-1a, us-east-1b, us-east-1c]
+    topic_count: 340
+    partition_count_pre_replication: 1840
+    replication_factor: 3
+    peak_ingress_mbps: 96
+    peak_egress_mbps: 78
+    auth_types:
+      - scram
+    network_accessibility: private
+    vpc_topology: single-vpc
+    acl_count: 18
+    acl_source: kafka-acls
+
+    # Sample of internal topic names observed on this cluster.
+    # These are the patterns the skill should inspect for Row 15 (Connect /
+    # tooling activity inferred from internal topic names).
+    sample_internal_topics:
+      - __debezium-heartbeat.pg-orders
+      - __debezium-heartbeat.pg-payments
+      - __debezium-heartbeat.pg-users
+      - __debezium-heartbeat.pg-wallets
+      - __mongodb_heartbeats
+      - connect-offsets
+      - connect-status
+      - connect-configs
+      - __consumer_offsets
+      - __amazon_msk_canary
+
+schema_registry:
+  type: confluent-sr
+  subject_count: 120
+
+connectors:
+  # IMPORTANT: these are explicitly null (not 0, not []) to simulate the
+  # case where the connector scan did not run. The skill should report
+  # Rows 6 and 7 as Unknown (scan gap), not Not triggered.
+  msk_connect_count: null
+  self_managed_connect_count: null
+  connector_types: null
+
+downstream:
+  tableflow_planned: null
+  flink_planned: null
+  lakehouse_planned: null
+
+known_gaps:
+  - "connector scan did not run — fields are null. Row 15 signals suggest active connector/tooling activity that needs re-scanning."
