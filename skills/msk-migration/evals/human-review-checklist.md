@@ -100,3 +100,13 @@ Pair this checklist with `evals.json` — `evals.json` covers artifact-grounded 
 
 - [ ] **Per-connector table reads as actionable.** The per-connector table presents a clear path per connector (CMU + kcp create-asset for available, defer to account team for not-available). The table does not blur into a generic "use CMU for all MSK Connect connectors" recommendation that ignores per-connector classification.
 - [ ] **Substitution-nuance handoff to account team lands specifically.** When a connector requires substitution-specific guidance (e.g., Debezium 1.x → V2 config key differences), the handoff to the Confluent account team is concrete — citing the specific substitution issue if known — rather than a generic "talk to Sales" punt. The third row of the per-connector table should differentiate substitution-nuance cases from straight CC-equivalent or no-equivalent cases.
+
+## Eval 22 — networking-pni-default
+
+- [ ] **PNI-default framing reads as Confluent best practice, not an arbitrary flip.** The Plan presents PNI as the recommended default for AWS-to-AWS private migrations, with the cost reasoning (cross-AZ traffic vs data processing + hourly endpoint fees) cited as the rationale. A reader should understand WHY PNI is preferred, not just that the skill prefers it.
+- [ ] **Three citable PrivateLink exceptions cleanly distinguished from deferral cases.** The Plan distinguishes the three publicly cited exceptions (cc_egress_required, gateway limit reached, non-AWS target) from the deferral-to-account-team cases (compliance, organizational policy, latency-sensitivity, substrate constraints). A reader can tell which path applies to their situation without rereading paragraphs.
+
+## Eval 23 — cl-direction-source-initiated
+
+- [ ] **CL Direction section conveys reachability as the determinant.** The section helps the reader understand that direction is determined by network reachability (whether CC can reach MSK from the chosen target networking VPC), not by customer preference or convenience. Direction reads as a derived outcome of a cascade, not as a configuration choice the customer makes independently.
+- [ ] **Manual-setup callout for source-initiated is actionable, not a buried handoff.** When the Plan emits source-initiated CL direction, the customer-owned manual-setup step is clearly stated with a path to the right doc (private-networking.html). A customer reading the Plan should understand: (1) what they need to do (establish the link manually before KCP migration commands resume), (2) where to look (private-networking.html), and (3) what's permanent (link.mode=SOURCE cannot be changed after the link is created).

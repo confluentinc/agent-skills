@@ -106,6 +106,16 @@ downstream:
   flink_planned: null
   lakehouse_planned: null
 
+# Target-side context — populated during Plan stage, not Assess. Captures
+# facts about the planned CC environment that cannot be derived from source
+# data alone. Drives Plan-stage cascade decisions for networking, CL
+# direction, auth target, schema linking viability, and historical-data
+# handling. Future B-tier items add to this section (target_identity_model,
+# source_sr_can_push_to_cc_sr, consumer_history_requirement).
+target_context:
+  cc_reaches_source: null  # true | false | unknown. Whether CC will have a network path to MSK bootstrap brokers. Populated by Plan-stage cascade from target_networking recommendation. Auto-derived for VPC peering / TGW / Public-with-MSK-public / Public-with-MSK-private cases; asked of the customer only when target_networking is PrivateLink or PNI. Drives CL direction: true → destination-initiated; false → source-initiated.
+  cc_egress_required: null  # true | false | unknown. Whether CC managed connectors or other CC workloads need to reach customer-side network resources (e.g., customer-hosted databases). Asked at Plan stage when target_cloud is AWS — drives PNI vs PrivateLink default. Affects PNI viability per aws-pni.html (PNI doesn't yet support egress).
+
 # Plan-stage decisions (filled during Plan)
 plan:
   target_cluster_type: null  # enterprise | dedicated

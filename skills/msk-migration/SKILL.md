@@ -146,18 +146,42 @@ Note: Incremental + Manual CL is technically possible but operationally heavy wi
 
 **Zero-Cut prerequisites — fetch live.** Required components (Kubernetes distribution, CP licensing, CL state, minimum KCP version, auth compatibility) evolve as Zero-Cut matures. Fetch the current prerequisite list from the [KCP zero-cut guide](https://confluentinc.github.io/kcp/latest/getting-started-with-zero-cut-migrations/) before telling a user whether Zero-Cut fits. Do not rely on cached prerequisites.
 
+### Cluster Linking direction
+
+Cluster Linking direction is set via the `link.mode` config property ([cluster-links-cc.html](https://docs.confluent.io/cloud/current/multi-cloud/cluster-linking/cluster-links-cc.html)): `DESTINATION` (default) or `SOURCE` (source-initiated). **Direction cannot be changed after the link is created** — one-time decision. Bidirectional mode exists but is for active-active scenarios, not migration; the skill does not surface it as a migration option.
+
+Direction is determined by reachability, derived from the `target_networking` recommendation. The skill only asks the customer when the recommendation doesn't determine reachability on its own.
+
+| `target_networking` recommendation | Reachability | Direction | Setup path |
+|---|---|---|---|
+| VPC peering | CC → MSK enabled by the recommendation | Destination-initiated (default) | KCP orchestrates link setup as part of `kcp migration init`. |
+| Transit Gateway | CC → MSK enabled (assumes MSK on the TGW) | Destination-initiated (default) | KCP orchestrates. |
+| PrivateLink | Depends on PrivateLink VPC's route to MSK VPC | Ask `target_context.cc_reaches_source`; derive accordingly | Destination-initiated if true; source-initiated if false. |
+| PNI | Depends on PNI VPC's route to MSK VPC | Ask `target_context.cc_reaches_source`; derive accordingly | Destination-initiated if true; source-initiated if false. |
+| Public + MSK public | CC reaches MSK over public endpoint | Destination-initiated (default) | KCP orchestrates. |
+| Public + MSK private | CC cannot reach private MSK from public boundary | Source-initiated (`link.mode=SOURCE`) | Customer must establish the source-initiated link manually per [private-networking.html](https://docs.confluent.io/cloud/current/multi-cloud/cluster-linking/private-networking.html) before KCP migration commands resume. KCP does not orchestrate source-initiated link creation. |
+
+When `target_context.cc_reaches_source` is needed but unknown, default to destination-initiated as a working assumption and flag as an Open Question to close before Provision.
+
+Source-initiated has different infrastructure prereqs and auth surface. Non-default modes (`SOURCE`, `BIDIRECTIONAL`) are CLI/API only — no Cloud Console support. Verify current requirements live against [private-networking.html](https://docs.confluent.io/cloud/current/multi-cloud/cluster-linking/private-networking.html) and [cluster-links-cc.html](https://docs.confluent.io/cloud/current/multi-cloud/cluster-linking/cluster-links-cc.html) before committing the Technical Plan.
+
 ### Networking selection
+
+For private AWS-to-AWS migrations, **PNI is the recommended default** (cost-preferred when prereqs are met — PNI charges only for cross-AZ traffic, while PrivateLink adds data processing fees and hourly endpoint fees). The Plan flips to PrivateLink when one of three citable exceptions applies: CC egress is required, the PNI gateway limit is reached, or the target cloud is Azure/GCP (PNI is AWS-only).
 
 | Source Accessibility | Target Cloud | CC Networking | Cluster Type |
 |---|---|---|---|
-| Private (VPC-internal) | AWS | PrivateLink | **Enterprise** |
-| Private (VPC-internal), larger eCKU projected | AWS | PNI | **Enterprise** |
-| Private (VPC-internal) | Azure / GCP | PrivateLink | **Enterprise** |
+| Private (VPC-internal) | AWS | **PNI** (default — cost-preferred when prereqs met) | **Enterprise** |
+| Private (VPC-internal) + CC egress required (`target_context.cc_egress_required: true`) | AWS | PrivateLink (+ Egress PrivateLink for outbound) | **Enterprise** |
+| Private (VPC-internal) + PNI gateway limit reached (≥2 PNI gateways in environment) | AWS | PrivateLink | **Enterprise** |
+| Private (VPC-internal) | Azure / GCP | PrivateLink (PNI not available) | **Enterprise** |
 | Private (multi-VPC, hub-and-spoke) | AWS | Transit Gateway | Dedicated |
 | Private (direct VPC peering existing) | AWS / Azure / GCP | VPC Peering | Dedicated |
 | Public | Any | Public endpoint | Enterprise (non-prod only) |
 
-Networking feature availability changes over time. Use [cluster-types.html](https://docs.confluent.io/cloud/current/clusters/cluster-types.html) and release notes as the source of truth.
+PNI prerequisites and egress limitations: see [aws-pni.html](https://docs.confluent.io/cloud/current/networking/aws-pni.html) for current customer-side setup (ENI count, network interface permissions) and the egress-not-yet-supported constraint. PNI cap and gateway limit: same doc. Networking feature availability by cluster type: [networking/overview.html](https://docs.confluent.io/cloud/current/networking/overview.html) + [cluster-types.html](https://docs.confluent.io/cloud/current/clusters/cluster-types.html).
+
+Compliance, organizational-policy, latency-sensitivity, or substrate-constraint cases that fall outside the three citable exceptions are not published as structured Confluent doc — defer to the Confluent account team.
 
 ## Environment Profile
 
@@ -231,6 +255,8 @@ The skill encodes judgment, not product facts. Decision frameworks, trigger cate
 | Gateway auth-swap scenarios (source-auth × target-auth matrix) | [KCP Gateway Switchover hub](https://confluentinc.github.io/kcp/latest/gateway-switchover/) — 8 documented scenarios (none/mTLS/SCRAM source × SASL-PLAIN/OAuth/mTLS target). Hub-page note: meta-refresh redirect; navigate from hub to specific scenario pages. | Auth target derivation in Plan stage; any question about specific source → target auth migration through Gateway |
 | Cluster types, eCKU caps, per-eCKU throughput, partition rates, REST throughput, SLA | [cluster-types.html](https://docs.confluent.io/cloud/current/clusters/cluster-types.html) | Plan; whenever capacity, throughput, or partitioning matters |
 | Cluster Linking source requirements and compatibility | [cluster-linking docs](https://docs.confluent.io/cloud/current/multi-cloud/cluster-linking) | Any CL-related question or version compatibility check |
+| Cluster Linking direction config (`link.mode`: DESTINATION default, SOURCE source-initiated, BIDIRECTIONAL active-active) | [cluster-links-cc.html](https://docs.confluent.io/cloud/current/multi-cloud/cluster-linking/cluster-links-cc.html) | CL Direction sub-table cascade; whenever Plan emits a source-initiated direction |
+| Source-initiated Cluster Linking for private-to-public scenarios (customer-side link setup, KCP doesn't orchestrate) | [private-networking.html](https://docs.confluent.io/cloud/current/multi-cloud/cluster-linking/private-networking.html) | Whenever `target_context.cc_reaches_source: false` triggers source-initiated CL |
 | Manual CL-based migration flow (big-bang fallback when Zero-Cut prereqs not met) | [migrate-cc.html](https://docs.confluent.io/cloud/current/multi-cloud/cluster-linking/migrate-cc.html) | Switchover; whenever the Plan emits a Big-bang + Manual CL cell or otherwise needs to describe the manual-CL cutover flow |
 | CC authentication options and CL auth compatibility | [authenticate docs](https://docs.confluent.io/cloud/current/security/authenticate) | Auth mapping for each source auth type |
 | mTLS availability by cloud | [mTLS overview](https://docs.confluent.io/cloud/current/security/authenticate/workload-identities/identity-providers/mtls/overview.html) and CC release notes | mTLS + Azure/GCP questions |
@@ -239,6 +265,8 @@ The skill encodes judgment, not product facts. Decision frameworks, trigger cate
 | Connector catalog (managed connector availability) | [connectors docs](https://docs.confluent.io/cloud/current/connectors) | Connector migration path decisions |
 | CMU usage | [github.com/confluentinc/connect-migration-utility](https://github.com/confluentinc/connect-migration-utility) | Self-managed or MSK Connect connector migration |
 | CC networking availability by cluster type | docs.confluent.io networking + cluster-types.html | Networking selection |
+| Networking option availability by cloud + cluster type (PNI / PrivateLink / Peering / TGW) | [networking/overview.html](https://docs.confluent.io/cloud/current/networking/overview.html) | Networking selection; B6 PNI-default cascade |
+| PNI specifics (cluster types, customer-side ENI setup, egress limitation, gateway limit of 2 per environment) | [aws-pni.html](https://docs.confluent.io/cloud/current/networking/aws-pni.html) | Whenever PNI is recommended or a PrivateLink exception case is being evaluated |
 | Terraform provider resource schemas | [registry.terraform.io/providers/confluentinc/confluent](https://registry.terraform.io/providers/confluentinc/confluent) | Any Terraform generation or review |
 
 Hardcoded values in this skill are labeled explicitly. The HARDCODED protocol in the hard-limits section applies: fetch the cited source each session, detect drift, prefer the live value if found.
