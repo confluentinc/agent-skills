@@ -5,191 +5,227 @@
       "id": 1,
       "slug": "kcp-fresh-start",
       "prompt": "we haven't started — ready to migrate off msk to confluent cloud. let's try kcp.",
-      "expected_output": "Skill introduces what KCP is before first use, presents the 6-step scan sequence, and asks before running any command (doesn't auto-execute bash).",
+      "expected_output": "Skill introduces what KCP is before first use and presents the 6-step scan sequence in the response. Behavioral checks (introduces KCP on first mention, does not auto-execute bash) are in `human-review-checklist.md`.",
       "files": [],
       "assertions": [
-        {"name": "Introduces KCP on first mention", "description": "When KCP first comes up, the skill should briefly explain what it is: Confluent's open-source migration tool, link to github.com/confluentinc/kcp, and its purpose in the migration context. Should not assume the user knows what KCP is."},
-        {"name": "Presents the scan sequence before running anything", "description": "Should show the 6-step KCP scan sequence (discover, scan clusters, scan schema-registry, scan client-inventory, report metrics, report costs) with essential/optional markings, before any command runs."},
-        {"name": "Does not auto-execute bash commands", "description": "Should not run `kcp --version`, `kcp version`, or any bash command on its own. Per the command-execution principle, the skill either asks the user to run the command and share output, or explicitly asks whether the user wants the skill to run it."}
+        {"name": "Response contains all 6 KCP scan step names", "description": "Response contains all of the following substrings: 'discover', 'scan clusters', 'scan schema-registry', 'scan client-inventory', 'report metrics', 'report costs'."}
+      ]
+    },
+    {
+      "id": 2,
+      "slug": "plan-scram-baseline",
+      "prompt": "Here's my migration profile. Write the Plan to a file.",
+      "expected_output": "Full Plan per the 13-section template on a clean SCRAM-only single-cluster baseline. Recommends Enterprise cluster type, sizing produces concrete eCKU values with computation visible, tables in standardized formats. Common-case baseline. Negative behavioral checks (does not claim a hard-limit trigger, does not recommend IAM/mTLS without basis) are in `human-review-checklist.md`.",
+      "files": ["mock-environments/msk-provisioned-scram/migration-profile.yaml"],
+      "assertions": [
+        {"name": "Plan contains 13 numbered sections", "description": "Output contains 13 numbered, headed sections (in addition to any conditional sections like Tiered Storage)."},
+        {"name": "Section headers appear in canonical order", "description": "Section headers, in order, are: Header, Inputs & Default Assumptions, Summary, Source Environment, Sizing, Cluster Type Decision, Networking Decision, Auth Approach, Switchover Approach, Pre-Migration Workstream, Risks, Open Questions, Next Step."},
+        {"name": "Cluster Type Decision names 'Enterprise' as the recommended target", "description": "Cluster Type Decision section contains the substring 'Enterprise' as the recommended cluster type. The substring 'Dedicated' does not appear as the recommended target (it may appear in passing reference like 'no triggers escalating to Dedicated', which is acceptable)."},
+        {"name": "Cluster table uses standardized 8-column format", "description": "Cluster table contains 8 columns per the canonical template in references/plan.md: Cluster | Brokers × Instance | Kafka | Topics user+internal=total | Partitions user+internal=total | P95 In/Out MBps | Peak In/Out MBps | Tiered GB. Header row contains 8 pipe-separated column labels."},
+        {"name": "Sizing table rows show division computation", "description": "Each non-header data row of the Sizing table contains at least one '÷' or '/' character, showing the per-eCKU division for the first three columns (P95 In ÷ per-eCKU-in, P95 Out ÷ per-eCKU-out, User Partitions ÷ per-eCKU-partition-rate)."},
+        {"name": "Sizing table uses 7-column format", "description": "Sizing table header row contains 7 pipe-separated column labels matching the Capacity Sizing Procedure: P95 In ÷ per-eCKU-in, P95 Out ÷ per-eCKU-out, User Partitions ÷ per-eCKU-partition-rate, Max, +Headroom, Verdict."},
+        {"name": "Risks table uses 3-column format", "description": "Risks table header row contains exactly 3 pipe-separated column labels: Risk, Severity, Mitigation."},
+        {"name": "Auth Approach names a SCRAM-compatible CC target", "description": "Auth Approach section contains at least one of the following substrings as the recommended CC target: 'SCRAM-SHA-512', 'SCRAM-SHA-256', 'SCRAM', or 'API key' (or 'API keys')."},
+        {"name": "Connector approach names the source MSK Connect connector types", "description": "Pre-Migration Workstream, Risks, or a dedicated Connectors section contains at least one of the following substrings: 's3-sink', 'debezium-postgres', 'MSK Connect', or 'managed connector'."}
       ]
     },
     {
       "id": 3,
       "slug": "dedicated-large-fleet",
       "prompt": "We run MSK Provisioned with a large fleet and high peak ingress. What target cluster type should we use?",
-      "expected_output": "Skill escalates to Dedicated only when a hard-limit trigger fires, names the specific trigger from the state file, and routes the user to live docs for current caps. Does not over-escalate dimensions that aren't triggered.",
+      "expected_output": "Skill escalates to Dedicated only when a hard-limit trigger fires, names the specific trigger from the state file, and routes the user to live docs for current caps. Behavioral checks (over-escalation, escalation-without-trigger) are in `human-review-checklist.md`.",
       "files": ["mock-environments/msk-provisioned-large/migration-profile.yaml"],
       "assertions": [
-        {"name": "Escalates to Dedicated with a cited trigger", "description": "Should recommend Dedicated because the projected workload exceeds the Enterprise eCKU cap. The trigger should be named specifically (which Row from the hard-limits table, which field in the profile, which computed value exceeded the cap)."},
-        {"name": "Routes to live docs for current caps", "description": "Should direct the user to cluster-types.html for current per-eCKU values and Enterprise cap, rather than asserting specific numbers from memory."},
-        {"name": "Does not over-escalate dimensions that aren't triggered", "description": "Should not recommend changes to auth, networking, SR, or other dimensions beyond what the profile's hard-limit triggers require. A Dedicated escalation for capacity should not pull along unrelated recommendations."},
-        {"name": "Does not escalate without a trigger", "description": "If another cluster in the same profile does not trigger any hard-limit row, the skill should keep it on Enterprise. Dedicated escalation should be per-trigger, not a blanket recommendation."}
+        {"name": "Recommends Dedicated and names a specific trigger", "description": "Response contains 'Dedicated' as the recommended target AND contains at least one of the following trigger indicators: 'Row 1', 'Row 2', 'Row 3', 'Row 4', 'Row 5', 'Row 6', 'Row 7', 'Row 8', 'Row 9', 'Row 10', 'eCKU cap', 'partition cap', 'ingress cap', 'egress cap', or a specific profile field name (e.g., 'peak_ingress_mbps', 'partition_count_pre_replication') that exceeded the cap."},
+        {"name": "Routes to live docs for current caps", "description": "Response contains a URL substring matching 'cluster-types.html' (the Confluent docs page for per-eCKU values and Enterprise cap)."}
       ]
     },
     {
       "id": 4,
       "slug": "intake-triage",
       "prompt": "we want to migrate off msk to confluent cloud",
-      "expected_output": "Skill triages the request. Either opens with the Mode Detection stage menu (the skill's documented routing for generic-intent prompts), OR presents the two V1 intake options (KCP CLI scan + Manual intake) — both are valid paths. Asks what the user has, and doesn't fabricate environment details.",
+      "expected_output": "Skill triages the request. The response names at least one of the canonical intake paths so the user knows what is available. Behavioral checks (does not assume path, does not fabricate, asks what the user has) are in `human-review-checklist.md`.",
       "files": [],
       "assertions": [
-        {"name": "Does not assume an intake path", "description": "Should not dive into architecture recommendations, stage execution, or environment assumptions without first establishing what the user has."},
-        {"name": "Routes via stage menu OR presents intake options", "description": "Either (a) opens with the Mode Detection stage menu (Assess / Plan / Provision / Migrate / Switchover / Cutover / Decommission) so the user can signal stage before intake-path selection — the skill's documented routing for generic-intent prompts — OR (b) offers KCP deep scan and Manual intake as the two intake options. Both responses are valid; the assertion fails only if the skill jumps past both into architecture, sizing, or fabricated environment claims."},
-        {"name": "Asks what the user has", "description": "Should ask either where the user is in the migration (stage signal) or which intake the user is able to produce, rather than recommend a path before knowing."},
-        {"name": "Does not fabricate environment details", "description": "Should not invent cluster configurations, auth types, region, or scale assumptions to keep the conversation moving."}
+        {"name": "Response names at least one canonical intake path", "description": "Response contains at least one of the following substrings: 'Mode Detection', 'Assess', 'KCP', 'kcp', 'manual intake', 'migration-profile.yaml'."}
       ]
     },
     {
       "id": 5,
       "slug": "manual-no-kcp",
       "prompt": "I don't have KCP installed and I can't run it against this AWS account. Walk me through manually. My environment: 2 MSK Provisioned clusters in us-east-1. I don't know the exact throughput numbers off the top of my head.",
-      "expected_output": "Skill uses the migration-profile.yaml template, walks the 11 intake question groups in order, records 'I don't know' as a known gap without fabricating, and produces a populated (possibly gappy) profile usable by downstream stages.",
+      "expected_output": "Skill uses the migration-profile.yaml template, records 'I don't know' as a known gap without fabricating, and produces a populated (possibly gappy) profile usable by downstream stages. Behavioral check (walks 11 intake groups in order) is in `human-review-checklist.md`.",
       "files": [],
       "assertions": [
-        {"name": "Uses the assets/migration-profile.yaml template", "description": "Should reference or open the template file rather than improvising its own YAML structure. The template is the canonical schema for manual intake."},
-        {"name": "Walks the 11 intake groups in order", "description": "Should proceed through the intake groups (platform, cluster topology, scale, auth, networking, ACLs, Schema Registry, connectors, Kafka version, costs, migration drivers) in order rather than jumping around based on what the user mentioned first."},
-        {"name": "Records 'I don't know' as a known gap", "description": "When the user answers 'I don't know' (as with throughput), the skill should record this as a known gap in the profile's known_gaps field, not invent plausible values."},
-        {"name": "Produces a populated profile at the end", "description": "The output should be a populated migration-profile.yaml (even if sparse) that can feed the Plan stage. Same downstream role as a KCP state file, just less detailed."}
+        {"name": "Produced YAML matches the template schema", "description": "Produced YAML file contains the canonical template's top-level keys: at minimum `source` and `clusters`. Keys `schema_registry`, `connectors`, `downstream` may be present or omitted as the user information supports. Improvised YAML structures that omit `source` or `clusters` fail."},
+        {"name": "Records throughput gap in known_gaps", "description": "Produced YAML contains a `known_gaps` field with at least one entry whose value or key references 'throughput', 'ingress', 'egress', or 'mbps'. Does not contain fabricated numeric values for peak_ingress_mbps or peak_egress_mbps (both should be null or absent)."},
+        {"name": "Profile file exists at expected path", "description": "A `.yaml` or `.yml` file is produced in the run's output directory. File exists per filesystem check."},
+        {"name": "Profile YAML parses without errors", "description": "The produced YAML file loads via a standard YAML parser without syntax errors."},
+        {"name": "Profile populates 3 explicit user-stated fields", "description": "Produced YAML contains: `source.platform` set to 'msk-provisioned' (or equivalent like 'MSK Provisioned'), `source.region` set to 'us-east-1', and a `clusters` list with length 2."}
+      ]
+    },
+    {
+      "id": 6,
+      "slug": "plan-multi-region-mixed-auth",
+      "prompt": "Here's my migration profile. Write the Plan to a file.",
+      "expected_output": "Full Plan per the 13-section template covering three clusters across us-east-1 (SCRAM), us-west-2 (mTLS), and eu-west-1 (IAM). Plan addresses multi-region target topology, three distinct auth-migration paths, and per-cluster sizing.",
+      "files": ["mock-environments/multi-cluster-mixed/migration-profile.yaml"],
+      "assertions": [
+        {"name": "Plan contains 13 numbered sections", "description": "Output contains 13 numbered, headed sections (in addition to any conditional sections like Tiered Storage)."},
+        {"name": "Section headers appear in canonical order", "description": "Section headers, in order, are: Header, Inputs & Default Assumptions, Summary, Source Environment, Sizing, Cluster Type Decision, Networking Decision, Auth Approach, Switchover Approach, Pre-Migration Workstream, Risks, Open Questions, Next Step."},
+        {"name": "Cluster table contains all three cluster names", "description": "Cluster table contains all three cluster name substrings: 'cluster-a-east', 'cluster-b-west', and 'cluster-c-eu'. Table header has 8 pipe-separated column labels."},
+        {"name": "Sizing table produces per-cluster eCKU verdicts", "description": "Sizing table has 3 non-header data rows (one per cluster). Each row contains at least one numeric verdict value in the Verdict column. Each row contains at least one '÷' or '/' character showing the per-eCKU division."},
+        {"name": "Auth Approach contains all three source auth type names", "description": "Auth Approach section contains all three of the following substrings (case-insensitive): 'SCRAM', 'mTLS' (or 'mtls'), and 'IAM' (or 'iam'). Each appears in the context of a target CC auth recommendation."},
+        {"name": "Networking Decision contains all three source region names", "description": "Networking Decision section contains all three of the following substrings: 'us-east-1', 'us-west-2', and 'eu-west-1'."},
+        {"name": "Risks table contains a multi-region entry", "description": "Risks table contains at least one non-header row whose Risk column text contains one of: 'multi-region', 'cross-region', 'regional', 'replication', or 'sequencing'."},
+        {"name": "Plan contains a docs.confluent.io URL for per-region availability", "description": "Plan contains at least one substring matching 'docs.confluent.io' (URL to live Confluent Cloud docs for feature availability)."}
       ]
     },
     {
       "id": 8,
       "slug": "out-of-scope-baremetal",
       "prompt": "I'm migrating from self-managed Kafka on bare metal to Confluent Cloud. Can you help?",
-      "expected_output": "Skill enforces its MSK-only scope, declines the workflow, redirects to a real existing resource (Confluent docs or account team), and does not fabricate a path forward.",
+      "expected_output": "Skill enforces its MSK-only scope and redirects to a real existing resource. Behavioral checks (recognizes out-of-scope, declines workflow, does not map non-MSK concepts) are in `human-review-checklist.md`.",
       "files": [],
       "assertions": [
-        {"name": "Recognizes out-of-scope source", "description": "Should identify that self-managed Kafka is outside this skill's MSK-only scope."},
-        {"name": "Declines to run the workflow", "description": "Should not proceed with the MSK migration workflow against a non-MSK source."},
-        {"name": "Does not map non-MSK concepts onto MSK primitives", "description": "Should not ask for ARNs, CloudWatch access, Glue SR config, or other MSK-specific artifacts as if they applied to a bare-metal source."},
-        {"name": "Redirects to a real existing resource without inventing capabilities", "description": "When declining, should point the user to a real, existing resource — Confluent docs (docs.confluent.io), the Confluent account team, or Confluent Sales — rather than fabricate a sibling skill, internal tool, partner program, or any other capability not documented in SKILL.md or its references. Naming a non-existent skill family or pretending an unwritten OSK-migration skill exists fails the assertion."}
+        {"name": "Response names a real existing resource from the allowlist", "description": "Response contains at least one of the following substrings: 'docs.confluent.io', 'Confluent account team', 'account team', or 'Confluent Sales'."}
       ]
     },
     {
       "id": 9,
       "slug": "mtls-azure-availability",
       "prompt": "Our MSK cluster uses mTLS authentication and we want to land on Confluent Cloud in Azure. What cluster type should we use?",
-      "expected_output": "Skill routes the user to live feature-availability docs. Does not assert cloud-availability state that may change. Avoids date-stamped claims.",
+      "expected_output": "Skill routes to live feature-availability docs and avoids date-stamped or definitive availability claims. Behavioral check (consults the feature-availability reference) is in `human-review-checklist.md`.",
       "files": [],
       "assertions": [
-        {"name": "Consults the feature-availability reference", "description": "Should route the user to the live docs page for the feature rather than assert current availability from general knowledge."},
-        {"name": "Avoids temporal claims", "description": "Should not date-stamp availability claims (e.g., 'as of Q1 2026') that will decay."},
-        {"name": "Conditions the recommendation on availability", "description": "Should express the cluster-type implication as conditional on what the user finds in the linked docs, rather than a definitive claim."}
+        {"name": "Response contains no date-stamped availability claims", "description": "Response does not contain substrings matching any of the following patterns (regex): `as of Q[1-4] 20[0-9]{2}`, `as of (January|February|March|April|May|June|July|August|September|October|November|December) 20[0-9]{2}`, or `as of 20[0-9]{2}`."},
+        {"name": "Routes to live source for cluster-type recommendation", "description": "Response contains a substring matching 'docs.confluent.io' within 200 characters of the cluster-type recommendation. The user-protection intent is to keep the user routed to an authoritative live source for a frequently-changing fact (cloud-feature GA), rather than asserting availability from training data. A definitive recommendation grounded in a live-cited doc satisfies this; a hedged recommendation with no doc URL does not."}
       ]
     },
     {
       "id": 10,
       "slug": "pricing-scope",
       "prompt": "What will this migration cost us on Confluent Cloud?",
-      "expected_output": "Skill enforces pricing scope boundary, declines dollar figures, and routes to the public cost estimator as the Sales handoff.",
+      "expected_output": "Skill declines dollar figures and routes to the public cost estimator. Behavioral checks (Sales-handoff framing, no cost computation from scan data) are in `human-review-checklist.md`.",
       "files": [],
       "assertions": [
-        {"name": "Declines to produce a dollar figure", "description": "Should not generate or estimate a dollar cost, TCO, or savings claim."},
-        {"name": "Routes to the public cost estimator", "description": "Should direct the user to the public cost estimator form as the intake path for pricing."},
-        {"name": "Frames as Sales handoff, not skill limitation", "description": "Should explain that pricing is handled via Sales by design, not that the skill lacks the data."},
-        {"name": "Does not attempt to compute cost from scan data", "description": "Should not combine scan outputs with pricing guesses to produce a synthetic estimate."}
+        {"name": "Response contains no dollar-figure cost claim", "description": "Response does not contain substrings matching the regex `\\$[0-9,]+` presented as a cost estimate. Acceptable: response containing '$' only as part of URLs or escaped strings, not as a dollar figure."},
+        {"name": "Response routes to the public cost estimator", "description": "Response contains at least one of the following substrings: 'cost estimator', 'pricing form', 'pricing page', or a URL matching 'confluent.io' that includes 'cost', 'pricing', or 'estimator' in the path."}
       ]
     },
     {
       "id": 11,
       "slug": "connector-decision",
       "prompt": "we have 12 msk connect connectors, 3 are custom plugins. how do we migrate the connect layer?",
-      "expected_output": "Skill surfaces the managed-vs-self-managed decision rather than picking one, asks the right inputs, and consults the connector reference.",
+      "expected_output": "Skill surfaces the managed-vs-self-managed decision and flags custom-plugin implications. Behavioral checks (surfaces decision rather than picking blindly, asks clarifying questions, consults the connector reference) are in `human-review-checklist.md`.",
       "files": [],
       "assertions": [
-        {"name": "Surfaces the decision rather than picking blindly", "description": "Should treat managed-vs-self-managed as a decision the user needs to make, not commit to one without input."},
-        {"name": "Asks clarifying questions", "description": "Should ask whether a managed equivalent exists on Confluent Cloud for each connector type, whether source code is available for the custom plugins, and what throughput needs are."},
-        {"name": "Consults the connector reference", "description": "The decision framework should trace to the references, not be improvised in the response."},
-        {"name": "Flags custom-plugin implications", "description": "Should note that custom plugins may force a self-managed path regardless of the user's preference, rather than assume all connectors can go managed."}
+        {"name": "Response notes custom-plugin path constraint", "description": "Response contains the substring 'custom plugin' or 'custom plugins' AND at least one of: 'self-managed', 'no managed equivalent', 'cannot go managed', 'force self-managed', 'managed connector not available', or 'requires self-managed Connect'."}
       ]
     },
     {
       "id": 12,
       "slug": "assess-serverless",
       "prompt": "Here's my profile. Walk me through the assessment.",
-      "expected_output": "Full Assess pass on a serverless cluster. Skill walks the 16-row checklist, correctly handles the serverless-specific ACL scan skip (expected KCP behavior, not a scan gap), notes the limited-metrics shape of serverless state files, and still flags IAM authorization as migration-relevant.",
+      "expected_output": "Full Assess pass on a serverless cluster. Skill walks the 16-row checklist, correctly handles the serverless-specific ACL scan skip, notes the limited-metrics shape of serverless state files, and flags IAM authorization. Behavioral check (does not fabricate throughput values) is in `human-review-checklist.md`.",
       "files": ["mock-environments/msk-acme-serverless/state.json"],
       "assertions": [
-        {"name": "Walks all 16 Red Flags in order", "description": "Should include the full Red Flags section walking rows 1–16 with a Triggered / Not triggered / Unknown status for each row, the same as any other Assess pass. Does not skip rows just because the source is serverless."},
-        {"name": "Row 9 not flagged as scan gap on serverless", "description": "The mock has `acl_count: null` on a serverless cluster. The skill must recognize that MSK Serverless does not support the Kafka Admin API and KCP deliberately skips the ACL scan. `acls: null` is expected by design. Row 9 should be reported as Not triggered or noted as 'N/A — serverless ACL scan intentionally skipped by KCP', NOT as Unknown (scan gap)."},
-        {"name": "Does not recommend re-running the ACL scan for serverless", "description": "Pre-migration recommendations should not include 'run `kcp scan clusters` with credentials to populate ACLs' for this cluster. No scan the user runs will populate the field — it's a documented KCP behavior, not missing data."},
-        {"name": "Flags IAM authorization separately from ACL scan", "description": "IAM policy → CC RBAC migration still applies to serverless. The skill should flag `kcp create-asset migrate-acls iam` as the authz migration path based on IAM being enabled, independent of the Kafka ACL scan being skipped."},
-        {"name": "Notes serverless-specific metrics gap without fabricating values", "description": "The mock has `peak_ingress_mbps: null` and `peak_egress_mbps: null` — serverless returns limited metrics. The skill should acknowledge this gap in the Scan Coverage or Environment Summary rather than invent throughput numbers or silently pass over the missing fields."},
-        {"name": "Produces the standard Environment Summary and handoff prompt", "description": "Standard Assess output structure applies — Scan Coverage, Environment Summary with user + internal = total counts where available, Red Flags, Additional Observations, Open Questions, and the canonical 'Ready to move to Plan?' handoff."}
+        {"name": "Output contains 16 Red Flag rows in canonical order", "description": "Red Flags section contains 16 row entries. Rows appear in numeric order from 1 to 16, each with a status of Triggered, Not triggered, or Unknown."},
+        {"name": "Row 9 status is Not triggered or N/A on serverless", "description": "Row 9 entry contains 'Not triggered' OR 'N/A' as the status. Row 9 entry does NOT contain 'Unknown' as the status. Row 9 entry contains at least one of: 'serverless', 'Kafka Admin API', 'KCP deliberately', 'intentionally skipped'."},
+        {"name": "Output does not recommend re-running ACL scan for serverless", "description": "Output does not contain the substring 'run `kcp scan clusters`' or 'kcp scan clusters' in a pre-migration recommendation context. Pre-Migration Workstream and Recommendations sections contain no instruction to populate ACLs via re-scanning this serverless cluster."},
+        {"name": "Output names the IAM authz migration command", "description": "Output contains the substring 'kcp create-asset migrate-acls iam' (or equivalent string naming the IAM authz migration path)."},
+        {"name": "Output names the limited-metrics gap", "description": "Scan Coverage or Environment Summary section contains at least one of: 'peak_ingress_mbps null', 'peak_egress_mbps null', 'limited metrics', 'serverless returns limited', 'metrics gap', 'serverless metrics', 'metrics.results == []', 'metrics scan didn\\'t run', 'kcp report metrics did not run', or 'measured CloudWatch peaks'. State.json-sourced Assess uses the latter four phrasings; manual-profile-sourced Assess uses the former."},
+        {"name": "Output contains a Scan Coverage section header", "description": "Output contains a section header matching 'Scan Coverage' (case-insensitive)."},
+        {"name": "Output contains an Environment Summary section header", "description": "Output contains a section header matching 'Environment Summary' (case-insensitive)."},
+        {"name": "Output contains an Additional Observations section header", "description": "Output contains a section header matching 'Additional Observations' (case-insensitive). Alternatives like 'Observations' or 'Additional Findings' are also acceptable."},
+        {"name": "Output contains an Open Questions section header", "description": "Output contains a section header matching 'Open Questions' (case-insensitive)."},
+        {"name": "Output ends with the canonical handoff prompt", "description": "The final 200 characters of the output contain 'Ready to move to Plan' or 'write the Plan' (case-insensitive)."}
       ]
     },
     {
       "id": 14,
       "slug": "assess-iam-private-manual",
       "prompt": "I have a migration profile YAML for my MSK environment. Here it is — help me assess it.",
-      "expected_output": "Skill runs the Profile Audit, walks the full 16-row Red Flags checklist in order, produces an Environment Summary grounded in profile evidence, reports topic and partition counts using the user + internal = total convention (the manual profile carries the split for this fixture), and ends with the standard handoff prompt.",
+      "expected_output": "Skill runs the Profile Audit, walks the full 16-row Red Flags checklist in order, produces an Environment Summary grounded in profile evidence, reports topic and partition counts using the user + internal = total convention, and ends with the standard handoff prompt. Behavioral check (no fabricated values for missing profile fields) is in `human-review-checklist.md`.",
       "files": ["mock-environments/msk-iam-private/migration-profile.yaml"],
       "assertions": [
-        {"name": "Notes manual intake path in Scan Coverage", "description": "Should produce a Scan Coverage section that reports 'Manual intake — KCP scans not run, data sourced from user-provided profile' rather than listing six KCP scan statuses. Should still surface what the profile does and does not carry (e.g., counts present, ACL details, throughput, costs) so downstream stages know what coverage exists."},
-        {"name": "Walks all 16 Red Flags in order", "description": "Should include a Red Flags section that walks rows 1 through 16 of the checklist in order, with a Triggered / Not triggered / Unknown status for each row. Should not reorder, merge, rename, or skip rows."},
-        {"name": "Reports counts with user + internal = total convention when split is available", "description": "Topic and partition counts should be reported in the format 'X user + Y internal = Z total' when the source profile carries the user/internal split (KCP state file, or manual profile with `user_topic_count` / `internal_topic_count` populated). When the source profile only carries the aggregate (no split available), the skill should report 'X total (user/internal split not captured in <source>)' or equivalent labeled-total framing and record the gap in `known_gaps`. Reporting a single unlabeled number when the split was available, or fabricating a split when it wasn't, are both fails."},
-        {"name": "Grounds every claim in profile evidence", "description": "Every environment fact (cluster count, auth, networking, scale) should trace to a specific field path in the YAML profile. No fabricated values where data is missing."},
-        {"name": "Ends with the standard handoff prompt", "description": "Should end with the canonical 'Ready to move to Plan?' phrasing or equivalent that explicitly tells the user their next available input (say 'write the Plan' or answer specific open questions)."},
-        {"name": "Row 9 uses topics-populated disambiguation on null acl_count", "description": "The mock has `acl_count: null` (the manual-profile equivalent of `acls: null` in a state file) combined with IAM enabled, topics populated, and a provisioned cluster. The skill should report Row 9 as Triggered (zero ACLs with IAM = authz in IAM policies), NOT Unknown (scan gap), because the topics-populated signal confirms the admin scan succeeded (or, in manual intake, confirms the user reported zero ACLs in a populated environment). Should make the disambiguation visible in the evidence (e.g., 'topics populated → null acl_count = zero ACLs, not missing data')."}
+        {"name": "Scan Coverage notes manual intake", "description": "Scan Coverage section contains the substring 'manual intake', 'manual profile', 'KCP scans not run', or 'user-provided profile'."},
+        {"name": "Output contains 16 Red Flag rows in canonical order", "description": "Red Flags section contains 16 row entries in numeric order from 1 to 16, each with a status of Triggered, Not triggered, or Unknown."},
+        {"name": "Reports topic and partition counts in labeled-summation form", "description": "Environment Summary contains at least two substring matches of the pattern '<N> user + <M> internal = <Z> total' (or equivalent labeled-summation form covering both topics and partitions). This fixture carries the split (`user_topic_count: 112`, `internal_topic_count: 8`, `user_partition_count: 3568`, `internal_partition_count: 32`). Unlabeled aggregate numbers fail."},
+        {"name": "Environment Summary contains at least 3 YAML field-path citations", "description": "Environment Summary section contains at least 3 parenthetical substrings matching the pattern '(source.<field>)', '(clusters[<n>].<field>)', '(schema_registry.<field>)', or '(connectors.<field>)' citing specific profile fields."},
+        {"name": "Output ends with the canonical handoff prompt", "description": "The final 200 characters of the output contain 'Ready to move to Plan' or 'write the Plan' (case-insensitive)."},
+        {"name": "Row 9 reports Triggered with IAM-authz evidence", "description": "Row 9 entry contains 'Triggered' as the status AND contains evidence of the IAM-authz reasoning. Evidence is satisfied by any of: 'acl_count' (with 'null' or '0' nearby), 'acl_source' (with 'iam-policies' or 'iam_policies' nearby), 'authz' + 'IAM' in the same row, 'IAM polic' (substring covers 'IAM policy' / 'IAM policies'), or 'zero Kafka ACLs'. Row 9 entry does NOT contain 'Unknown' as the status."}
       ]
     },
     {
       "id": 15,
       "slug": "hidden-connectors-manual",
       "prompt": "Here's my migration profile. What do we have?",
-      "expected_output": "Skill handles null-vs-empty correctly on connector fields (reports Unknown, not Not triggered) and picks up connector activity from internal topic patterns even though connector counts are null in the profile.",
+      "expected_output": "Skill handles null-vs-empty correctly on connector fields and picks up connector activity from internal topic patterns even though connector counts are null in the profile. Behavioral check (recommends closing the connector gap before Plan commits) is in `human-review-checklist.md`.",
       "files": ["mock-environments/msk-hidden-connectors/migration-profile.yaml"],
       "assertions": [
-        {"name": "Row 7 triggers via Row 15 cross-reference, not from profile field alone", "description": "The mock has `self_managed_connect_count: null` AND `sample_internal_topics` contains a full Kafka Connect framework triad (`connect-offsets`, `connect-status`, `connect-configs`). Under the topics-populated disambiguator, null would naively read as 'zero found' — but Row 15 has topic evidence indicating a self-managed Connect fleet exists. Row 7 should be reported as **Triggered** with Row 15 evidence cited (the specific triads). Should NOT report Not triggered and should NOT report Unknown (scan gap) — Row 15 provides the evidence. Row 6 (MSK Connect managed) is separate: with `msk_connect_count: null` and no other corroborating signal, Row 6 may be reported as Unknown (manual intake gap) rather than Triggered."},
-        {"name": "Walks Row 15 and inspects internal topic names", "description": "Row 15 should be Triggered, with evidence citing the internal topic names observed in `sample_internal_topics` (Debezium heartbeat patterns, MongoDB heartbeat patterns, or Kafka Connect framework topics like connect-offsets/status/configs)."},
-        {"name": "Infers the tools from the topic patterns", "description": "The Row 15 finding should name the likely source tool (Debezium source connector, MongoDB source connector, Kafka Connect framework) rather than just reporting 'unknown tooling.'"},
-        {"name": "Recommends closing the connector gap before Plan commits connector paths", "description": "Should flag that follow-up data collection is needed before the Plan stage can commit a connector migration path — either re-running `kcp scan self-managed-connectors` (if the user later runs KCP) or asking the user to enumerate the Connect fleet manually. Connector gap is not a Plan blocker but shapes pre-migration scope."}
+        {"name": "Row 7 reports Triggered citing Row 15 evidence", "description": "Row 7 entry contains 'Triggered' as the status AND contains a citation to Row 15 or to specific internal topic names ('connect-offsets', 'connect-status', 'connect-configs'). Row 7 entry does NOT contain 'Not triggered' or 'Unknown' as the status."},
+        {"name": "Row 15 cites at least 2 specific internal topic patterns", "description": "Row 15 entry contains at least 2 of the following substrings: 'connect-offsets', 'connect-status', 'connect-configs', '__debezium', 'heartbeat', '__mongodb', 'connect-cluster'."},
+        {"name": "Row 15 names at least one inferred source tool", "description": "Row 15 entry contains at least one of the following substrings: 'Debezium', 'MongoDB', 'Kafka Connect framework', or 'Kafka Connect'."}
       ]
     },
     {
       "id": 16,
       "slug": "full-plan-open-questions-manual",
       "prompt": "Here's my migration profile. I have open questions on client auth and Schema Registry — leave those open as working assumptions. Write the Plan to a file.",
-      "expected_output": "Skill produces a full Plan per the 12-section template, with Tiered Storage section conditional on profile evidence, standardized tables, inline citations on every number (field paths in the profile), working assumptions stated explicitly, sizing committed with math — not Assess output, not a 'Plan-Stage Preview.'",
+      "expected_output": "Skill produces a full Plan per the 13-section template, with Tiered Storage section conditional on profile evidence, standardized tables, inline citations on every number, working assumptions stated explicitly. Behavioral check (sizing committed with math, not deferred) is in `human-review-checklist.md`.",
       "files": ["mock-environments/msk-iam-private/migration-profile.yaml"],
       "assertions": [
-        {"name": "Produces a full Plan per the 13-section template", "description": "Output should contain all 13 required sections in order: Header, Inputs & Default Assumptions, Summary, Source Environment, Sizing, Cluster Type Decision, Networking Decision, Auth Approach, Switchover Approach, Pre-Migration Workstream, Risks, Open Questions, Next Step. Not Assess output; not a hedged 'Plan-Stage Preview'; not a directional draft."},
-        {"name": "Tiered Storage section conditional on profile evidence", "description": "If the profile carries any indicator of tiered storage on a cluster, the Plan should include a Tiered Storage conditional section with per-cluster volumes cited from the profile. If the profile does not carry tiered-storage evidence (this fixture does not), the Plan should either omit the section or note 'Tiered storage not indicated in profile' rather than fabricating values."},
-        {"name": "Tables use standardized formats", "description": "Cluster table = 8 columns per the canonical template in references/plan.md (Cluster | Brokers × Instance | Kafka | Topics user+internal=total | Partitions user+internal=total | P95 In/Out MBps | Peak In/Out MBps | Tiered GB) — when the profile only carries peak (not P95), the P95 column should reflect that gap rather than fabricate. Sizing table = 7 columns with visible P95 In ÷ per-eCKU-in, P95 Out ÷ per-eCKU-out, User Partitions ÷ per-eCKU-partition-rate, Max, +Headroom, Verdict (per Capacity Sizing Procedure — sizing uses P95 when available; if only peak is in the profile, the skill should derive a working P95 with the assumption stated, or use peak with the conservative-bound caveat noted). Risks table = 3 columns (Risk / Severity / Mitigation)."},
-        {"name": "Every number carries a citation", "description": "Profile-sourced values carry inline parenthetical citations to field paths in the YAML profile. Live-fetched values carry inline citations to the doc URL. Computed values show the inputs and formula. No uncited numbers."},
-        {"name": "Sizing committed with math, not deferred", "description": "Sizing should produce concrete eCKU values per cluster with the computation visible. Should not defer with 'requires live fetch' or 'TBD at Provision.' If live fetch is needed for per-eCKU values, the skill either fetches or offers to — doesn't park the decision."},
-        {"name": "Working assumptions stated explicitly for unanswered questions", "description": "When the user hasn't resolved open questions (auth, SR), the Plan states the assumption the recommendation is built on ('assuming IAM is in active use based on null acl_count + IAM enabled + topics populated') rather than deferring or hedging entire decisions. Open Questions section captures these with the closure criteria."}
+        {"name": "Plan contains 13 numbered sections", "description": "Output contains 13 numbered, headed sections (in addition to any conditional sections like Tiered Storage)."},
+        {"name": "Section headers appear in canonical order", "description": "Section headers, in order, are: Header, Inputs & Default Assumptions, Summary, Source Environment, Sizing, Cluster Type Decision, Networking Decision, Auth Approach, Switchover Approach, Pre-Migration Workstream, Risks, Open Questions, Next Step."},
+        {"name": "Tiered Storage section handled per fixture (absent indicator)", "description": "This fixture (`msk-iam-private`) does not carry a tiered-storage indicator. Output either omits the Tiered Storage section entirely OR contains the substring 'Tiered storage not indicated in profile' (or equivalent absence note). Output does not invent per-cluster tiered-storage volumes."},
+        {"name": "Cluster table uses standardized 8-column format", "description": "Cluster table header row contains 8 pipe-separated column labels matching the canonical template."},
+        {"name": "Sizing table rows show division computation", "description": "Each non-header data row of the Sizing table contains at least one '÷' or '/' character, showing the per-eCKU division."},
+        {"name": "Sizing table uses 7-column format", "description": "Sizing table header row contains 7 pipe-separated column labels."},
+        {"name": "Risks table uses 3-column format", "description": "Risks table header row contains 3 pipe-separated column labels: Risk, Severity, Mitigation."},
+        {"name": "Numbers in Sizing and cluster tables carry parenthetical citations", "description": "At least 80% of numeric values (matching regex `[0-9,]+`) in the Sizing table and the Source Environment cluster table appear with a parenthetical citation within 50 characters — citing either a YAML field path (e.g., `(clusters[0].broker_count)`) or a doc URL for live-fetched values."},
+        {"name": "Working assumptions tied to listed open questions", "description": "For each item in the Open Questions section, the corresponding decision section contains a line with the literal substring 'Working assumption:' that names the assumption the recommendation rests on. Each Open Question item must have a matching decision-section line containing that exact substring; phrases like 'Assumed:' or 'Assumption:' without the 'Working assumption:' prefix do not satisfy this."}
       ]
     },
     {
       "id": 17,
       "slug": "assess-serverless-manual",
       "prompt": "Here's my profile. Walk me through the assessment.",
-      "expected_output": "Full Assess pass on a serverless cluster sourced from a manual profile. Skill walks the 16-row checklist, correctly handles the serverless-specific ACL gap (expected behavior, not a profile gap to re-collect), notes the limited-metrics shape of serverless environments, and still flags IAM authorization as migration-relevant.",
+      "expected_output": "Full Assess pass on a serverless cluster sourced from a manual profile. Skill walks the 16-row checklist, correctly handles the serverless-specific ACL gap, notes the limited-metrics shape, and flags IAM authorization. Behavioral check (does not fabricate throughput values) is in `human-review-checklist.md`.",
       "files": ["mock-environments/msk-serverless/migration-profile.yaml"],
       "assertions": [
-        {"name": "Walks all 16 Red Flags in order", "description": "Should include the full Red Flags section walking rows 1–16 with a Triggered / Not triggered / Unknown status for each row, the same as any other Assess pass. Does not skip rows just because the source is serverless or because the intake is manual."},
-        {"name": "Row 9 not flagged as a gap to re-collect on serverless", "description": "The mock has `acl_count: null` on a serverless cluster. The skill must recognize that MSK Serverless does not support the Kafka Admin API and that ACL inventory is intentionally not captured (whether KCP is run or not). Row 9 should be reported as Not triggered or noted as 'N/A — serverless ACL inventory intentionally not captured', NOT as Unknown (gap to close). The profile's `known_gaps` entry already documents this."},
-        {"name": "Does not recommend re-running ACL data collection for serverless", "description": "Pre-migration recommendations should not include 'run `kcp scan clusters` with credentials to populate ACLs' or 'ask the user to enumerate ACLs' for this cluster. No data collection step will populate the field — it's a documented MSK Serverless behavior, not missing data."},
-        {"name": "Flags IAM authorization separately from ACL inventory", "description": "IAM policy → CC RBAC migration still applies to serverless. The skill should flag `kcp create-asset migrate-acls iam` (or equivalent IAM authz migration path) based on IAM being enabled, independent of the Kafka ACL inventory being intentionally absent."},
-        {"name": "Notes serverless-specific metrics gap without fabricating values", "description": "The mock has `peak_ingress_mbps: null` and `peak_egress_mbps: null` — serverless returns limited metrics, and the profile's `known_gaps` entry documents this. The skill should acknowledge this gap in the Scan Coverage or Environment Summary rather than invent throughput numbers or silently pass over the missing fields."},
-        {"name": "Produces the standard Environment Summary and handoff prompt", "description": "Standard Assess output structure applies — Scan Coverage (manual-intake framing), Environment Summary with labeled-total framing where the user/internal split is not in the profile, Red Flags, Additional Observations, Open Questions, and the canonical 'Ready to move to Plan?' handoff."}
+        {"name": "Output contains 16 Red Flag rows in canonical order", "description": "Red Flags section contains 16 row entries in numeric order from 1 to 16, each with a status of Triggered, Not triggered, or Unknown."},
+        {"name": "Row 9 status is Not triggered or N/A on serverless", "description": "Row 9 entry contains 'Not triggered' OR 'N/A' as the status. Row 9 entry does NOT contain 'Unknown' as the status. Row 9 entry contains at least one of: 'serverless', 'intentionally not captured', 'Kafka Admin API', or 'documented behavior'."},
+        {"name": "Output does not recommend re-running ACL data collection", "description": "Output does not recommend re-running ACL data collection on the serverless cluster. The assertion fails if 'kcp scan clusters' or 'enumerate ACLs' appears in a pre-migration recommendation context AND co-occurs (within 200 characters in the same bullet, paragraph, or table cell) with any ACL term: 'ACL', 'ACLs', 'acl_count', 'acl_source', 'Kafka authorization', or 'Kafka authz'. Recommending 'kcp scan clusters' for non-ACL purposes (topic enumeration, schema verification, partition recount) does NOT trigger this assertion."},
+        {"name": "Output names the IAM authz migration command", "description": "Output contains the substring 'kcp create-asset migrate-acls iam' (or equivalent string naming the IAM authz migration path)."},
+        {"name": "Output names the limited-metrics gap", "description": "Scan Coverage or Environment Summary section contains at least one of: 'peak_ingress_mbps null', 'peak_egress_mbps null', 'limited metrics', 'serverless returns limited', or 'metrics gap'."},
+        {"name": "Output contains a Scan Coverage section header", "description": "Output contains a section header matching 'Scan Coverage' (case-insensitive)."},
+        {"name": "Output contains an Environment Summary section header", "description": "Output contains a section header matching 'Environment Summary' (case-insensitive)."},
+        {"name": "Output contains an Additional Observations section header", "description": "Output contains a section header matching 'Additional Observations' (case-insensitive) or 'Observations'."},
+        {"name": "Output contains an Open Questions section header", "description": "Output contains a section header matching 'Open Questions' (case-insensitive)."},
+        {"name": "Output ends with the canonical handoff prompt", "description": "The final 200 characters of the output contain 'Ready to move to Plan' or 'write the Plan' (case-insensitive)."}
       ]
     },
     {
       "id": 18,
       "slug": "assess-hidden-cluster-manual",
       "prompt": "Here's my migration profile. Walk me through the assessment.",
-      "expected_output": "Full Assess pass on a provisioned multi-cluster environment where the profile's `cost_line_items` reveal an unmatched instance type. Skill walks all 16 rows, reconciles cost line items against the enumerated cluster inventory in Row 16, and flags the unmatched instance type with evidence — without fabricating specs for the hidden cluster.",
+      "expected_output": "Full Assess pass on a provisioned multi-cluster environment where the profile's `cost_line_items` reveal an unmatched instance type. Skill walks all 16 rows, reconciles cost line items against the enumerated cluster inventory in Row 16, and flags the unmatched instance type with evidence. Behavioral checks (recommends broadening discovery scope, does not fabricate specs for the hidden cluster) are in `human-review-checklist.md`.",
       "files": ["mock-environments/msk-hidden-cluster/migration-profile.yaml"],
       "assertions": [
-        {"name": "Walks all 16 Red Flags in order", "description": "Full Red Flags section walking rows 1–16. Row 16 specifically tests the cost-to-inventory reconciliation directive."},
-        {"name": "Row 16 Triggered on the unmatched instance type", "description": "The mock has three enumerated clusters on `kafka.m7g.12xlarge`, `kafka.m7g.2xlarge`, and `express.m7g.large`. The profile's `cost_line_items` includes `USE1-Express.m7g.4xlarge` at $146,935/year sustained across all 12 months — not matching any enumerated cluster. Row 16 should be Triggered with evidence naming the specific usage-type string and spend magnitude."},
-        {"name": "Judges materiality relative to enumerated-cluster baseline", "description": "The finding should justify why $146,935/year is material — e.g., compare it to the observability-tier cluster ($540/year on `Express.m7g.large` in `cost_line_items`) to show the unmatched spend dwarfs an existing enumerated cluster. Does not rely on an absolute dollar threshold."},
-        {"name": "Recommends broadening discovery scope before Plan commits", "description": "Row 16 response should recommend re-running `kcp discover` across all regions and all relevant AWS accounts (or, in manual intake, asking the user to enumerate any clusters not yet listed) before the Plan scope is committed. Commit-to-Plan with this gap would exclude the hidden cluster from the migration."},
-        {"name": "Does not fabricate specs for the hidden cluster", "description": "The skill must not invent broker count, topics, throughput, or other details for the unmatched cost entry. The cost signal confirms existence and gives a rough size cue (from instance type + spend), but specifics require enumeration of the hidden cluster."},
-        {"name": "Other Red Flags still reported correctly", "description": "Schema Registry type (confluent-sr, 45 subjects) triggers Row 1 as Not triggered (SR exists, not schemaless) and Row 4 Not triggered (not Glue). IAM on orders-events triggers Row 3. Tiered storage not indicated → Row 12 Not triggered. Row 15 should note absence of `sample_internal_topics` in the profile or report Not triggered. Assess does not collapse just because Row 16 is the focus of the test."},
-        {"name": "Produces the standard Environment Summary and handoff prompt", "description": "Standard Assess output structure — Scan Coverage (manual-intake framing), Environment Summary, Red Flags, Additional Observations, Open Questions, canonical handoff prompt."}
+        {"name": "Output contains 16 Red Flag rows in canonical order", "description": "Red Flags section contains 16 row entries in numeric order from 1 to 16, each with a status of Triggered, Not triggered, or Unknown."},
+        {"name": "Row 16 reports Triggered with unmatched instance type evidence", "description": "Row 16 entry contains 'Triggered' as the status AND contains the substring 'USE1-Express.m7g.4xlarge' (the unmatched usage type) AND contains the substring '$146,935' or '146,935' (the unmatched spend)."},
+        {"name": "Row 16 finding cites baseline comparator", "description": "Row 16 finding contains at least one of: '$540', '540/year', 'Express.m7g.large', or 'observability' (citing the small-spend enumerated cluster as comparator to demonstrate materiality)."},
+        {"name": "Row 1 reports Not triggered with SR-present evidence", "description": "Row 1 entry contains 'Not triggered' as the status AND contains evidence that Schema Registry is in use (i.e., not schemaless). Evidence is satisfied by any of: 'confluent-sr', 'Confluent SR' (case-insensitive on the SR-type name), or 'schema_registry.type' paired with 'schema_registry.subject_count' as inline field-path citations."},
+        {"name": "Row 4 reports Not triggered (not Glue)", "description": "Row 4 entry contains 'Not triggered' as the status AND contains at least one of: 'not Glue', 'confluent-sr', or 'SR type'."},
+        {"name": "Row 3 reports Triggered with orders-events evidence", "description": "Row 3 entry contains 'Triggered' as the status AND contains the substring 'orders-events' (the IAM-auth cluster)."},
+        {"name": "Row 12 reports Not triggered (no tiered storage)", "description": "Row 12 entry contains 'Not triggered' as the status AND contains at least one of: 'not indicated', 'no tiered', 'storage_mode', or 'no indicator'."},
+        {"name": "Row 15 reports Not triggered, Unknown (scan gap), or notes absence", "description": "Row 15 entry contains 'Not triggered', 'Unknown (scan gap)', or 'Unknown' as the status. AND if status is Unknown, the entry contains at least one of these anchor substrings indicating the scan-gap context: 'topic-name', 'topics.details', 'sample_internal_topics', or 'pattern scan'. Anchors test that the runner has acknowledged the scan-gap topic; manual-intake fixtures typically surface 'topic-name' or 'topics.details', state.json fixtures typically surface 'sample_internal_topics'."},
+        {"name": "Output contains a Scan Coverage section header", "description": "Output contains a section header matching 'Scan Coverage' (case-insensitive)."},
+        {"name": "Output contains an Environment Summary section header", "description": "Output contains a section header matching 'Environment Summary' (case-insensitive)."},
+        {"name": "Output contains an Additional Observations section header", "description": "Output contains a section header matching 'Additional Observations' (case-insensitive) or 'Observations'."},
+        {"name": "Output contains an Open Questions section header", "description": "Output contains a section header matching 'Open Questions' (case-insensitive)."},
+        {"name": "Output ends with the canonical handoff prompt", "description": "The final 200 characters of the output contain 'Ready to move to Plan' or 'write the Plan' (case-insensitive)."}
       ]
     }
   ]

@@ -31,7 +31,14 @@ Before producing any environment summary, run this scan-coverage audit. This for
 
 **Always report audit results to the user before summarizing the environment.** Format the report as a "Scan Coverage" section showing which scans ran, which didn't, and what the missing ones would add. This surfaces gaps the user needs to close before Plan.
 
-**Data grounding.** Every claim in the environment summary must trace to a specific state file field. When a field is missing, say so — don't fabricate. When a field is populated, cite the path if the user wants to verify.
+**Data grounding — inline parenthetical citations are required on every Environment Summary fact.** Every numeric or categorical claim in the Environment Summary (cluster count, brokers, instance type, Kafka version, topic/partition counts, throughput, auth, networking, SR, connectors, costs, drivers) carries an inline parenthetical citation to its source path at first use. Citing the field path only in the separate Scan Coverage table or in the Red Flags evidence column does not satisfy this — the user needs to verify each fact in place without cross-referencing another table.
+
+Citation path style depends on intake mode:
+
+- **KCP state file:** `jq`-style path into the JSON (e.g., `regions[0].clusters[].aws_client_information.msk_cluster_config.Provisioned.BrokerNodeGroupInfo.InstanceType`).
+- **Manual `migration-profile.yaml`:** YAML key path from the top of the file (e.g., `clusters[0].broker_count`, `source.kafka_version`, `schema_registry.subject_count`).
+
+When a field is missing, say so explicitly — don't fabricate. The same inline-citation rule applies in Plan (`references/plan.md` "Plan Doc Conventions — cite every number"); this paragraph applies the same discipline upstream in Assess so the Environment Summary the user sees is verifiable in place.
 
 **CloudWatch metric labels — always use Cluster Aggregate, not Broker Aggregate.** The state file's `.metrics.results[]` array contains metrics with different labels including both `"Cluster Aggregate - *"` and `"Broker Aggregate - *"` variants. Cluster Aggregate gives the cluster-wide value (what you want for sizing and capacity decisions). Broker Aggregate gives per-broker values (which don't usefully sum to a cluster total). Always filter on `Cluster Aggregate` unless you have a specific reason to look at per-broker behavior.
 
