@@ -56,7 +56,7 @@ Each stage has entry criteria, an exit artifact, and a reference file. Each stag
 | Stage | Entry | Exit Artifact (validation for this stage) | Reference |
 |---|---|---|---|
 | Assess | User starts migration | Environment profile with required fields populated; red flags surfaced | references/assess.md |
-| Plan | Environment profile exists | Architecture decisions documented; pre-migration requirements identified | references/plan.md |
+| Plan | Environment profile exists | Technical Plan output starts with the "About this Technical Plan" boilerplate from references/plan.md; architecture decisions documented; pre-migration requirements identified | references/plan.md |
 
 Users may enter at Assess or Plan. The Plan exit artifact is the handoff for downstream execution stages (Provision, Migrate, Switchover, Monitor) which are out of MVP scope.
 
@@ -129,7 +129,7 @@ For each source MSK auth type, three decisions: target CC auth, Cluster Linking 
 | Unauthenticated (plaintext) | Target CC auth; CL path; Gateway support | API Keys, OAuth, or mTLS as CC target. Gateway maps ANONYMOUS to CC credentials. Rare in production. |
 | AWS IAM | Target CC auth; CL path; **Gateway pre-migration** | API Keys or OAuth as CC target. CL requires the IAM JAR workaround. Gateway does NOT support IAM directly — source must be pre-migrated to SCRAM or mTLS before Zero-Cut. |
 
-**Sources of truth:** [CC auth docs](https://docs.confluent.io/cloud/current/security/authenticate) for CC auth options and CL support; [KCP zero-cut guide](https://github.com/confluentinc/kcp/blob/main/docs/assets/getting-started-with-zero-cut-migrations.md) for Gateway auth matrix. When starting-point guidance and live sources disagree, the live source wins.
+**Sources of truth:** [CC auth docs](https://docs.confluent.io/cloud/current/security/authenticate) for CC auth options and CL support; [KCP zero-cut guide](https://confluentinc.github.io/kcp/latest/getting-started-with-zero-cut-migrations/) for Gateway auth matrix. When starting-point guidance and live sources disagree, the live source wins.
 
 ### Switchover approach selection
 
@@ -142,7 +142,7 @@ For each source MSK auth type, three decisions: target CC auth, Cluster Linking 
 
 Zero-Cut is the primary recommendation. Manual CL-based cutover is fallback when Gateway deployment isn't feasible.
 
-**Zero-Cut prerequisites — fetch live.** Required components (Kubernetes distribution, CP licensing, CL state, minimum KCP version, auth compatibility) evolve as Zero-Cut matures. Fetch the current prerequisite list from the [KCP zero-cut guide](https://github.com/confluentinc/kcp/blob/main/docs/assets/getting-started-with-zero-cut-migrations.md) before telling a user whether Zero-Cut fits. Do not rely on cached prerequisites.
+**Zero-Cut prerequisites — fetch live.** Required components (Kubernetes distribution, CP licensing, CL state, minimum KCP version, auth compatibility) evolve as Zero-Cut matures. Fetch the current prerequisite list from the [KCP zero-cut guide](https://confluentinc.github.io/kcp/latest/getting-started-with-zero-cut-migrations/) before telling a user whether Zero-Cut fits. Do not rely on cached prerequisites.
 
 ### Networking selection
 
@@ -182,11 +182,11 @@ Non-negotiable defaults for every migration, regardless of user input.
 5. Maintain source cluster throughout migration. No decommissioning until Monitor stage rollback window has elapsed and stakeholder sign-off is in hand.
 6. For Zero-Cut: verify `kcp migration lag-check` shows zero lag before executing. For manual CL: test with canary consumer before switchover.
 7. Rollback plan documented before switchover begins. Zero-Cut rollback is clean before promotion; manual after.
-8. AWS IAM auth must be pre-migrated off IAM before Gateway-based migration. Confirm current pre-migration path against the [KCP zero-cut guide](https://github.com/confluentinc/kcp/blob/main/docs/assets/getting-started-with-zero-cut-migrations.md) each session.
+8. AWS IAM auth must be pre-migrated off IAM before Gateway-based migration. Confirm current pre-migration path against the [KCP zero-cut guide](https://confluentinc.github.io/kcp/latest/getting-started-with-zero-cut-migrations/) each session.
 9. NEVER display or log credentials, API keys, bootstrap server secrets, or .env file contents.
 10. NEVER apply Terraform without user reviewing the plan (`terraform plan` before `terraform apply`).
 11. All auth credentials created as service accounts, not user accounts.
-12. Zero-Cut has prerequisite infrastructure and licensing requirements. Fetch from the [KCP zero-cut guide](https://github.com/confluentinc/kcp/blob/main/docs/assets/getting-started-with-zero-cut-migrations.md) — do not cache.
+12. Zero-Cut has prerequisite infrastructure and licensing requirements. Fetch from the [KCP zero-cut guide](https://confluentinc.github.io/kcp/latest/getting-started-with-zero-cut-migrations/) — do not cache.
 
 ## Tool Routing
 
@@ -223,9 +223,10 @@ The skill encodes judgment, not product facts. Decision frameworks, trigger cate
 
 | Topic | Live Source | Fetch When |
 |---|---|---|
-| KCP CLI commands, flags, subcommand behavior | [github.com/confluentinc/kcp](https://github.com/confluentinc/kcp) (docs/, README, `kcp --help`) | Before recommending any command or flag |
+| KCP CLI commands, flags, subcommand behavior | [KCP Command Reference](https://confluentinc.github.io/kcp/latest/command-reference/) (structured CLI reference, generated from Cobra definitions) + [github.com/confluentinc/kcp](https://github.com/confluentinc/kcp) (README, repo context). Hub-page note: meta-refresh redirect; WebFetch may return redirect message — surface to user or navigate to current version per the failure-handling protocol. | Before recommending any command or flag |
 | KCP state file schema | [github.com/confluentinc/kcp](https://github.com/confluentinc/kcp) (internal/types/state.go) | When parsing a state file |
-| Zero-Cut prerequisites, flow, auth support | [KCP zero-cut guide](https://github.com/confluentinc/kcp/blob/main/docs/assets/getting-started-with-zero-cut-migrations.md) | Switchover; any Gateway or Zero-Cut question |
+| Zero-Cut prerequisites, flow, auth support | [KCP zero-cut guide](https://confluentinc.github.io/kcp/latest/getting-started-with-zero-cut-migrations/) | Switchover; any Gateway or Zero-Cut question |
+| Gateway auth-swap scenarios (source-auth × target-auth matrix) | [KCP Gateway Switchover hub](https://confluentinc.github.io/kcp/latest/gateway-switchover/) — 8 documented scenarios (none/mTLS/SCRAM source × SASL-PLAIN/OAuth/mTLS target). Hub-page note: meta-refresh redirect; navigate from hub to specific scenario pages. | Auth target derivation in Plan stage; any question about specific source → target auth migration through Gateway |
 | Cluster types, eCKU caps, per-eCKU throughput, partition rates, REST throughput, SLA | [cluster-types.html](https://docs.confluent.io/cloud/current/clusters/cluster-types.html) | Plan; whenever capacity, throughput, or partitioning matters |
 | Cluster Linking source requirements and compatibility | [cluster-linking docs](https://docs.confluent.io/cloud/current/multi-cloud/cluster-linking) | Any CL-related question or version compatibility check |
 | CC authentication options and CL auth compatibility | [authenticate docs](https://docs.confluent.io/cloud/current/security/authenticate) | Auth mapping for each source auth type |

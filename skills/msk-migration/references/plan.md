@@ -4,7 +4,7 @@ Plan turns the environment profile into architecture decisions: cluster type, ne
 
 ## Capacity Sizing Procedure
 
-**Sizing is committed during Plan, not deferred.** Fetch the per-eCKU values live during the Plan conversation and compute eCKU counts with visible math. Do not leave the Plan doc with "sizing TBD — requires live fetch" — that's deferral, not a plan. The only valid reasons to defer are (a) throughput data is missing from the state file (scan gap), or (b) the projected unit count exceeds the Enterprise eCKU cap and requires a Dedicated escalation conversation. Both get flagged explicitly, not left silent.
+**Sizing is committed during Plan, not deferred.** Fetch the per-eCKU values live during the Plan conversation and compute eCKU counts with visible math. Do not leave the Technical Plan with "sizing TBD — requires live fetch" — that's deferral, not a plan. The only valid reasons to defer are (a) throughput data is missing from the state file (scan gap), or (b) the projected unit count exceeds the Enterprise eCKU cap and requires a Dedicated escalation conversation. Both get flagged explicitly, not left silent.
 
 **Size to P95, not absolute peak.** Sizing to max observed throughput oversizes for workloads with rare outliers (seasonal spikes, annual Black Friday-style events). P95 captures sustained busy-period load while excluding once-a-year events. Enterprise is elastic — it auto-scales within its eCKU capacity — so spikes above P95 are absorbed by Enterprise elasticity; no need to provision for them.
 
@@ -12,7 +12,7 @@ Plan turns the environment profile into architecture decisions: cluster type, ne
 2. Compute **P95** of `BytesInPerSec` and `BytesOutPerSec` from the full `.metrics.results[].Values` array per cluster. Convert bytes/sec → MBps using 1 MB = 1,048,576 bytes (binary). Keep exact precision — do not pre-round.
 3. Also record the **absolute peak** (max of the same Values array) for reference — report it in the Source Environment table alongside the P95 used for sizing so the user can see both.
 
-**Manual-intake fallback when P95 is not provided.** Manual `migration-profile.yaml` profiles ask the user to provide P95 directly (`p95_ingress_mbps`, `p95_egress_mbps`) — preferred for accurate sizing. When P95 is provided, use it the same way you would CloudWatch-derived P95. **When only peak is provided** (the user fills `peak_ingress_mbps` / `peak_egress_mbps` and leaves P95 fields null), size on peak AND emit a **prominent overestimation flag** in the Plan doc. The flag must appear in three places — not as a footnote:
+**Manual-intake fallback when P95 is not provided.** Manual `migration-profile.yaml` profiles ask the user to provide P95 directly (`p95_ingress_mbps`, `p95_egress_mbps`) — preferred for accurate sizing. When P95 is provided, use it the same way you would CloudWatch-derived P95. **When only peak is provided** (the user fills `peak_ingress_mbps` / `peak_egress_mbps` and leaves P95 fields null), size on peak AND emit a **prominent overestimation flag** in the Technical Plan. The flag must appear in three places — not as a footnote:
 
 - **At the top of the Sizing section** as a callout: *"⚠ Sizing computed on peak throughput, not P95. The recommended eCKU count below is **likely overestimated** vs. what P95 sizing would produce. Peak captures once-a-year spikes that Enterprise elasticity is designed to absorb; sizing for them inflates eCKU. To refine, provide P95 ingress/egress in MBps from CloudWatch `BytesInPerSec` / `BytesOutPerSec` over a representative 14-30 day window."*
 - **As a row in Inputs & Default Assumptions** with `Sizing percentile = peak (P95 not provided — fallback)` and an Implication-of-Change note pointing to the overestimation.
@@ -32,20 +32,20 @@ Do NOT silently size on peak without surfacing the overestimation. The user need
 7. Apply headroom per the Inputs & Default Assumptions section (default 30%).
 8. **CEIL (round up) the final eCKU count.** Can't provision a fractional eCKU. Rounding down would undersize. Always round up at the final step. Keep full precision in all intermediate steps.
 9. Verify the projected unit count does not exceed the Enterprise eCKU cap. If it does, escalate to Dedicated per the hard-limits table in SKILL.md and state that escalation explicitly.
-10. **Show the math in the Plan doc.** Every cluster's recommended eCKU count should be traceable: P95 values, divisions, max selection, headroom applied, CEIL, final recommendation. No "~X eCKU, roughly" without the math behind it.
+10. **Show the math in the Technical Plan.** Every cluster's recommended eCKU count should be traceable: P95 values, divisions, max selection, headroom applied, CEIL, final recommendation. No "~X eCKU, roughly" without the math behind it.
 11. If projected eCKU exceeds the PrivateLink cap but fits under the PNI cap, recommend PNI networking for that cluster. This is a sizing-driven networking call, not an arbitrary preference.
 
-**Tell the user P95 is the sizing basis.** In the Plan doc, state explicitly that P95 is used (not peak) and note that Enterprise elasticity absorbs above-P95 spikes. If the user wants a different percentile (P99 for more conservative, or absolute peak for worst-case provisioning), capture that in Inputs & Default Assumptions and re-run sizing. The user should know what percentile drives their plan so they can challenge it.
+**Tell the user P95 is the sizing basis.** In the Technical Plan, state explicitly that P95 is used (not peak) and note that Enterprise elasticity absorbs above-P95 spikes. If the user wants a different percentile (P99 for more conservative, or absolute peak for worst-case provisioning), capture that in Inputs & Default Assumptions and re-run sizing. The user should know what percentile drives their plan so they can challenge it.
 
-**Required live fetches during Plan.** Before committing the Plan doc, fetch these three sources live — do not rely on cached knowledge of caps, version floors, or Zero-Cut prerequisites. **Use `WebFetch` for all three — not `curl`, `wget`, `python3 -c`, or heredoc scripts that strip HTML. `WebFetch` handles HTML→markdown and targeted extraction in one call; pass a focused extraction prompt rather than fetching raw content and parsing.** See SKILL.md "Fetch tool" directive for the full rule.
+**Required live fetches during Plan.** Before committing the Technical Plan, fetch these three sources live — do not rely on cached knowledge of caps, version floors, or Zero-Cut prerequisites. **Use `WebFetch` for all three — not `curl`, `wget`, `python3 -c`, or heredoc scripts that strip HTML. `WebFetch` handles HTML→markdown and targeted extraction in one call; pass a focused extraction prompt rather than fetching raw content and parsing.** See SKILL.md "Fetch tool" directive for the full rule.
 
 1. **[cluster-types.html](https://docs.confluent.io/cloud/current/clusters/cluster-types.html)** — per-eCKU ingress, per-eCKU egress, per-eCKU partition rate, Enterprise eCKU cap (PNI and PrivateLink), cluster-type feature matrix. Without this fetch, the sizing math is guesswork.
 2. **[Cluster Linking source requirements](https://docs.confluent.io/cloud/current/multi-cloud/cluster-linking)** — minimum source Kafka version, auth support matrix, supported source topologies (including MSK Express broker tier if present). Without this fetch, CL compatibility claims rest on stale general knowledge.
-3. **[KCP zero-cut guide](https://github.com/confluentinc/kcp/blob/main/docs/assets/getting-started-with-zero-cut-migrations.md)** — current Zero-Cut prerequisites (Kubernetes distribution, CP licensing, minimum KCP version, auth compatibility). Required if the Plan recommends Zero-Cut as the switchover approach (the default). Without this fetch, the Switchover Approach section is incomplete.
+3. **[KCP zero-cut guide](https://confluentinc.github.io/kcp/latest/getting-started-with-zero-cut-migrations/)** — current Zero-Cut prerequisites (Kubernetes distribution, CP licensing, minimum KCP version, auth compatibility). Required if the Plan recommends Zero-Cut as the switchover approach (the default). Without this fetch, the Switchover Approach section is incomplete.
 
-All three fetches should happen before writing the Plan doc — not in a later iteration. Cite them inline per the Plan Doc Conventions (Style A).
+All three fetches should happen before writing the Technical Plan — not in a later iteration. Cite them inline per the Technical Plan Conventions (Style A).
 
-**Use user topics/partitions for sizing math, not totals.** Internal topics (`__consumer_offsets`, Connect framework topics, Streams changelogs, MSK-managed topics) are recreated by Kafka, Connect, or Streams on the destination — they don't migrate and don't consume destination capacity the way user topics do. When computing partition counts for the Row 1 capacity check, use `.topics.summary.total_partitions` (user) from the state file, not `total_partitions + total_internal_partitions`. When reporting counts in the Plan doc, follow the Assess convention: `user + internal = total` so both numbers are visible, but anchor sizing decisions to user.
+**Use user topics/partitions for sizing math, not totals.** Internal topics (`__consumer_offsets`, Connect framework topics, Streams changelogs, MSK-managed topics) are recreated by Kafka, Connect, or Streams on the destination — they don't migrate and don't consume destination capacity the way user topics do. When computing partition counts for the Row 1 capacity check, use `.topics.summary.total_partitions` (user) from the state file, not `total_partitions + total_internal_partitions`. When reporting counts in the Technical Plan, follow the Assess convention: `user + internal = total` so both numbers are visible, but anchor sizing decisions to user.
 
 **Run each `jq` query as its own Bash tool call.** Per the one-command-per-Bash-call principle in SKILL.md (Skill Conduct), issue each state-file query (throughput extraction, tiered storage peak, broker instance-type enumeration, Row 16 cost reconciliation) as a separate Bash invocation rather than batching into a compound shell command (variable assignment + chained `jq` calls). Applies to Plan-stage sizing math, tiered storage reads, and any multi-query sequence.
 
@@ -135,18 +135,18 @@ Read peak tiered volume per cluster from the state file metrics — not from EBS
 
 Also check the cluster's `StorageMode` field — clusters with `StorageMode: "TIERED"` use tiered storage; Express brokers don't have EBS tiered storage (handled internally).
 
-Report the peak tiered volume per cluster in the Plan doc. Include it in the risk conversation: "backing up X TB of tiered data would take Y days to transfer at Z MBps sustained CL throughput — decide if that cost is worth it vs. keeping source accessible."
+Report the peak tiered volume per cluster in the Technical Plan. Include it in the risk conversation: "backing up X TB of tiered data would take Y days to transfer at Z MBps sustained CL throughput — decide if that cost is worth it vs. keeping source accessible."
 
 ## Open Questions Don't Block Plan Production
 
-When the user says "write the Plan" (or equivalent — "produce the Plan doc," "commit the Plan," "finalize Plan"), produce a **full Plan per the template below**. Not Assess output. Not a "Plan-Stage Preview." Not a hedged directional document.
+When the user says "write the Plan" (or equivalent — "produce the Technical Plan," "commit the Plan," "finalize Plan"), produce a **full Plan per the template below**. Not Assess output. Not a "Plan-Stage Preview." Not a hedged directional document.
 
 This is a stage transition the skill has to get right even when the user has open questions:
 
 - **Unresolved open questions do NOT defer, hedge, or postpone the Plan.** They go in the Open Questions section. The rest of the Plan commits to recommendations with visible working assumptions.
 - **State working assumptions explicitly.** If the user hasn't confirmed which auth types clients use, the Plan picks an assumption (e.g., "assuming SCRAM-dominant based on broker config") and notes it. The user reacts to a concrete recommendation, which is more productive than answering questions in the abstract.
 - **Use the literal `Working assumption:` label for every numbered Open Question — no exceptions.** Every item in the Open Questions section must have a corresponding `Working assumption:` line in the section that owns the decision the OQ rests on. The literal label is the audit handle — it lets the user scan the Plan and trace exactly which decisions rest on unconfirmed assumptions. Phrases like "Assuming X..." or "Default: Y..." do not substitute; use the literal `Working assumption:` prefix on the line. If the natural section is absent (e.g., no Tiered Storage section because the fixture omits it), put the label on the next-closest section that owns the underlying decision — Sizing for percentile / throughput OQs, Risks for not-in-profile or unknown-condition OQs, Pre-Migration Workstream for client-inventory / pre-cutover-work OQs. **A `Working assumption:` line inside the Open Questions entry itself does NOT satisfy the rule — the label must appear in the decision section that owns the recommendation.** **Self-check before delivering the Plan: count the items in Open Questions, then count the `Working assumption:` lines outside the Open Questions section. The two counts must match. If they don't, add the missing labels before delivering.**
-- **Never output Assess content in place of the Plan.** If the user says "write the Plan," the deliverable is a Plan doc following the template — even if the state file has gaps or the user has unanswered questions.
+- **Never output Assess content in place of the Plan.** If the user says "write the Plan," the deliverable is a Technical Plan following the template — even if the state file has gaps or the user has unanswered questions.
 
 **The only two conditions that block Plan commitment:**
 
@@ -155,9 +155,42 @@ This is a stage transition the skill has to get right even when the user has ope
 
 In all other cases, produce the full Plan. Capture gaps in Open Questions; document assumptions in-line next to the decision they support.
 
-## Plan Doc Template — structure every plan the same way
+## Technical Plan Template — structure every plan the same way
 
-Every Plan doc uses the same section ordering and the same table formats. This makes plans comparable across migrations, prevents silent gaps (missing sizing hidden by section renaming), and gives internal reviewers and customers a consistent shape to expect.
+Every Technical Plan output uses the same prologue, section ordering, and table formats. This makes Technical Plans comparable across migrations, prevents silent gaps (missing sizing hidden by section renaming), and gives internal reviewers and customers a consistent shape to expect.
+
+**Output prologue — emit verbatim at the top of every Technical Plan output.**
+
+The skill renders the following block verbatim as the prologue (before Section 1 Header). The title "Technical Plan" honestly signals scope: this artifact covers technical architecture and migration approach, not the customer's full operational plan.
+
+````markdown
+# Technical Plan
+
+## About this Technical Plan
+
+This Technical Plan is a **starting point** for your migration — Confluent
+Cloud architecture and migration approach. It's the technical foundation
+your IT team builds a full operational plan on top of, not the operational
+plan itself. The Switchover Approach and Pre-Migration Workstream sections
+describe the required technical work and patterns; the detailed runbook
+(timing, approvals, ownership) is built by your IT team using these as
+input.
+
+**What this covers:** Target architecture (cluster type, sizing, networking,
+auth), migration approach (switchover, schema, connectors), high-level
+pre-migration workstream, and risks surfaced from the source assessment.
+
+**What this does not cover:** Operational planning unique to your
+organization, or commercial, legal, and contractual review.
+
+**How to use it:** Share with your Confluent account team for operational
+guidance specific to your environment. Validate live-fetched facts (cluster
+capacities, Cluster Linking version floors, Zero-Cut prereqs) against
+current docs.confluent.io before acting. Re-run as your source environment
+or requirements change.
+````
+
+After the prologue, render the 13 required sections starting with Section 1 Header.
 
 **Required sections — always present, in this order:**
 
@@ -189,7 +222,7 @@ Add other parameter rows when the Plan's analysis depends on a non-obvious defau
 
 **Conditional sections — produce as discrete `##` headings when triggered.**
 
-When a conditional section's trigger fires, produce a discrete `## <Section Name>` heading in the Plan doc — not a bullet inside another section, not a column in a table, not a line in the Summary. The cluster table can carry a column for the same data (e.g., the Tiered (GB) column), and Summary / Risks / Pre-Migration entries can reference the section, but those references do NOT replace the section. The discrete heading is the structural commitment; the column and cross-references are supporting surfaces.
+When a conditional section's trigger fires, produce a discrete `## <Section Name>` heading in the Technical Plan — not a bullet inside another section, not a column in a table, not a line in the Summary. The cluster table can carry a column for the same data (e.g., the Tiered (GB) column), and Summary / Risks / Pre-Migration entries can reference the section, but those references do NOT replace the section. The discrete heading is the structural commitment; the column and cross-references are supporting surfaces.
 
 - **Tiered Storage.** Trigger: any cluster has `StorageMode: "TIERED"` (KCP state file) OR the manual profile records tiered usage OR the manual profile does not record StorageMode and tiered usage is unknown. When triggered, produce a `## Tiered Storage` heading with per-cluster peak volume cited from `metrics.results[] | "Cluster Aggregate - TotalRemoteStorageUsage(GB)" | max` (KCP) or the manual-profile equivalent (or an explicit "Profile does not record StorageMode — Open Question" note when unknown), plus a backfill-cost vs. keep-source-accessible discussion.
 - **Schema Migration.** Trigger: source has Schema Registry OR user is considering adoption during migration. When triggered, produce a `## Schema Migration` heading. Omit (don't fold elsewhere) when continuing schemaless — record the opt-out in Open Questions instead.
@@ -211,7 +244,7 @@ P95 column drives sizing. Peak column is reference — shows absolute max observ
 
 Forces the math to be visible. Uses **P95** values (from the CloudWatch time-series), not absolute peak. Final eCKU = CEIL(Max × (1 + headroom_fraction)). Verdict column = final eCKU + cluster type + networking decision (e.g., "14 eCKU Enterprise, PNI").
 
-**Each cell must carry inline parenthetical citations.** Citations in a pre-table header line or a post-table "Math, traceable" paragraph do NOT satisfy the inline-citation rule from "Plan Doc Conventions — cite every number" — those are useful supplements but the table cells themselves must be verifiable in place. The per-eCKU divisors (24, 72, 1000) cite cluster-types.html inline; the user-supplied dividends (P95 ingress/egress in MBps, partition count) cite their profile field path inline.
+**Each cell must carry inline parenthetical citations.** Citations in a pre-table header line or a post-table "Math, traceable" paragraph do NOT satisfy the inline-citation rule from "Technical Plan Conventions — cite every number" — those are useful supplements but the table cells themselves must be verifiable in place. The per-eCKU divisors (24, 72, 1000) cite cluster-types.html inline; the user-supplied dividends (P95 ingress/egress in MBps, partition count) cite their profile field path inline.
 
 Example cell — sized to fit, citations inline:
 
@@ -225,7 +258,7 @@ Bracketed `[cluster-types.html]` is shorthand — render as a markdown link to `
 
 Severity = High / Medium / Low / Unknown. Unknown is acceptable when the scan didn't capture the data needed to assess (e.g., "EOS/transactions in use? Unknown — confirm with owning teams").
 
-**Naming conventions — don't vary these across Plan docs:**
+**Naming conventions — don't vary these across Technical Plans:**
 
 - "Source Environment" (not "Environment Profile" or "Peak throughput")
 - "Sizing" (not "Capacity Sizing Procedure")
@@ -237,14 +270,14 @@ Severity = High / Medium / Low / Unknown. Unknown is acceptable when the scan di
 - "Open Questions" (not "Open Decisions" or "Questions to Close")
 - "Next Step"
 
-## Plan Doc Conventions — cite every number
+## Technical Plan Conventions — cite every number
 
-**Every number in the Plan doc must be traceable to its source.** The user should be able to open the state file or the cited doc and verify each number. Two annotation styles — pick one per Plan doc and stay consistent:
+**Every number in the Technical Plan must be traceable to its source.** The user should be able to open the state file or the cited doc and verify each number. Two annotation styles — pick one per Technical Plan and stay consistent:
 
 **Style A — Inline parenthetical citations.** Each number gets a short parenthetical source tag at first use.
 > Peak egress 1,594 MBps (`metrics.results[] | BytesOutPerSec | max`). Enterprise eCKU cap 32 ([cluster-types.html](https://docs.confluent.io/cloud/current/clusters/cluster-types.html), "eCKU/CKU comparison" table).
 
-**Style B — Data Sources appendix.** A section at the end of the Plan doc listing each cited number with its state file path or doc URL. Numbers in the body reference the appendix by shorthand (e.g., a superscript or bracket reference).
+**Style B — Data Sources appendix.** A section at the end of the Technical Plan listing each cited number with its state file path or doc URL. Numbers in the body reference the appendix by shorthand (e.g., a superscript or bracket reference).
 
 Either style is acceptable; Style A is usually better for migration plans (shorter, easier to eyeball). Apply the style consistently.
 
@@ -290,7 +323,7 @@ If a number can't be cited (fabricated, inferred without evidence, or from train
 - Connector migration path chosen per source connector
 - Pre-migration requirements identified and flagged (IAM → SCRAM conversion if Zero-Cut, Kafka version below current CL floor, etc.)
 - Risks documented and acknowledged by the user
-- Every number in the Plan doc carries a citation (Style A inline or Style B appendix) per Plan Doc Conventions above
+- Every number in the Technical Plan carries a citation (Style A inline or Style B appendix) per Technical Plan Conventions above
 
 **Downstream platform scope.** Tableflow, Flink, and lakehouse integrations are out of scope for this skill. Customers can enable them post-migration. If a user asks about downstream pipelines, point them to the relevant docs and return focus to the migration path.
 
