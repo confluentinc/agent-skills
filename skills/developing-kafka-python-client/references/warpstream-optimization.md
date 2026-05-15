@@ -102,6 +102,8 @@ metadata.recovery.strategy=rebootstrap
 
 These apply to any client built on librdkafka, including `confluent-kafka-python`, `confluent-kafka-go`, and `node-rdkafka`.
 
+**Important — librdkafka `message.max.bytes` is a client-global config.** Unlike the Java client (where the producer's `max.request.size` and the consumer's `fetch.max.bytes` are independent), librdkafka's `message.max.bytes` applies to **both** producer and consumer instances. If a generated app shares a single `get_kafka_config()` dict between its `Producer` and `Consumer` (which is the recommended pattern in this skill), the consumer inherits `message.max.bytes`. librdkafka then enforces `fetch.max.bytes >= message.max.bytes` and `max.partition.fetch.bytes >= message.max.bytes` at consumer construction — violating either raises `KafkaError{code=_INVALID_ARG, ... "fetch.max.bytes must be >= message.max.bytes"}`. The consumer values below are sized to satisfy this constraint with the producer's `message.max.bytes=64000000`.
+
 ### Producer
 
 ```properties
@@ -121,8 +123,10 @@ request.timeout.ms=30000
 ### Consumer
 
 ```properties
-fetch.max.bytes=50242880
-max.partition.fetch.bytes=50242880
+# Must be >= message.max.bytes (64000000) because librdkafka treats
+# message.max.bytes as a client-global config — see note above.
+fetch.max.bytes=67108864
+max.partition.fetch.bytes=67108864
 fetch.wait.max.ms=10000
 ```
 
@@ -268,7 +272,7 @@ When generating code or configs for a WarpStream target, verify:
 - [ ] `max.in.flight.requests.per.connection` raised (1000 Java, 1000000 librdkafka)
 - [ ] `linger.ms=100` (or 10-25 for low-latency)
 - [ ] `batch.size` increased (100KB+ Java, 16MB librdkafka)
-- [ ] `fetch.max.bytes` and `max.partition.fetch.bytes` set to ~50MB
+- [ ] `fetch.max.bytes` and `max.partition.fetch.bytes` set appropriately for the client. **Java:** ~50MB (50242880) is fine because Java's `max.request.size` is producer-only. **librdkafka:** must be **≥ `message.max.bytes`** (64000000 in the producer config above) — otherwise the consumer fails to construct with `KafkaError{code=_INVALID_ARG, ... "fetch.max.bytes must be >= message.max.bytes"}`. Use 67108864 (64 MiB) for the librdkafka consumer.
 - [ ] `fetch.max.wait.ms=10000`
 - [ ] `fetch.min.bytes` NOT set (unsupported)
 - [ ] `metadata.max.age.ms=60000`

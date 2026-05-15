@@ -60,6 +60,7 @@ Don't ask about Schema Registry — always include it. For Confluent Cloud and l
 | "The user wants sync, so the consumer should be sync too" | Consumer is always async (`AIOConsumer`). This is a deliberate design decision. |
 | "I'll add `headers=` to the AIOProducer for schema ID" | `AIOProducer.produce()` raises `NotImplementedError` on headers. Only sync producers use headers. |
 | "I'll swap `AsyncJSONSerializer` for `AsyncAvroSerializer` and keep the call site the same" | `JSONSerializer` takes `schema_str` first; `AvroSerializer` takes `schema_registry_client` first. Calling positionally across formats raises `TypeError: ... got multiple values for argument 'schema_registry_client'`. Always pass both as kwargs. |
+| "I'll set `message.max.bytes=64000000` on the producer config and `fetch.max.bytes=50242880` on the consumer — they're independent" | Not in librdkafka. `message.max.bytes` is a **client-global** config (unlike Java's per-role `max.request.size`), so when `get_kafka_config()` is shared between producer and consumer, the consumer inherits it. librdkafka enforces `fetch.max.bytes >= message.max.bytes` at consumer construction and raises `KafkaError{_INVALID_ARG, ... "fetch.max.bytes must be >= message.max.bytes"}`. Use the WarpStream librdkafka consumer values in `references/warpstream-optimization.md` (`fetch.max.bytes=67108864`) — they're sized to satisfy this constraint. |
 
 ## Step 1b: Confirm Understanding
 
