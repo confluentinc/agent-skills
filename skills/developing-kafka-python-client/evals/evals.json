@@ -706,6 +706,113 @@
           "contains": "auto.register.schemas"
         }
       ]
+    },
+    {
+      "id": 8,
+      "prompt": "I need a Python Kafka producer and consumer for WarpStream. Synchronous producer. Sending device telemetry events with fields: device_id, temperature, humidity, battery_level, timestamp.",
+      "expected_output": "A Python project targeting WarpStream with synchronous producer.py, consumer.py, common.py, schemas/value.schema.json, tests/test_project.py, .env.example, requirements.txt. Producer uses WarpStream-optimized librdkafka config: idempotence disabled, large batch sizes, high in-flight requests. Consumer uses large fetch sizes. .env.example has KAFKA_ENV=warpstream and client.id with ws_az=. Tests pass with pytest.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "producer-exists",
+          "type": "file_exists",
+          "description": "producer.py is generated",
+          "path": "producer.py"
+        },
+        {
+          "id": "consumer-exists",
+          "type": "file_exists",
+          "description": "consumer.py is generated",
+          "path": "consumer.py"
+        },
+        {
+          "id": "common-exists",
+          "type": "file_exists",
+          "description": "common.py is generated",
+          "path": "common.py"
+        },
+        {
+          "id": "tests-exist",
+          "type": "file_exists",
+          "description": "Unit tests are generated",
+          "path": "tests/test_project.py"
+        },
+        {
+          "id": "env-example-exists",
+          "type": "file_exists",
+          "description": ".env.example is generated",
+          "path": ".env.example"
+        },
+        {
+          "id": "env-example-has-warpstream",
+          "type": "file_contains",
+          "description": ".env.example sets KAFKA_ENV=warpstream",
+          "path": ".env.example",
+          "contains": "KAFKA_ENV=warpstream"
+        },
+        {
+          "id": "env-example-has-ws-az",
+          "type": "file_contains",
+          "description": ".env.example includes ws_az for zone-aware routing",
+          "path": ".env.example",
+          "contains": "ws_az"
+        },
+        {
+          "id": "schema-has-device-fields",
+          "type": "file_contains",
+          "description": "JSON Schema includes device_id field",
+          "path": "schemas/value.schema.json",
+          "contains": "device_id"
+        },
+        {
+          "id": "schema-has-temperature",
+          "type": "file_contains",
+          "description": "JSON Schema includes temperature field",
+          "path": "schemas/value.schema.json",
+          "contains": "temperature"
+        },
+        {
+          "id": "schema-has-descriptions",
+          "type": "file_contains",
+          "description": "JSON Schema includes field descriptions",
+          "path": "schemas/value.schema.json",
+          "contains": "description"
+        },
+        {
+          "id": "producer-is-sync",
+          "type": "file_contains",
+          "description": "Producer uses synchronous Producer class with flush()",
+          "path": "producer.py",
+          "contains": "flush"
+        },
+        {
+          "id": "producer-uses-json-schema",
+          "type": "file_contains",
+          "description": "Producer uses JSONSerializer",
+          "path": "producer.py",
+          "contains": "JSONSerializer"
+        },
+        {
+          "id": "requirements-has-pytest",
+          "type": "file_contains",
+          "description": "requirements.txt includes pytest",
+          "path": "requirements.txt",
+          "contains": "pytest"
+        },
+        {
+          "id": "readme-exists",
+          "type": "file_exists",
+          "description": "README.md is generated",
+          "path": "README.md"
+        },
+        {
+          "id": "tests-pass",
+          "type": "command",
+          "description": "All unit tests pass with pytest",
+          "command": "cd {{output_dir}} && pip install -r requirements.txt -q && python -m pytest tests/ -v --tb=short 2>&1",
+          "expect_exit_code": 0
+        }
+      ]
     }
   ]
 }
