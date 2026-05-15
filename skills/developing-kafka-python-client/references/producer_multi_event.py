@@ -49,9 +49,9 @@ async def create_json_serializer(sr_client, schema_str):
     message against the matching sub-schema at serialization time.
     """
     serializer = await AsyncJSONSerializer(
-        schema_str,
+        schema_str=schema_str,
         schema_registry_client=sr_client,
-        conf={'auto.register.schemas': False, 'use.latest.version': True}
+        conf={'auto.register.schemas': False, 'use.latest.version': True},
     )
     return serializer
 
