@@ -57,36 +57,45 @@ All three fetches should happen before writing the Technical Plan — not in a l
 - **Enterprise PNI on AWS.** Customer provides the networking substrate; Confluent delivers via ENIs. Higher throughput headroom than PrivateLink. Verify current ENI requirements against [networking docs](https://docs.confluent.io/cloud/current/networking/) live.
 - **Enterprise PrivateLink on AWS.** Default private connectivity. eCKU cap applies; verify current cap per networking type against cluster-types.html.
 
-## Networking Choice — sizing-driven by default
+## Networking Choice
 
-**Per-cluster networking is chosen by projected capacity, not by preference.** Default to PrivateLink unless the cluster's projected eCKU (including burst-to-peak elastic headroom) approaches the PrivateLink cap.
+For private AWS-to-AWS migrations, **PNI is the recommended default**. PNI charges only for cross-AZ traffic, while PrivateLink adds data processing fees and hourly endpoint fees. Actual customer savings depend on traffic profile and are best validated with your Confluent account team. PNI is AWS-only, supports Enterprise and Freight cluster types, and requires customer-side setup (51 ENIs + network interface permissions for CC) per [aws-pni.html](https://docs.confluent.io/cloud/current/networking/aws-pni.html).
 
-**Peak-burst eCKU formula (direct capacity — not ratio-based).** The elastic capacity the cluster needs at peak throughput:
+When `target_cloud` is AWS, the skill asks the customer: "Will your CC environment need to reach customer-side network resources — for example, managed connectors connecting to customer-hosted databases? This affects networking choice because PNI doesn't yet support egress." Captured in `target_context.cc_egress_required`. Drives the networking recommendation per the exception table below.
 
-```
-peak_burst_eCKU = CEIL(max(peak_ingress ÷ per-eCKU-ingress, peak_egress ÷ per-eCKU-egress))
-```
+### PrivateLink exceptions on AWS
 
-This is the raw eCKU count required to absorb absolute peak throughput. Use the absolute peak values from CloudWatch (`Cluster Aggregate - BytesInPerSec/BytesOutPerSec | max`), not P95.
+| Condition | Why | Citation |
+|---|---|---|
+| Target cloud is Azure or GCP | PNI is AWS-only | [networking/overview.html](https://docs.confluent.io/cloud/current/networking/overview.html) |
+| `target_context.cc_egress_required: true` | PNI doesn't yet support egress; Egress PrivateLink required for outbound from CC | [aws-pni.html](https://docs.confluent.io/cloud/current/networking/aws-pni.html) |
+| PNI gateway limit reached (≥2 PNI gateways already in CC environment) | Hard cap of 2 PNI gateways per CC environment; additional gateways require Confluent support contact | [aws-pni.html](https://docs.confluent.io/cloud/current/networking/aws-pni.html) |
+| Compliance scenarios, organizational policy on shared vs dedicated networking substrate, latency-sensitivity, or customer-managed-substrate posture | Not published as a structured Confluent doc | Connect with your Confluent account team |
 
-**Do NOT compute peak-burst eCKU as `peak/P95 ratio × P95-sized eCKU`.** That double-counts the 30% headroom already baked into the P95 sizing and produces inflated numbers (e.g., 1.60× × 8 eCKU = 12.8 eCKU, vs. the correct 1,594 ÷ 180 = 8.86 eCKU). The ratio-based formulation is wrong.
+### Level-of-effort consideration
 
-**Decision rule per cluster — apply the 80% safety threshold:**
+PNI requires customer-side ENI setup (51 ENIs + network interface permissions for CC). See [aws-pni.html](https://docs.confluent.io/cloud/current/networking/aws-pni.html) for current specifics. Surface this in the Technical Plan as a top-level effort note alongside the networking recommendation — the customer's IT team owns the ENI provisioning step.
 
-- **PrivateLink** when `peak_burst_eCKU < 80% of PrivateLink cap` (i.e., ≤ 7 eCKU with a 10 eCKU cap). Simpler to operate, lower overhead.
-- **PNI** when `peak_burst_eCKU ≥ 80% of PrivateLink cap`. At 80%+ the cluster has no growth margin under the cap and is **fragile to throughput drift during bursts** — if peak edges up by even 10-20% post-migration, the cluster hits the ceiling. Use PNI's higher cap (32 eCKU) to preserve growth headroom.
+For non-private networking topologies (hub-and-spoke → Transit Gateway, direct VPC peering, public endpoints), see the SKILL.md networking selection table — those topologies still drive the cluster-type decision (e.g., TGW escalates to Dedicated).
 
-Show both numbers in the Networking Decision justification: the peak-burst eCKU and its percentage of the PrivateLink cap. Example: "P95 sizing 8 eCKU; peak egress 1,594 MBps ÷ 180 MBps/eCKU = 8.86 eCKU peak-burst = 88% of 10 eCKU PrivateLink cap → **PNI** (only 1.14 eCKU headroom at peak, fragile)."
+**Every networking choice in the Technical Plan must carry a justification in the Networking Decision table.** For the AWS-to-AWS PNI default: state the cost reasoning (cross-AZ traffic only vs PrivateLink's data processing + hourly endpoint fees). For each exception case: cite which condition triggered (`cc_egress_required`, gateway limit, non-AWS target, or account-team deferral case) and the supporting doc.
 
-**Every networking choice in the Plan must carry a sizing-driven justification in the Networking Decision table.** If a cluster's projected eCKU is well under PrivateLink cap, the justification is "N eCKU against M cap, X% headroom — PrivateLink." Don't pad the reason.
+**Always emit the account-team deferral framing in the Networking Decision section, even when PNI is the recommendation and no PrivateLink exception fires.** The four-row exception list above is complete, so the Plan section must show all four — three citable exceptions plus the account-team deferral case. State explicitly that compliance, organizational policy, latency-sensitivity, or customer-managed-substrate cases that fall outside the three citable exceptions are not published as structured Confluent doc and defer to the Confluent account team. This is a non-conditional emit: it appears in every Plan's Networking Decision section so the user sees the full exception surface. Phrase as a short trailing line after the three citable exceptions — e.g., "Compliance, organizational policy, latency-sensitivity, or customer-managed-substrate cases that fall outside the three citable exceptions above are not published as structured Confluent doc — defer to the Confluent account team."
 
-**Operational-consistency exceptions are permitted but must be flagged explicitly.** If the user or the skill prefers a uniform networking substrate (e.g., all-PNI for fleet-wide operational consistency) even where sizing doesn't require it, that's a valid architectural preference — but treat it as an **override**, not a default:
+Do NOT compute customer-specific cost differential or quote a percentage savings figure. Actual savings are workload-dependent and validated with the account team. The cost reasoning is the standard PNI explanation, not a customer-specific number.
 
-- Make the sizing-driven recommendation per cluster first (per the table above).
-- Then flag: "If the user prefers a single networking pattern for operational consistency, alternative is all-PNI. This is a preference, not a capacity requirement."
-- Do NOT use "operational consistency" as the primary justification for a cluster whose projected eCKU doesn't warrant PNI. "Operational consistency" is valid as an override, not as a sizing reason.
+### Cluster Linking direction cascade
 
-This keeps the Plan's recommendations traceable to capacity math and separates preference decisions from sizing decisions so the user can evaluate both on their own merits.
+After emitting the `target_networking` recommendation above, derive Cluster Linking direction. Direction is set via the `link.mode` config property ([cluster-links-cc.html](https://docs.confluent.io/cloud/current/multi-cloud/cluster-linking/cluster-links-cc.html)) — `DESTINATION` (default) or `SOURCE` — and cannot be changed after the link is created. Cascades from `target_networking`:
+
+- **VPC peering, Transit Gateway, Public + MSK public** → CC → MSK reachability is enabled by the recommendation. Destination-initiated (default). KCP orchestrates link setup as part of `kcp migration init`. Do not ask the customer; emit derivation in the Plan.
+- **PrivateLink, PNI** → Reachability depends on whether the PrivateLink/PNI VPC has a route to the MSK VPC. **Ask the customer**: "Your recommended target networking is `{PrivateLink|PNI}`. Does your `{PrivateLink|PNI}` VPC have a network path to the MSK VPC via peering, TGW, or other direct route?" Capture answer in `target_context.cc_reaches_source`. Derive:
+  - `cc_reaches_source: true` → destination-initiated (KCP orchestrates).
+  - `cc_reaches_source: false` → source-initiated (`link.mode=SOURCE`). Triggers the "Cluster Linking — Special Considerations" conditional section (see Conditional sections below) — KCP does not orchestrate source-initiated link setup; customer establishes the link manually per [private-networking.html](https://docs.confluent.io/cloud/current/multi-cloud/cluster-linking/private-networking.html) before KCP migration commands resume. `link.mode=SOURCE` is permanent for the link.
+  - `cc_reaches_source: unknown` → default to destination-initiated as a working assumption; flag as Open Question to close before Provision.
+- **Public + MSK private** → CC cannot reach private MSK from a public boundary. Source-initiated. Triggers Cluster Linking — Special Considerations.
+
+**Emit derivation visible in the Plan.** Format the derivation as `target_networking={value}; {reachability derivation} → {direction}`, e.g., `target_networking=VPC peering implies CC → MSK reachability → destination-initiated` or `target_networking=PNI; customer indicated no PNI-VPC ↔ MSK-VPC route → source-initiated (link.mode=SOURCE)`. The reader should be able to trace which input drove the direction call.
 
 ## Schema Migration Path Selection
 
@@ -228,7 +237,7 @@ When a conditional section's trigger fires, produce a discrete `## <Section Name
 - **Schema Migration.** Trigger: source has Schema Registry OR user is considering adoption during migration. When triggered, produce a `## Schema Migration` heading. Omit (don't fold elsewhere) when continuing schemaless — record the opt-out in Open Questions instead.
 - **Connector Migration.** Trigger: any connectors exist (MSK Connect managed OR self-managed Connect). When triggered, produce a `## Connector Migration` heading. Omit (don't fold elsewhere) when zero connectors — note the absence in the Summary.
 - **Multi-VPC / Multi-Region considerations.** Trigger: source spans VPCs or regions, or MSK Multi-VPC Private Connectivity is detected. When triggered, produce a `## Multi-VPC / Multi-Region` heading.
-- **Cluster Linking special considerations.** Trigger: non-standard CL constraint (version concerns, Express broker tier, cross-region, tiered-storage backfill complexity). When triggered, produce a `## Cluster Linking — Special Considerations` heading.
+- **Cluster Linking special considerations.** Trigger: non-standard CL constraint (version concerns, Express broker tier, cross-region, tiered-storage backfill complexity) OR `direction == source-initiated` OR `direction == unknown` (per the Cluster Linking direction cascade above). When triggered, produce a `## Cluster Linking — Special Considerations` heading. When source-initiated is the trigger, the section must: (a) note that KCP does not orchestrate source-initiated link setup — customer establishes the link manually before KCP migration commands resume; (b) cite [private-networking.html](https://docs.confluent.io/cloud/current/multi-cloud/cluster-linking/private-networking.html) for current prereqs; (c) flag that `link.mode=SOURCE` is permanent — direction cannot be changed once the link is created.
 
 **The cluster-table column does not replace the section.** When `Tiered (GB)` shows non-`—` values for any cluster, the Tiered Storage section is required. Similarly, mentioning tiered facts in Summary, Pre-Migration, or Risks does not satisfy the trigger — those references can co-exist with the section but do not substitute for it.
 
