@@ -1,0 +1,14 @@
+{
+  "type": "record",
+  "name": "Transaction",
+  "namespace": "com.example.kafka",
+  "doc": "A financial transaction event produced to Kafka. Example Avro schema — replace with the user's domain.",
+  "fields": [
+    {"name": "transaction_id", "type": "string", "doc": "Unique identifier for this transaction."},
+    {"name": "amount", "type": "double", "default": 0, "doc": "Transaction amount in the specified currency."},
+    {"name": "currency", "type": "string", "default": "", "doc": "ISO 4217 currency code."},
+    {"name": "timestamp", "type": "string", "doc": "Time the transaction occurred, in ISO 8601 format."},
+    {"name": "status", "type": {"type": "enum", "name": "Status", "symbols": ["pending", "completed", "failed", "refunded"]}, "default": "pending", "doc": "Current state of the transaction."},
+    {"name": "metadata", "type": ["null", "string"], "default": null, "doc": "Optional metadata associated with the transaction."}
+  ]
+}
