@@ -145,6 +145,7 @@ This is a stage transition the skill has to get right even when the user has ope
 
 - **Unresolved open questions do NOT defer, hedge, or postpone the Plan.** They go in the Open Questions section. The rest of the Plan commits to recommendations with visible working assumptions.
 - **State working assumptions explicitly.** If the user hasn't confirmed which auth types clients use, the Plan picks an assumption (e.g., "assuming SCRAM-dominant based on broker config") and notes it. The user reacts to a concrete recommendation, which is more productive than answering questions in the abstract.
+- **Use the literal `Working assumption:` label for every numbered Open Question — no exceptions.** Every item in the Open Questions section must have a corresponding `Working assumption:` line in the section that owns the decision the OQ rests on. The literal label is the audit handle — it lets the user scan the Plan and trace exactly which decisions rest on unconfirmed assumptions. Phrases like "Assuming X..." or "Default: Y..." do not substitute; use the literal `Working assumption:` prefix on the line. If the natural section is absent (e.g., no Tiered Storage section because the fixture omits it), put the label on the next-closest section that owns the underlying decision — Sizing for percentile / throughput OQs, Risks for not-in-profile or unknown-condition OQs, Pre-Migration Workstream for client-inventory / pre-cutover-work OQs. **A `Working assumption:` line inside the Open Questions entry itself does NOT satisfy the rule — the label must appear in the decision section that owns the recommendation.** **Self-check before delivering the Plan: count the items in Open Questions, then count the `Working assumption:` lines outside the Open Questions section. The two counts must match. If they don't, add the missing labels before delivering.**
 - **Never output Assess content in place of the Plan.** If the user says "write the Plan," the deliverable is a Plan doc following the template — even if the state file has gaps or the user has unanswered questions.
 
 **The only two conditions that block Plan commitment:**
@@ -209,6 +210,14 @@ P95 column drives sizing. Peak column is reference — shows absolute max observ
 | Cluster | P95 In ÷ per-eCKU-in | P95 Out ÷ per-eCKU-out | User Partitions ÷ per-eCKU-partitions | Max | +Headroom | Verdict |
 
 Forces the math to be visible. Uses **P95** values (from the CloudWatch time-series), not absolute peak. Final eCKU = CEIL(Max × (1 + headroom_fraction)). Verdict column = final eCKU + cluster type + networking decision (e.g., "14 eCKU Enterprise, PNI").
+
+**Each cell must carry inline parenthetical citations.** Citations in a pre-table header line or a post-table "Math, traceable" paragraph do NOT satisfy the inline-citation rule from "Plan Doc Conventions — cite every number" — those are useful supplements but the table cells themselves must be verifiable in place. The per-eCKU divisors (24, 72, 1000) cite cluster-types.html inline; the user-supplied dividends (P95 ingress/egress in MBps, partition count) cite their profile field path inline.
+
+Example cell — sized to fit, citations inline:
+
+| `payments-prod` | 280 (`clusters[0].p95_ingress_mbps`) ÷ 24 ([cluster-types.html]) = 11.67 | 840 (`clusters[0].p95_egress_mbps`) ÷ 72 ([cluster-types.html]) = 11.67 | 3,568 (`clusters[0].user_partition_count`) ÷ 1,000 ([cluster-types.html]) = 3.57 | 11.67 | × 1.30 = 15.17 → CEIL = **16** | **16 eCKU Enterprise, PNI** |
+
+Bracketed `[cluster-types.html]` is shorthand — render as a markdown link to `https://docs.confluent.io/cloud/current/clusters/cluster-types.html`. The first cell in a row may carry the link in full; subsequent cells in the same row may abbreviate to `[cluster-types.html]` if the row gets dense. The point is verifiability inline — the user must be able to trace each number from inside the table cell without scrolling to adjacent prose.
 
 **Standardized risks table columns:**
 
