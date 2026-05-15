@@ -101,19 +101,19 @@ Path depends on source SR state. Version cutoffs (e.g., Schema Linking's CP vers
 | None — adopt SR during migration | Provision CC SR, register initial schemas, then migrate data. For greenfield schema discovery in client code, cross-link to the `kafka-schema-registry` skill. |
 | None — migrate without schemas | Skip SR steps. Record the explicit user choice. Proceed with data migration. |
 
-## Connector Migration Path Selection
+## Connector Migration
 
-| Source | Path | Tool |
+For each source connector enumerated in Assess (or detected via state file at `aws_client_information.connectors[]`), the Plan looks up the CC managed connector catalog and classifies the migration path per-connector. Classification is at the individual-connector level, not the source-type level — MSK Connect and self-managed Connect determine which `kcp create-asset migrate-connectors {msk|self-managed}` sub-command emits the asset, not whether the connector goes to CC managed.
+
+| Source Connector | CC Managed Equivalent | Path |
 |---|---|---|
-| MSK Connect (managed) | Fully managed CC connectors | CMU + `kcp create-asset migrate-connectors msk` |
-| Self-managed Connect | Fully managed or custom CC connectors | CMU + `kcp create-asset migrate-connectors self-managed` |
-| Connector not available on CC | Custom connector or alternative | Check [connectors docs](https://docs.confluent.io/cloud/current/connectors) for managed equivalent; otherwise plan self-managed on CC or an alternative |
+| `[name 1]` | [`cc-<name>.html`](https://docs.confluent.io/cloud/current/connectors/index.html) | CMU + `kcp create-asset migrate-connectors {msk|self-managed}` per source type. |
+| `[name 2]` | Not available | Connect with your Confluent account team — options include custom connector, alternative target architecture, or staying on a self-managed Connect cluster (out of scope for full CC migration). |
+| `[name 3]` | [`cc-<name>.html`](https://docs.confluent.io/cloud/current/connectors/index.html) (version or config differs materially) | CMU + `kcp create-asset migrate-connectors`. For substitution-specific guidance (e.g., Debezium 1.x → V2 config key differences), connect with your Confluent account team — these specifics are not published as a structured Confluent doc. |
 
-Surface the decision to the user rather than picking blindly. Ask:
+Lookup source: [CC connector catalog](https://docs.confluent.io/cloud/current/connectors/index.html). Verify live before committing — managed connector availability evolves.
 
-- Is a managed equivalent available on CC for this connector type?
-- Is custom plugin source code available (required if self-managed Connect is the path)?
-- What's the throughput and error tolerance for each connector?
+Operational concerns are not part of the Technical Plan. Connector-level operational planning belongs in the operational plan the customer's IT team builds on top.
 
 ## Risk Factors (flag to the user)
 
@@ -202,7 +202,7 @@ After the prologue, render the 13 required sections starting with Section 1 Head
 6. **Cluster Type Decision.** Enterprise vs Dedicated per cluster. If any cluster is Dedicated, cite which hard-limit row triggered the escalation.
 7. **Networking Decision.** Per-cluster networking choice (PrivateLink, PNI, VPC Peering, TGW, public) with justification.
 8. **Auth Approach.** Target CC auth per source auth type. If deferred, list the scenarios and name what closes the decision.
-9. **Switchover Approach.** Zero-Cut as primary; manual CL fallback. Prerequisites fetched live at Switchover stage — don't cache them in Plan.
+9. **Switchover Approach.** Pattern × mechanism (incremental + Gateway recommended; big-bang + Gateway when single window desired; big-bang + Manual CL fallback when Zero-Cut prereqs not met). Dual-write described for completeness only — no Confluent-specific tooling. Note that Incremental + Manual CL is not recommended (operationally heavy without the Gateway's atomic flip). Prerequisites fetched live at Switchover stage — don't cache them in Plan.
 10. **Pre-Migration Workstream.** What has to happen before migration proper. Commonly: IAM→SCRAM auth migration, Kafka version upgrade, client inventory reconstruction. Include rough duration where known.
 11. **Risks.** Table format (standardized below).
 12. **Open Questions.** Numbered list with owner (User / Live fetch / etc.). These are the specific items that close before Provisioning.
@@ -226,7 +226,7 @@ When a conditional section's trigger fires, produce a discrete `## <Section Name
 
 - **Tiered Storage.** Trigger: any cluster has `StorageMode: "TIERED"` (KCP state file) OR the manual profile records tiered usage OR the manual profile does not record StorageMode and tiered usage is unknown. When triggered, produce a `## Tiered Storage` heading with per-cluster peak volume cited from `metrics.results[] | "Cluster Aggregate - TotalRemoteStorageUsage(GB)" | max` (KCP) or the manual-profile equivalent (or an explicit "Profile does not record StorageMode — Open Question" note when unknown), plus a backfill-cost vs. keep-source-accessible discussion.
 - **Schema Migration.** Trigger: source has Schema Registry OR user is considering adoption during migration. When triggered, produce a `## Schema Migration` heading. Omit (don't fold elsewhere) when continuing schemaless — record the opt-out in Open Questions instead.
-- **Connectors.** Trigger: any connectors exist (MSK Connect managed OR self-managed Connect). When triggered, produce a `## Connectors` heading. Omit (don't fold elsewhere) when zero connectors — note the absence in the Summary.
+- **Connector Migration.** Trigger: any connectors exist (MSK Connect managed OR self-managed Connect). When triggered, produce a `## Connector Migration` heading. Omit (don't fold elsewhere) when zero connectors — note the absence in the Summary.
 - **Multi-VPC / Multi-Region considerations.** Trigger: source spans VPCs or regions, or MSK Multi-VPC Private Connectivity is detected. When triggered, produce a `## Multi-VPC / Multi-Region` heading.
 - **Cluster Linking special considerations.** Trigger: non-standard CL constraint (version concerns, Express broker tier, cross-region, tiered-storage backfill complexity). When triggered, produce a `## Cluster Linking — Special Considerations` heading.
 
@@ -269,6 +269,7 @@ Severity = High / Medium / Low / Unknown. Unknown is acceptable when the scan di
 - "Pre-Migration Workstream" (not "Pre-Migration Plan" or "Pre-Migration Requirements")
 - "Open Questions" (not "Open Decisions" or "Questions to Close")
 - "Next Step"
+- "Connector Migration" (not "Connectors" — renamed in B5; the conditional heading is `## Connector Migration`)
 
 ## Technical Plan Conventions — cite every number
 

@@ -88,3 +88,15 @@ Pair this checklist with `evals.json` — `evals.json` covers artifact-grounded 
 
 - [ ] **Recommends broadening discovery scope before Plan commits.** The Row 16 response recommends re-running `kcp discover` across all regions and all relevant AWS accounts (or, in manual intake, asking the user to enumerate any clusters not yet listed) before the Plan scope is committed.
 - [ ] **Does not fabricate specs for the hidden cluster.** The skill does not invent broker count, topics, throughput, or other details for the unmatched cost entry. The cost signal confirms existence and gives a rough size cue (from instance type + spend), but specifics require enumeration of the hidden cluster.
+
+## Eval 20 — switchover-pattern-mechanism
+
+- [ ] **Three pattern × mechanism cells produce materially different runbook content.** The Incremental + Gateway, Big-bang + Gateway, and Big-bang + Manual CL cells each emit distinct content in the Plan: KCP group definition (multiple groups vs. single group vs. N/A), cutover cadence (per-group vs. single window vs. coordinated stop-and-restart), validation pattern, and rollback scope (per-group vs. all-or-nothing). Three labels for similar behavior fails this item.
+- [ ] **Lands as a Confluent best-practice recommendation, not a neutral menu.** The Switchover Approach reads as a recommendation (Incremental + Gateway as the default), not as a neutral menu of equivalent options. The reader should come away knowing what Confluent recommends and why, not weighing four roughly-equal choices.
+- [ ] **"Incremental + Manual CL not recommended" warning is clearly visible.** The note about Incremental + Manual CL being operationally heavy without the Gateway's atomic flip appears clearly enough that a customer reading the Plan would not pursue that path. A buried one-line footnote fails this item.
+- [ ] **Dual-write framing discourages customers from picking it without strong reason.** The Dual-write row makes clear the operational complexity, dual cost, and absence of Confluent-specific tooling. A customer reading the Plan should not interpret Dual-write as a peer option to the other three patterns.
+
+## Eval 21 — per-connector-classification
+
+- [ ] **Per-connector table reads as actionable.** The per-connector table presents a clear path per connector (CMU + kcp create-asset for available, defer to account team for not-available). The table does not blur into a generic "use CMU for all MSK Connect connectors" recommendation that ignores per-connector classification.
+- [ ] **Substitution-nuance handoff to account team lands specifically.** When a connector requires substitution-specific guidance (e.g., Debezium 1.x → V2 config key differences), the handoff to the Confluent account team is concrete — citing the specific substitution issue if known — rather than a generic "talk to Sales" punt. The third row of the per-connector table should differentiate substitution-nuance cases from straight CC-equivalent or no-equivalent cases.

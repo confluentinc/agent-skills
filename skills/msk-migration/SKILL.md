@@ -133,14 +133,16 @@ For each source MSK auth type, three decisions: target CC auth, Cluster Linking 
 
 ### Switchover approach selection
 
-| Approach | When to Choose | Requirements | Downtime |
-|---|---|---|---|
-| **Zero-Cut Migration (recommended)** | Default for all migrations. KCP orchestrates the full cutover. | See KCP zero-cut guide for current prerequisites. | ~60s retriable errors, no client restarts |
-| Topic-by-topic (manual CL) | No Kubernetes available for Gateway. Simple environments. | CL with active mirrors | Per-topic producer stop + restart |
-| App-by-app (manual CL) | No Gateway. Multi-team topic ownership. | CL with active mirrors | Per-app coordinated restart |
-| Big-bang (manual CL) | No Gateway. Small environment. Planned maintenance window acceptable. | CL with active mirrors | Full coordinated restart |
+Confluent recommends incremental cutover via KCP Gateway (Zero-Cut). KCP orchestrates per-group atomic cutover with ~60s retriable errors and no client restarts. Per-group rollback. Lowest risk.
 
-Zero-Cut is the primary recommendation. Manual CL-based cutover is fallback when Gateway deployment isn't feasible.
+| Pattern × Mechanism | Recommendation | What the Plan emits |
+|---|---|---|
+| **Incremental + Gateway (Zero-Cut) — RECOMMENDED** | Default for all migrations where Zero-Cut prereqs are met. | Multiple KCP groups defined by ownership / criticality, per-group lag-check + execute + validate, per-group rollback plan. |
+| Big-bang + Gateway (Zero-Cut) | Only when customer explicitly wants a single cutover window AND environment is small/simple. | Single KCP group containing all topics, single lag-check + execute, all-or-nothing rollback plan. |
+| Big-bang + Manual CL | Fallback when Zero-Cut prereqs are not met. | CL with auto-create mirrors, lag-zero verification, coordinated stop and restart of all clients in one window. See [migrate-cc.html](https://docs.confluent.io/cloud/current/multi-cloud/cluster-linking/migrate-cc.html). |
+| Dual-write (blue-green) | Avoid unless customer architecture already requires it. No Confluent-specific tooling — generic CL only. | Generic CL for mirroring; rest of architecture is customer-owned. |
+
+Note: Incremental + Manual CL is technically possible but operationally heavy without the Gateway's atomic flip. The skill does not recommend this combination — use Zero-Cut if the prereqs can be met, otherwise big-bang with manual CL.
 
 **Zero-Cut prerequisites — fetch live.** Required components (Kubernetes distribution, CP licensing, CL state, minimum KCP version, auth compatibility) evolve as Zero-Cut matures. Fetch the current prerequisite list from the [KCP zero-cut guide](https://confluentinc.github.io/kcp/latest/getting-started-with-zero-cut-migrations/) before telling a user whether Zero-Cut fits. Do not rely on cached prerequisites.
 
@@ -229,6 +231,7 @@ The skill encodes judgment, not product facts. Decision frameworks, trigger cate
 | Gateway auth-swap scenarios (source-auth × target-auth matrix) | [KCP Gateway Switchover hub](https://confluentinc.github.io/kcp/latest/gateway-switchover/) — 8 documented scenarios (none/mTLS/SCRAM source × SASL-PLAIN/OAuth/mTLS target). Hub-page note: meta-refresh redirect; navigate from hub to specific scenario pages. | Auth target derivation in Plan stage; any question about specific source → target auth migration through Gateway |
 | Cluster types, eCKU caps, per-eCKU throughput, partition rates, REST throughput, SLA | [cluster-types.html](https://docs.confluent.io/cloud/current/clusters/cluster-types.html) | Plan; whenever capacity, throughput, or partitioning matters |
 | Cluster Linking source requirements and compatibility | [cluster-linking docs](https://docs.confluent.io/cloud/current/multi-cloud/cluster-linking) | Any CL-related question or version compatibility check |
+| Manual CL-based migration flow (big-bang fallback when Zero-Cut prereqs not met) | [migrate-cc.html](https://docs.confluent.io/cloud/current/multi-cloud/cluster-linking/migrate-cc.html) | Switchover; whenever the Plan emits a Big-bang + Manual CL cell or otherwise needs to describe the manual-CL cutover flow |
 | CC authentication options and CL auth compatibility | [authenticate docs](https://docs.confluent.io/cloud/current/security/authenticate) | Auth mapping for each source auth type |
 | mTLS availability by cloud | [mTLS overview](https://docs.confluent.io/cloud/current/security/authenticate/workload-identities/identity-providers/mtls/overview.html) and CC release notes | mTLS + Azure/GCP questions |
 | Broker-side schema ID validation availability | [broker-side-schema-validation.html](https://docs.confluent.io/cloud/current/sr/broker-side-schema-validation.html) | When source uses schema ID validation |
