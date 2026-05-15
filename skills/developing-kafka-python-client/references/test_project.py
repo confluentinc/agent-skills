@@ -283,15 +283,30 @@ class TestConsumer:
     """Verify consumer subscribes, deserializes, and shuts down cleanly."""
 
     def test_consumer_uses_schema_registry(self):
-        """Consumer must use JSONDeserializer, not raw JSON parsing."""
+        """Consumer must use a Schema Registry deserializer, not raw parsing.
+
+        Accepts any of the three formats (JSON Schema, Avro, Protobuf) in
+        either their sync or async variant — whichever the project was
+        scaffolded with.
+        """
         import consumer as cons
         source = open(cons.__file__).read()
-        assert "JSONDeserializer" in source or "AsyncJSONDeserializer" in source, (
-            "Consumer must use JSONDeserializer from Schema Registry"
+        accepted = (
+            "JSONDeserializer", "AsyncJSONDeserializer",
+            "AvroDeserializer", "AsyncAvroDeserializer",
+            "ProtobufDeserializer", "AsyncProtobufDeserializer",
         )
+        assert any(name in source for name in accepted), (
+            "Consumer must use a Schema Registry deserializer "
+            f"(one of {accepted})"
+        )
+        # Raw json.loads is only a deserialization-fallback red flag on the
+        # JSON-Schema path; Avro/Protobuf consumers may legitimately have no
+        # json import at all, but if they do, we still reject json.loads as
+        # a value-decoding fallback.
         assert "json.loads" not in source, (
-            "Consumer should use JSONDeserializer/AsyncJSONDeserializer from "
-            "Schema Registry, not raw json.loads for deserialization"
+            "Consumer should deserialize via the Schema Registry "
+            "deserializer, not raw json.loads"
         )
 
     def test_consumer_has_graceful_shutdown(self):
@@ -312,86 +327,59 @@ class TestConsumer:
 # Schema tests
 # ---------------------------------------------------------------------------
 
+def _find_schema_path(filename):
+    """Locate a schema file relative to either the tests dir or project root.
+
+    Returns None if the file does not exist (used by tests to skip the
+    classes that don't apply to the chosen schema format).
+    """
+    for candidate in (
+        os.path.join(os.path.dirname(__file__), "..", "schemas", filename),
+        os.path.join(os.path.dirname(__file__), "schemas", filename),
+    ):
+        if os.path.exists(candidate):
+            return candidate
+    return None
+
+
+@pytest.mark.skipif(
+    _find_schema_path("value.schema.json") is None,
+    reason="No value.schema.json — project uses Avro or Protobuf",
+)
 class TestJsonSchema:
     """Verify the JSON Schema is valid."""
 
-    def test_schema_is_valid_json_schema(self):
-        schema_path = os.path.join(
-            os.path.dirname(__file__), "..", "schemas", "value.schema.json"
-        )
-        # Adjust path if tests/ is a subdirectory
-        if not os.path.exists(schema_path):
-            schema_path = os.path.join(
-                os.path.dirname(__file__), "schemas", "value.schema.json"
-            )
-        with open(schema_path) as f:
-            schema = json.load(f)
+    @pytest.fixture
+    def schema(self):
+        with open(_find_schema_path("value.schema.json")) as f:
+            return json.load(f)
 
+    def test_schema_is_valid_json_schema(self, schema):
         assert schema["type"] == "object"
         assert "title" in schema
         assert "properties" in schema
         assert len(schema["properties"]) > 0
 
-    def test_schema_has_description(self):
+    def test_schema_has_description(self, schema):
         """Top-level schema must have a description for governance."""
-        schema_path = os.path.join(
-            os.path.dirname(__file__), "..", "schemas", "value.schema.json"
-        )
-        if not os.path.exists(schema_path):
-            schema_path = os.path.join(
-                os.path.dirname(__file__), "schemas", "value.schema.json"
-            )
-        with open(schema_path) as f:
-            schema = json.load(f)
-
         assert "description" in schema, "Schema must have a top-level 'description'"
 
-    def test_schema_properties_have_descriptions(self):
+    def test_schema_properties_have_descriptions(self, schema):
         """Every property must have a description for discoverability."""
-        schema_path = os.path.join(
-            os.path.dirname(__file__), "..", "schemas", "value.schema.json"
-        )
-        if not os.path.exists(schema_path):
-            schema_path = os.path.join(
-                os.path.dirname(__file__), "schemas", "value.schema.json"
-            )
-        with open(schema_path) as f:
-            schema = json.load(f)
-
         for prop_name, prop_def in schema["properties"].items():
             assert "description" in prop_def, (
                 f"Property '{prop_name}' missing 'description': {prop_def}"
             )
 
-    def test_schema_properties_have_type(self):
-        schema_path = os.path.join(
-            os.path.dirname(__file__), "..", "schemas", "value.schema.json"
-        )
-        if not os.path.exists(schema_path):
-            schema_path = os.path.join(
-                os.path.dirname(__file__), "schemas", "value.schema.json"
-            )
-        with open(schema_path) as f:
-            schema = json.load(f)
-
+    def test_schema_properties_have_type(self, schema):
         for prop_name, prop_def in schema["properties"].items():
             has_type = "type" in prop_def or "enum" in prop_def or "oneOf" in prop_def
             assert has_type, (
                 f"Property '{prop_name}' must have 'type', 'enum', or 'oneOf': {prop_def}"
             )
 
-    def test_timestamp_fields_use_format(self):
+    def test_timestamp_fields_use_format(self, schema):
         """Timestamp fields typed as string must use format: date-time."""
-        schema_path = os.path.join(
-            os.path.dirname(__file__), "..", "schemas", "value.schema.json"
-        )
-        if not os.path.exists(schema_path):
-            schema_path = os.path.join(
-                os.path.dirname(__file__), "schemas", "value.schema.json"
-            )
-        with open(schema_path) as f:
-            schema = json.load(f)
-
         timestamp_indicators = ("timestamp", "_at", "_date", "_time")
         for prop_name, prop_def in schema["properties"].items():
             if any(prop_name.endswith(ind) or ind in prop_name for ind in timestamp_indicators):
@@ -400,6 +388,75 @@ class TestJsonSchema:
                         f"Timestamp property '{prop_name}' must have "
                         f"'format': 'date-time', got: {prop_def}"
                     )
+
+
+@pytest.mark.skipif(
+    _find_schema_path("value.avsc") is None,
+    reason="No value.avsc — project uses JSON Schema or Protobuf",
+)
+class TestAvroSchema:
+    """Verify the Avro schema is valid.
+
+    Avro schemas are JSON-encoded, so basic structural checks can be done
+    without importing the avro library.
+    """
+
+    @pytest.fixture
+    def schema(self):
+        with open(_find_schema_path("value.avsc")) as f:
+            return json.load(f)
+
+    def test_schema_is_record_type(self, schema):
+        assert schema.get("type") == "record", (
+            "Top-level Avro schema must be type 'record'"
+        )
+        assert "name" in schema, "Avro record must have a 'name'"
+        assert "fields" in schema, "Avro record must have 'fields'"
+        assert len(schema["fields"]) > 0, "Avro record must have at least one field"
+
+    def test_schema_has_doc(self, schema):
+        """Top-level Avro record should have a 'doc' field for governance."""
+        assert "doc" in schema, "Avro record must have a top-level 'doc'"
+
+    def test_fields_have_doc(self, schema):
+        """Every Avro field should have a 'doc' for discoverability."""
+        for field in schema["fields"]:
+            assert "doc" in field, (
+                f"Avro field '{field.get('name')}' missing 'doc': {field}"
+            )
+
+    def test_fields_have_name_and_type(self, schema):
+        for field in schema["fields"]:
+            assert "name" in field, f"Avro field missing 'name': {field}"
+            assert "type" in field, f"Avro field missing 'type': {field}"
+
+
+@pytest.mark.skipif(
+    _find_schema_path("value.proto") is None,
+    reason="No value.proto — project uses JSON Schema or Avro",
+)
+class TestProtobufSchema:
+    """Verify the Protobuf schema is structurally sane.
+
+    Lightweight checks — full validation requires `protoc`, which is not
+    a reasonable test dependency for a scaffolded project.
+    """
+
+    @pytest.fixture
+    def source(self):
+        with open(_find_schema_path("value.proto")) as f:
+            return f.read()
+
+    def test_declares_syntax(self, source):
+        assert 'syntax = "proto3"' in source or "syntax = 'proto3'" in source, (
+            "Protobuf file must declare proto3 syntax"
+        )
+
+    def test_has_at_least_one_message(self, source):
+        import re
+        assert re.search(r"^\s*message\s+\w+\s*\{", source, re.MULTILINE), (
+            "Protobuf file must define at least one message"
+        )
 
 
 # ---------------------------------------------------------------------------
