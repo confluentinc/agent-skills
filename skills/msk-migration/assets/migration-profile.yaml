@@ -1,0 +1,139 @@
+# Migration profile template for msk-migration skill.
+#
+# Use this file when neither an MSK MCP server nor the KCP CLI is available
+# (restricted AWS accounts, pre-engagement intake). The skill walks you
+# through filling it out during Assess. Downstream stages consume the
+# populated profile to make decisions.
+#
+# Required fields are marked REQUIRED. Missing data should be recorded as
+# null, not fabricated.
+
+source:
+  platform: msk-provisioned  # REQUIRED. msk-provisioned | msk-serverless
+  cloud_provider: aws  # REQUIRED. aws (msk-migration is MSK-only)
+  region: us-east-1  # REQUIRED. Source AWS region.
+  kafka_version: null  # REQUIRED. Source Kafka version. Verify CL compatibility against docs.
+  migration_drivers: null  # Brief note: why migrate? timeline? hard cutover constraint?
+  monthly_cost_usd: null  # Rough MSK spend. Populate from kcp report costs if available.
+
+clusters:
+  # One entry per MSK cluster in scope. Multi-cluster migrations expand this list.
+  - name: null  # REQUIRED. Cluster name or ARN.
+    broker_count: null  # REQUIRED for provisioned. Null for serverless.
+    broker_instance_type: null  # e.g. kafka.m5.large. Null for serverless.
+    availability_zones: []  # List of AZ identifiers the brokers span.
+
+    # Scale (REQUIRED — drives sizing)
+    topic_count: null  # Total topics on this cluster (user + internal). Required.
+    user_topic_count: null  # Optional. User-created topics only. Populate when known so Assess can report counts as "X user + Y internal = Z total".
+    internal_topic_count: null  # Optional. Internal topics (Connect framework, Streams changelogs, MM2 artifacts, etc.). Populate when known. user + internal should equal topic_count.
+    partition_count_pre_replication: null  # Total partitions across all topics, pre-replication.
+    user_partition_count: null  # Optional. Partitions on user_topic_count topics only. Populate when known.
+    internal_partition_count: null  # Optional. Partitions on internal topics only. Populate when known.
+    replication_factor: null
+
+    # Throughput. P95 is preferred — pass `p95_ingress_mbps` / `p95_egress_mbps`
+    # when you can pull P95 from CloudWatch (BytesInPerSec / BytesOutPerSec over a
+    # representative 14-30 day window). P95 captures sustained busy-period load
+    # while excluding once-a-year spikes that Enterprise elasticity is designed to
+    # absorb. If P95 isn't available, fill `peak_*_mbps` instead — the skill will
+    # size on peak as a conservative bound and flag the resulting eCKU as likely
+    # overestimated vs. true P95 sizing.
+    p95_ingress_mbps: null   # PREFERRED for sizing.
+    p95_egress_mbps: null    # PREFERRED for sizing.
+    peak_ingress_mbps: null  # Fallback if P95 isn't available.
+    peak_egress_mbps: null   # Fallback if P95 isn't available.
+
+    # Tiered storage. Optional. Populate if the cluster uses MSK tiered storage.
+    # Cluster Linking does NOT transfer historical tiered (S3-backed) data —
+    # the Plan stage's Tiered Storage section covers backfill vs. keep-source-
+    # accessible decisions. Leave null if the cluster does not use tiered
+    # storage; the Plan stage treats absence as "not in use" rather than unknown.
+    storage_mode: null              # "TIERED" if MSK tiered storage is enabled; null otherwise. Mirrors KCP state file's StorageMode field.
+    peak_tiered_storage_gb: null    # Peak observed tiered (S3-backed) storage volume in GB. Sizes the backfill-cost discussion in Plan.
+
+    # Auth (REQUIRED — drives Plan auth mapping)
+    auth_types:  # List all in use. Values: scram | mtls | iam | unauthenticated
+      - null
+
+    # Networking (REQUIRED — drives cluster type and networking selection)
+    network_accessibility: private  # private | public
+    vpc_topology: single-vpc  # single-vpc | hub-and-spoke | direct-peering | transit-gateway
+
+    # ACLs
+    acl_count: null
+    acl_source: kafka-acls  # kafka-acls | iam-policies | both
+
+    # Optional — sample of internal topic names observed on this cluster.
+    # Used by the Red Flags Row 15 check (Connect / tooling activity inferred
+    # from internal topic names). Include any topic names that look like
+    # connector output (Debezium heartbeats, MongoDB heartbeats), Connect
+    # framework topics (connect-offsets/status/configs), Streams artifacts
+    # (*-changelog, *-repartition), or MirrorMaker 2 artifacts. Leave empty
+    # if all topic names are application-scoped or if you don't have visibility
+    # into the topic list.
+    sample_internal_topics: []
+
+schema_registry:
+  type: none  # REQUIRED. confluent-sr | confluent-sr-cp | aws-glue | karapace | none
+  cp_version: null  # If confluent-sr-cp, the CP version. Verify against Schema Linking floor live.
+  subject_count: null
+  migration_decision: null  # Filled during Plan. Values: schema-linking | rest-api | adopt-sr | migrate-without-schemas
+
+connectors:
+  msk_connect_count: 0
+  self_managed_connect_count: 0
+  connector_types: []  # e.g. s3-sink, debezium-mysql
+
+# AWS Cost Explorer broker-instance line items by usage_type. Optional.
+# Populate from `kcp report costs` output or AWS Cost Explorer if available.
+# Drives Row 16 of the Red Flags audit — the skill compares these usage_type
+# strings against the broker_instance_type values on enumerated clusters
+# above to detect undiscovered clusters (an instance type appearing in cost
+# data with no matching enumerated cluster suggests `kcp discover` missed
+# clusters in another region or account). Leave empty if cost data isn't
+# available; Row 16 will be Not triggered with a "cost data not provided"
+# note rather than treated as a scan gap.
+cost_line_items: []
+  # Example shape:
+  # - usage_type: "USE1-Kafka.m7g.12xlarge"
+  #   annual_spend_usd: 402000
+  #   months_observed: 12
+
+downstream:
+  # Out of scope for this skill. Recorded only so we don't re-ask.
+  tableflow_planned: null  # true | false | unknown
+  flink_planned: null
+  lakehouse_planned: null
+
+# Target-side context — populated during Plan stage, not Assess. Captures
+# facts about the planned CC environment that cannot be derived from source
+# data alone. Drives Plan-stage cascade decisions for networking, CL
+# direction, auth target, schema linking viability, and historical-data
+# handling. Future B-tier items add to this section (target_identity_model,
+# source_sr_can_push_to_cc_sr, consumer_history_requirement).
+target_context:
+  cc_reaches_source: null  # true | false | unknown. Whether CC will have a network path to MSK bootstrap brokers. Populated by Plan-stage cascade from target_networking recommendation. Auto-derived for VPC peering / TGW / Public-with-MSK-public / Public-with-MSK-private cases; asked of the customer only when target_networking is PrivateLink or PNI. Drives CL direction: true → destination-initiated; false → source-initiated.
+  cc_egress_required: null  # true | false | unknown. Whether CC managed connectors or other CC workloads need to reach customer-side network resources (e.g., customer-hosted databases). Asked at Plan stage when target_cloud is AWS — drives PNI vs PrivateLink default. Affects PNI viability per aws-pni.html (PNI doesn't yet support egress).
+  source_sr_can_push_to_cc_sr: null  # true | false | unknown. Whether the source Schema Registry has outbound network access to reach CC Schema Registry endpoints (e.g., schema-registry.*.confluent.cloud). Drives Schema Linking viability when source SR is Confluent SR (Cloud or CP Enterprise) meeting the SL version floor. If false, the skill defers to the Confluent account team rather than recommending an alternative path. Asked at Plan stage only when source SR type is confluent-sr or confluent-sr-cp and meets the SL floor.
+  target_identity_model: null  # oauth | api_keys | mtls | undecided | other. Customer's preference for the CC target authentication identity model. Drives target CC auth method selection per the cascade in SKILL.md (oauth → SASL/OAUTHBEARER, api_keys → SASL/PLAIN, mtls → SSL with client certs, undecided → default API Keys + Open Question, other → defer to Confluent account team). Asked at Plan stage; independent of source-side auth pre-migration requirements.
+  consumer_history_requirement: null  # required | not_required | mixed | unknown. Whether downstream consumers need access to historical data on the target post-migration. Drives Cluster Linking backfill decision in Plan's Historical Data Handling section. `required` → CL backfills all history (default per migrate-cc.html); `not_required` → defer to Confluent account team (skipping history is not a documented default CL flow); `mixed` → defer for per-topic configuration; `unknown` → default to CL backfill + flag as Open Question. Especially impactful for sources with MSK tiered storage where backfill time + cost are materially higher (CL must re-fetch historical data from S3).
+
+# Plan-stage decisions (filled during Plan)
+plan:
+  target_cluster_type: null  # enterprise | dedicated
+  target_cloud: aws  # aws | azure | gcp
+  target_region: null
+  target_networking: null  # privatelink | pni | vpc-peering | transit-gateway | public
+  sizing_ecku_or_cku: null
+  sizing_headroom_percent: null
+  auth_mapping: {}  # map of source auth type → target CC auth
+  switchover_approach: null  # zero-cut | topic-by-topic | app-by-app | big-bang
+  pre_migration_requirements: []  # e.g., "migrate IAM auth to SCRAM before Zero-Cut"
+  risks_acknowledged: []
+
+# Red flags raised during Assess
+red_flags: []
+
+# Known gaps (fields the user couldn't answer; do not fabricate)
+known_gaps: []
