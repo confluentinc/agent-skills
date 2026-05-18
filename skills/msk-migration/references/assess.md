@@ -135,6 +135,120 @@ Walk these in order during manual intake. Record answers in the environment prof
 
 If the user can't answer a question, flag it as a known gap. Don't fabricate.
 
+## Topic-Level Readiness
+
+Between the Environment Summary and the Red Flags checklist, the Assess output emits a **Topic-Level Readiness** section that classifies user topics into four migration-readiness buckets. This surfaces a question the cluster-level summary cannot answer on its own: of the user topics on this cluster, how many actually move cleanly through Cluster Linking, how many need a config change first, and how many need code or design work?
+
+**Trigger.** Produce the section whenever a KCP state file is provided AND `topics.details[]` is populated. Skip with an explicit opt-out note when running off a manual `migration-profile.yaml` profile (manual profiles do not carry per-topic broker configs — bucketing is not derivable).
+
+### Bucketing rules
+
+Classify each user topic into one of four buckets, evaluated per topic in this order:
+
+- **Skip (don't migrate).** Internal Kafka topics (`__consumer_offsets`, `__transaction_state`, `__amazon_msk_canary`). Connect framework triads (naked or prefixed `connect-offsets` / `connect-status` / `connect-configs`). MM2 artifacts (`mm2-*`, `*.checkpoints.internal`, `mm2-offset-syncs`). Kafka Streams artifacts (`*-changelog`, `*-repartition`). Pattern matching reuses the Row 15 regex set from the Red Flags checklist. These do not migrate via CL and are recreated by Kafka, Connect, or Streams on the destination.
+
+- **Manual work.** Topics with characteristics CL cannot transfer or that require code or design work before migration:
+  - `remote.storage.enable: true` (tiered storage; historical data does not transfer via CL — cross-reference Historical Data Handling in Plan).
+  - `cleanup.policy: compact,delete` or `delete,compact` (mixed policy; CC support varies by cluster type — defer to Confluent account team if mixed-policy support is ambiguous).
+  - `replication_factor` other than 3 (CC enforces RF=3 on Standard/Enterprise — topic creation will fail unaltered; recreate at RF=3 on target).
+  - `max.message.bytes` above the CC ceiling for the target cluster type (fetched live from cluster-types.html).
+  - `min.insync.replicas` outside CC's allowed range for the target cluster type.
+  - Topics with associated ACLs whose pattern type or operation set has no direct CC RBAC equivalent (cite the Row 9 path when triggered).
+
+- **Needs config.** Topics that migrate but need a config adjustment first:
+  - `retention.ms` or `retention.bytes` set to values that exceed CC defaults for the target cluster type (still allowed, but explicit override required).
+  - `segment.bytes` or `segment.ms` outside CC default range.
+  - `compression.type` set to a non-default value the customer wants preserved (CC allows producer-side compression but defaults differ).
+  - `message.timestamp.type: LogAppendTime` (CC default is CreateTime; behavioral change post-migration).
+  - `unclean.leader.election.enable: true` (CC default is false; availability vs. consistency tradeoff to confirm).
+
+- **Moves cleanly.** Everything else. Default bucket when no rule above triggers.
+
+### Schema coverage (derived metric)
+
+Below the bucket counts, report schema coverage: "X of Y user topics have schemas registered (Z%)" computed by joining `topics.details[].name` against `schema_registries[].subjects[].name` using the TopicNameStrategy convention (`<topic>-value` and `<topic>-key` suffix stripping). Cite the join logic and note the limitation: "TopicNameStrategy assumed; coverage % is approximate when source uses TopicRecordNameStrategy or RecordNameStrategy. KCP does not capture subject naming strategy."
+
+### Output format (render verbatim)
+
+```
+## Topic-Level Readiness
+
+Of 142 user topics on `prod-kafka-east` (internal topics excluded per the Skip
+bucket; classification logic below), bucketed by migration readiness:
+
+- **Moves cleanly: 118 (83%).** Broker configs map 1:1 to CC defaults for the
+  recommended Enterprise target. Cluster Linking transfers these topics with
+  no pre-migration config work.
+- **Needs config: 19 (13%).** Migrate via CL but require a config change on
+  the target before or at topic creation. Most common in this set: retention
+  policy values above CC defaults (14 topics), compression.type mismatch
+  (3 topics), unclean.leader.election.enable=true (2 topics).
+- **Manual work: 5 (4%).** Require code or design work before migration:
+  - `internal-metrics`: replication_factor=2 (CC requires RF=3 on Enterprise per cluster-types.html).
+    Recreate at RF=3 on target. Consumer offset behavior on recreate is an operational consideration for your IT team.
+  - `audit-events-tiered`: remote.storage.enable=true (tiered storage enabled).
+    See "Historical Data Handling" section in Plan for the backfill decision.
+    Note: per-topic remote storage size is not available from KCP scan data
+    (KCP captures only cluster-aggregate `TotalRemoteStorageUsage`).
+  - `dlq-payments`, `dlq-orders`, `dlq-shipments`: ACL pattern type
+    PREFIXED with custom Deny rules (3 topics). CC RBAC has no direct
+    equivalent for Deny semantics; redesign as Allow-only RBAC bindings before migration.
+
+**Schema coverage:** 67 of 142 user topics have schemas registered in
+Confluent SR (47%), assuming TopicNameStrategy subject naming. Coverage is
+approximate when source uses TopicRecordNameStrategy or RecordNameStrategy
+— KCP does not capture the subject naming strategy.
+
+**Skip bucket:** 17 topics excluded as Kafka internals or framework
+coordination topics (`__consumer_offsets`, `__transaction_state`,
+`__amazon_msk_canary`, `connect-offsets-cdc`, `connect-status-cdc`,
+`connect-configs-cdc`, `mm2-*`, 5× `*-changelog`). These do not migrate
+via CL and are recreated by Kafka, Connect, or Streams on the destination.
+
+**Classification logic.** See assess.md "Topic-Level Readiness bucketing
+rules" for the full rule set, including which broker configs trigger each
+bucket. All rules trace to broker-side topic configs in
+`.kafka_admin_client_information.topics.details[].configurations` plus
+live-fetched CC config ceilings from cluster-types.html.
+```
+
+For manual-profile intakes (no `topics.details[]` available), render this opt-out note in place of the bucket counts:
+
+```
+## Topic-Level Readiness
+
+Per-topic bucketing is not available for this assessment — manual profile
+does not carry per-topic broker configs in the profile schema. Topic-level
+classification requires a KCP state file with `topics.details[]` populated.
+
+To enable bucketing, re-run with a KCP scan when AWS credentials become
+available, or capture the per-topic configs manually for the topics most
+likely to need work (typically: any topic with `remote.storage.enable=true`,
+non-default `cleanup.policy`, `replication_factor != 3`, or
+`unclean.leader.election.enable=true`).
+```
+
+### KCP data feasibility — what's covered and what isn't
+
+What KCP gives, no scanning changes needed:
+- All broker-side topic configs in `topics.details[].configurations` (every key seen in production state files, including `remote.storage.enable`, `cleanup.policy`, `retention.*`, `min.insync.replicas`, `max.message.bytes`, etc.).
+- `replication_factor` and `partitions` per topic.
+- ACL list with `ResourceType` / `ResourceName` / `PatternType` / `Operation` / `Permission` — joinable to topics by ResourceName for the "non-standard ACL pattern" sub-check.
+- Schema Registry `subjects[].name` for the TopicNameStrategy join.
+
+What KCP doesn't give at topic level (call out as limitations in the rendered output):
+- **Per-topic throughput.** CloudWatch BytesInPerSec / BytesOutPerSec per topic exists as an AWS metric but KCP only pulls Cluster Aggregate. The skill cannot rank topics by throughput from current state data — do not claim it.
+- **Client-side characteristics.** Custom partitioner, custom serializers, custom interceptors, EOS / transactions usage all live in client code, not on brokers. The skill cannot detect these from any state file — Manual-bucket entries should only flag broker-observable conditions; client-side custom code surfaces as Open Questions, not as Manual-bucket entries.
+- **Subject naming strategy.** KCP captures subject names but not the strategy producers use to register schemas. Schema coverage % is approximate when source uses non-default strategies; flag this explicitly.
+- **Per-topic consumer apps.** `discovered_clients[]` has a `topic` field, so this IS derivable from KCP IF `kcp scan client-inventory` ran. When clients exist, the skill can cite producer/consumer counts per topic; when not, Manual-bucket reasons referencing consumers fall back to "consumer impact unknown — closes after `kcp scan client-inventory`."
+
+### Cross-references
+
+Topic-Level Readiness rolls forward into Plan in two places:
+- **Manual-bucket entries** roll into Pre-Migration Workstream as discrete items (e.g., "Recreate `internal-metrics` at RF=3 on target," "Redesign Deny ACLs as Allow-only RBAC for `dlq-*` topics").
+- **Needs-config entries** roll into the connector / topic-provisioning step in `kcp create-asset` so the generated topic configs reflect the target ceilings.
+- **Manual-bucket topics involving tiered storage** cross-reference the **Historical Data Handling** section in Plan (B4) — the section that decides whether CL backfills history at all.
+
 ## Red Flags — required checklist plus judgment-based additions
 
 Red flags are **structural migration concerns** — things that change the migration plan by blocking a path, adding pre-migration work, forcing cluster type escalation, or requiring special handling at Switchover. They are NOT the same as environment observations (scale, characteristics, topology facts) which belong in the Environment Summary.

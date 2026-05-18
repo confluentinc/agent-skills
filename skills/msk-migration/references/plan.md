@@ -99,16 +99,25 @@ After emitting the `target_networking` recommendation above, derive Cluster Link
 
 ## Schema Migration Path Selection
 
-Path depends on source SR state. Version cutoffs (e.g., Schema Linking's CP version floor) and source-support are product facts — verify against the live [docs.confluent.io Schema Registry / Schema Linking docs](https://docs.confluent.io) before committing.
+Schema Linking uses a Schema Exporter on the source Schema Registry cluster that pushes schemas to the destination CC Schema Registry. The exporter is one-directional (source → destination) per [schema-linking.html](https://docs.confluent.io/cloud/current/sr/schema-linking.html) — there is no destination-initiated mode equivalent to Cluster Linking's `link.mode=SOURCE`. Path depends on source SR type, the Schema Linking version floor, and whether the source SR has outbound network access to reach CC Schema Registry endpoints. Version cutoffs are product facts — verify against the live [Schema Registry / Schema Linking docs](https://docs.confluent.io/cloud/current/sr/schema-linking.html) before committing.
 
 | Source SR | Path |
 |---|---|
-| Confluent SR (meets Schema Linking version floor) | Schema Linking |
-| Confluent SR (below Schema Linking floor) | REST API export/import |
-| AWS Glue | REST API export/import (verify Schema Linking source-support live) |
-| Karapace | REST API export/import |
-| None — adopt SR during migration | Provision CC SR, register initial schemas, then migrate data. For greenfield schema discovery in client code, cross-link to the `kafka-schema-registry` skill. |
-| None — migrate without schemas | Skip SR steps. Record the explicit user choice. Proceed with data migration. |
+| Confluent Schema Registry (Cloud or self-managed Confluent Platform Enterprise) meeting the SL version floor | Schema Linking via Schema Exporter. Orchestrate with `kcp create-asset migrate-schemas`, which generates Terraform using the `confluent_schema_exporter` resource. Requires source SR to reach CC SR endpoints (see outbound-reachability question below). |
+| Confluent Schema Registry — Community Confluent Platform, or below the SL version floor | Connect with your Confluent account team — migration path may require customer-owned setup beyond standard Schema Exporter. |
+| AWS Glue Schema Registry | Connect with your Confluent account team — Glue migration is not a single import. Wire format and authentication models differ from Confluent SR, requiring a phased approach with consumer and producer cutover. |
+| Other SR type (Karapace, Apicurio, etc.) | Connect with your Confluent account team for current migration tooling and patterns. |
+| Existing schemas — recreate fresh in CC SR (clean break) | Provision CC SR; define schemas declaratively via the `confluent_schema` Terraform resource. Update producers and consumers to use the new schema IDs. Does not preserve historical schema IDs from source SR — apps must be coordinated to switch over. |
+| No SR — adopt during migration | Provision CC SR; register initial schemas before data migration. Consider Schema ID in Kafka Headers (GA March 2026) for non-disruptive SR adoption on existing topics — see [Confluent Cloud serdes wire format docs](https://docs.confluent.io/cloud/current/sr/fundamentals/serdes-develop/index.html#wire-format). For greenfield schema discovery in client code, cross-link to the `kafka-schema-registry` skill. |
+| No SR — skip schemas | Skip SR steps. Record the explicit user choice. Proceed with data migration. |
+
+**Outbound-reachability cascade.** When source SR is Confluent Schema Registry (Cloud or CP Enterprise) meeting the SL floor, the skill asks the customer: "Does your source Schema Registry have outbound network access to reach CC Schema Registry endpoints (schema-registry.*.confluent.cloud)?" Capture answer in `target_context.source_sr_can_push_to_cc_sr`. Derive:
+
+- `source_sr_can_push_to_cc_sr: true` → Schema Linking via Schema Exporter (Path 1 above).
+- `source_sr_can_push_to_cc_sr: false` → Defer to Confluent account team for current migration tooling. Reasoning: Schema Linking's exporter is source-side, so the source SR must be able to push to CC SR; if not, customer-owned setup beyond standard Schema Exporter is required.
+- `source_sr_can_push_to_cc_sr: unknown` → Schema Linking via Schema Exporter (default working assumption); flag as Open Question to verify outbound reachability before Migrate.
+
+**Schema migration intent.** When the customer has existing schemas (any source SR type), the skill also asks: "Do you want to migrate your existing schemas to CC SR, recreate them fresh in CC SR (clean break), or skip schema management entirely?" Answer drives row selection — migrate intent uses source-type-specific rows; recreate intent uses the clean-break row regardless of source SR type; skip intent uses the no-SR skip row.
 
 ## Connector Migration
 
@@ -133,18 +142,27 @@ Operational concerns are not part of the Technical Plan. Connector-level operati
 - Multi-region clusters → each region may need a separate CC environment and CL setup.
 - Cross-cloud target (source AWS, target Azure/GCP) → review networking and auth feature availability per cluster-types.html and mTLS overview doc live.
 
-## Tiered Storage
+## Historical Data Handling
 
-**Tiered storage volume is the hidden migration cost.** Cluster Linking replicates what's on brokers + new writes. Historical data in tiered storage (S3-backed on MSK) does NOT transfer automatically. If consumers need historical data on CC, plan for bulk backfill (slow + expensive) or keep the source cluster accessible during the retention window.
+Cluster Linking replicates all historical data from source by default. Per [migrate-cc.html](https://docs.confluent.io/cloud/current/multi-cloud/cluster-linking/migrate-cc.html): "Sync all historical data and new data from the existing topics to the new mirror topics." Consumer offsets sync so consumers resume from their previous position. The customer-facing decision is whether downstream consumers actually need historical data on the target post-migration, captured in `target_context.consumer_history_requirement`.
+
+| `consumer_history_requirement` | Path |
+|---|---|
+| `required` | CL backfills all history (default per migrate-cc.html). Plan estimates backfill time = source data volume ÷ sustained CL throughput; surface as a Risks row when source has tiered storage (see callout below). |
+| `not_required` | Connect with your Confluent account team — skipping history is not documented as a default CL flow and requires customer-side operational choices not addressable from public docs. |
+| `mixed` | CL backfills all by default. For specific topics where backfill is undesirable, connect with the Confluent account team for per-topic configuration. |
+| `unknown` | CL backfills (default); flag as Open Question to verify with downstream consumers before Migrate. |
+
+**Tiered storage cost callout.** When the source has MSK tiered storage (`storage_mode: TIERED` in the migration profile, or detected from the state file via `StorageMode: "TIERED"`), backfill time and cost are materially higher because the source has to re-fetch historical data from S3. Customers with real-time-only consumers may want to consider `consumer_history_requirement: not_required` to avoid this cost — verify with your Confluent account team.
 
 Read peak tiered volume per cluster from the state file metrics — not from EBS provisioned capacity (which is a different thing):
 
 - Correct source: `.regions[].clusters[].metrics.results[] | select(.Label == "Cluster Aggregate - TotalRemoteStorageUsage(GB)") | .Values | max`
 - Wrong source: `BrokerNodeGroupInfo.StorageInfo.EbsStorageInfo.VolumeSize × NumberOfBrokerNodes` — that's provisioned capacity, not actual data volume. They can differ by a lot.
 
-Also check the cluster's `StorageMode` field — clusters with `StorageMode: "TIERED"` use tiered storage; Express brokers don't have EBS tiered storage (handled internally).
+Also check the cluster's `StorageMode` field — clusters with `StorageMode: "TIERED"` use tiered storage; Express brokers don't have EBS tiered storage (handled internally). Report the peak tiered volume per cluster in the Technical Plan and include it in the risk discussion: "backing up X TB of tiered data would take Y days to transfer at Z MBps sustained CL throughput — decide if that cost is worth it vs. keeping source accessible during the rollback window."
 
-Report the peak tiered volume per cluster in the Technical Plan. Include it in the risk conversation: "backing up X TB of tiered data would take Y days to transfer at Z MBps sustained CL throughput — decide if that cost is worth it vs. keeping source accessible."
+**Independent of decommissioning timing.** This decision is about whether to backfill history on CC, not about how long to keep MSK running. Invariant 5 (maintain source cluster through Monitor; decommission after rollback window) covers the decommissioning timeline separately. Don't conflate the two in the Plan output.
 
 ## Open Questions Don't Block Plan Production
 
@@ -206,13 +224,13 @@ After the prologue, render the 13 required sections starting with Section 1 Head
 1. **Header.** Source, target, state file path, drafted date. One-liner each.
 2. **Inputs & Default Assumptions.** Parameters the Plan is built on. Surface them upfront so the user can challenge any default before reading recommendations that depend on them. Required rows: Sizing percentile, Headroom, SLA target, Target cloud/region, Schema posture. Add others as relevant. Format: 4-column table — Parameter | Value | Source | Implication of Change.
 3. **Summary.** BLUF. Max 5 bullets covering: cluster type recommendation, networking recommendation, switchover approach, the one workstream most likely to drive the timeline, anything else urgent. The "one-page if you only read this" version.
-4. **Source Environment.** Cluster table (standard columns below) + auth posture (server-side) + networking topology + VPC / region summary.
+4. **Source Environment.** Cluster table (standard columns below) + auth posture (server-side) + networking topology + VPC / region summary. When the Assess output included a Topic-Level Readiness section (KCP state file with `topics.details[]`), restate the per-cluster bucket counts (Skip / Manual / Needs Config / Moves Cleanly) as a subsection here. Manual-bucket entries are itemized; Needs-config entries are summarized by reason.
 5. **Sizing.** Per-cluster eCKU math with citations. Either committed numbers with visible formulas, or explicit "deferred because [scan gap | Dedicated escalation conversation needed]" — never silently missing.
 6. **Cluster Type Decision.** Enterprise vs Dedicated per cluster. If any cluster is Dedicated, cite which hard-limit row triggered the escalation.
 7. **Networking Decision.** Per-cluster networking choice (PrivateLink, PNI, VPC Peering, TGW, public) with justification.
-8. **Auth Approach.** Target CC auth per source auth type. If deferred, list the scenarios and name what closes the decision.
+8. **Auth Approach.** Two-step: (a) source-side pre-migration requirements per source MSK auth type (IAM source requires pre-migration to SCRAM or mTLS before Zero-Cut per Invariant 8; other source auths have no pre-migration step). (b) Target CC auth method cascaded from `target_context.target_identity_model` per the SKILL.md target-options table — `oauth` → SASL/OAUTHBEARER, `api_keys` → SASL/PLAIN, `mtls` → SSL with client certs (verify live cluster-type × cloud support against cluster-types.html), `undecided` → default to API Keys + flag as Open Question, `other` → defer to Confluent account team. Emit derivation visible: customer's chosen `target_identity_model` and the resulting CC auth method. Keep the source-side pre-migration step clearly separated from the target-side identity choice in the output so readers don't conflate them.
 9. **Switchover Approach.** Pattern × mechanism (incremental + Gateway recommended; big-bang + Gateway when single window desired; big-bang + Manual CL fallback when Zero-Cut prereqs not met). Dual-write described for completeness only — no Confluent-specific tooling. Note that Incremental + Manual CL is not recommended (operationally heavy without the Gateway's atomic flip). Prerequisites fetched live at Switchover stage — don't cache them in Plan.
-10. **Pre-Migration Workstream.** What has to happen before migration proper. Commonly: IAM→SCRAM auth migration, Kafka version upgrade, client inventory reconstruction. Include rough duration where known.
+10. **Pre-Migration Workstream.** What has to happen before migration proper. Commonly: IAM→SCRAM auth migration, Kafka version upgrade, client inventory reconstruction. Include rough duration where known. **Topic-Level Readiness rollforward:** if Assess produced a Topic-Level Readiness section with Manual-bucket entries, each entry rolls into Pre-Migration Workstream as a discrete item (e.g., "Recreate `internal-metrics` at RF=3 on target," "Redesign Deny ACLs as Allow-only RBAC for `dlq-*` topics") so the workstream surface matches the topic-level reality.
 11. **Risks.** Table format (standardized below).
 12. **Open Questions.** Numbered list with owner (User / Live fetch / etc.). These are the specific items that close before Provisioning.
 13. **Next Step.** Single next action. Usually "confirm X, then move to Provision."
@@ -233,13 +251,13 @@ Add other parameter rows when the Plan's analysis depends on a non-obvious defau
 
 When a conditional section's trigger fires, produce a discrete `## <Section Name>` heading in the Technical Plan — not a bullet inside another section, not a column in a table, not a line in the Summary. The cluster table can carry a column for the same data (e.g., the Tiered (GB) column), and Summary / Risks / Pre-Migration entries can reference the section, but those references do NOT replace the section. The discrete heading is the structural commitment; the column and cross-references are supporting surfaces.
 
-- **Tiered Storage.** Trigger: any cluster has `StorageMode: "TIERED"` (KCP state file) OR the manual profile records tiered usage OR the manual profile does not record StorageMode and tiered usage is unknown. When triggered, produce a `## Tiered Storage` heading with per-cluster peak volume cited from `metrics.results[] | "Cluster Aggregate - TotalRemoteStorageUsage(GB)" | max` (KCP) or the manual-profile equivalent (or an explicit "Profile does not record StorageMode — Open Question" note when unknown), plus a backfill-cost vs. keep-source-accessible discussion.
+- **Historical Data Handling.** Trigger: any cluster has `StorageMode: "TIERED"` (KCP state file) OR the manual profile records tiered usage OR the manual profile does not record StorageMode and tiered usage is unknown OR `target_context.consumer_history_requirement` is anything other than null/required-default. When triggered, produce a `## Historical Data Handling` heading containing the ternary cascade table (required / not_required / mixed / unknown) per the Historical Data Handling section above, plus per-cluster peak tiered volume cited from `metrics.results[] | "Cluster Aggregate - TotalRemoteStorageUsage(GB)" | max` (KCP) or the manual-profile equivalent (or an explicit "Profile does not record StorageMode — Open Question" note when unknown), plus the tiered-storage cost callout. Section name was previously "Tiered Storage" pre-B4 — the rename is intentional; tiered storage is now a callout within the broader history-handling decision.
 - **Schema Migration.** Trigger: source has Schema Registry OR user is considering adoption during migration. When triggered, produce a `## Schema Migration` heading. Omit (don't fold elsewhere) when continuing schemaless — record the opt-out in Open Questions instead.
 - **Connector Migration.** Trigger: any connectors exist (MSK Connect managed OR self-managed Connect). When triggered, produce a `## Connector Migration` heading. Omit (don't fold elsewhere) when zero connectors — note the absence in the Summary.
 - **Multi-VPC / Multi-Region considerations.** Trigger: source spans VPCs or regions, or MSK Multi-VPC Private Connectivity is detected. When triggered, produce a `## Multi-VPC / Multi-Region` heading.
 - **Cluster Linking special considerations.** Trigger: non-standard CL constraint (version concerns, Express broker tier, cross-region, tiered-storage backfill complexity) OR `direction == source-initiated` OR `direction == unknown` (per the Cluster Linking direction cascade above). When triggered, produce a `## Cluster Linking — Special Considerations` heading. When source-initiated is the trigger, the section must: (a) note that KCP does not orchestrate source-initiated link setup — customer establishes the link manually before KCP migration commands resume; (b) cite [private-networking.html](https://docs.confluent.io/cloud/current/multi-cloud/cluster-linking/private-networking.html) for current prereqs; (c) flag that `link.mode=SOURCE` is permanent — direction cannot be changed once the link is created.
 
-**The cluster-table column does not replace the section.** When `Tiered (GB)` shows non-`—` values for any cluster, the Tiered Storage section is required. Similarly, mentioning tiered facts in Summary, Pre-Migration, or Risks does not satisfy the trigger — those references can co-exist with the section but do not substitute for it.
+**The cluster-table column does not replace the section.** When `Tiered (GB)` shows non-`—` values for any cluster, the Historical Data Handling section is required. Similarly, mentioning tiered facts in Summary, Pre-Migration, or Risks does not satisfy the trigger — those references can co-exist with the section but do not substitute for it.
 
 **Standardized cluster table columns (always these 8):**
 

@@ -4,16 +4,27 @@ This file is graded by a human reviewer during manual eval rounds. Items here ar
 
 > "Not everything needs an assertion. Some qualities — writing style, visual design, whether the output 'feels right' — are hard to decompose into pass/fail checks. These are better caught during human review. Reserve assertions for things that can be checked objectively."
 
-The items in this file are conversational/behavioral checks: what the skill does during a run (asking before executing, walking in order, declining off-scope intent) versus what appears in the produced artifact. The reviewer answers each item by reading the run's transcript and trace, not the produced files alone.
+Items in this file fall into two categories. **Transcript-behavioral items** check what the skill does during a run (asking before executing, walking in order, declining off-scope intent) — graded from `transcript.md` and `trace.md`. **Artifact-structural items** check qualities of the produced Plan or Assess that are too judgment-bound for a substring regex (adjacency, two-block separation, derivation visibility) — graded from the artifact itself. Both categories sit here because both are awkward to capture as pure LLM-graded assertions.
 
-Pair this checklist with `evals.json` — `evals.json` covers artifact-grounded assertions; this file covers the behavioral remainder. Both should clear before declaring an iteration done.
+Pair this checklist with `evals.json` — `evals.json` covers substring-matchable artifact assertions; this file covers the remainder. Both should clear before declaring an iteration done.
 
 ## How to use
 
 1. After an eval iteration completes, open each per-eval section below.
-2. For each item, read the run's `transcript.md` (and `trace.md` for tool-call evidence) and mark pass / fail / note.
-3. Items are mirrored from the original behavioral assertions so the reviewer carries forward the same intent; a fail here counts the same as a failed assertion in `evals.json`.
+2. For each item, read the relevant source (transcript + trace for behavioral items, the Plan/Assess artifact for structural items) and mark pass / fail / note.
+3. A fail here counts the same as a failed assertion in `evals.json`.
 4. Copy this file into `iteration-N/` if you want to keep a per-iteration grading record.
+
+### Two grading rules that apply to every item below
+
+- **Items are artifact-checkable.** Every item should be answerable by reading the produced artifact (Plan or Assess) and transcript. If you find yourself asking "would a customer understand this?" stop — that's post-hoc reasoning, not artifact grading. Re-read the item as a presence/structure/proximity check and grade that.
+- **Items test the final correct state.** No item asks you to confirm the skill avoided a prior bad framing. If an item reads as a negative ("X fails this item"), grade the positive form ("is the correct structure present?") instead.
+
+### Global scan: D1 operational-guidance leakage
+
+Apply this scan to every Plan output (Evals 2, 6, 16, 19, 20, 21, 22, 23, 24, 25, 26, 27). The Plan is a Technical Plan and stays architectural — pilot validation, testing strategy, validation gates, runbook timing, and operational rollout guidance belong in the customer's operational plan, not the Plan output.
+
+- [ ] **Plan stays architectural.** No section of the Plan contains substrings: 'pilot rollout', 'pilot validation', 'testing strategy', 'validation gates', 'runbook timing', or operational rollout language. A closing note that operational concerns are out of Technical Plan scope is acceptable and expected; specific operational guidance is not.
 
 ## Eval 1 — kcp-fresh-start
 
@@ -23,8 +34,8 @@ Pair this checklist with `evals.json` — `evals.json` covers artifact-grounded 
 
 ## Eval 2 — plan-scram-baseline
 
-- [ ] **Cluster Type Decision does not claim a hard-limit trigger fired.** The profile has 1 cluster, peak egress 540 MBps, 2400 partitions — within Enterprise eCKU caps per the live docs. The Cluster Type Decision section should not claim a Row 1-N trigger or eCKU/partition cap was exceeded. Inventing a trigger to escalate to Dedicated, or naming a trigger that doesn't apply, fails this item.
-- [ ] **Auth Approach does not recommend IAM or mTLS target without source-side basis.** The profile lists `auth_types: [scram]` only. The Auth Approach should not recommend an IAM or mTLS target without a stated, source-grounded reason (e.g., a customer-driven preference or a Confluent Cloud constraint named in the profile). Recommending IAM or mTLS as the primary target with no basis fails this item.
+- [ ] **Cluster Type Decision recommends Enterprise with no trigger named.** The profile (1 cluster, peak egress 540 MBps, 2400 partitions) is within Enterprise eCKU caps. Cluster Type Decision section names Enterprise as the target and contains no Row 1-N trigger reference or eCKU/partition cap-exceeded claim.
+- [ ] **Auth Approach target matches the profile's source auth or names an explicit basis for divergence.** Profile lists `auth_types: [scram]` only. Recommended CC target auth is SCRAM-compatible (SCRAM-SHA-512, SCRAM-SHA-256, or API key) OR the section cites a source-grounded reason for an IAM/mTLS target (customer-driven preference or named CC constraint).
 
 ## Eval 3 — dedicated-large-fleet
 
@@ -47,7 +58,7 @@ Pair this checklist with `evals.json` — `evals.json` covers artifact-grounded 
 - [ ] **Recognizes out-of-scope source.** The skill identifies that self-managed Kafka is outside the MSK-only scope.
 - [ ] **Declines to run the workflow.** The skill does not proceed with the MSK migration workflow against a non-MSK source.
 - [ ] **Does not map non-MSK concepts onto MSK primitives.** The skill does not ask for ARNs, CloudWatch access, Glue SR config, or other MSK-specific artifacts as if they applied to a bare-metal source.
-- [ ] **Does not invent capabilities when redirecting.** The skill does not fabricate a sibling skill, internal tool, partner program, or any other capability not documented in `SKILL.md` or its references. Naming a non-existent skill family or pretending an unwritten OSK-migration skill exists fails this item.
+- [ ] **Redirect targets are limited to real, documented resources.** When the skill points the user elsewhere, the named target is one of: docs.confluent.io, the Confluent account team / Sales, or another resource explicitly documented in `SKILL.md` or its references. No sibling skill name, internal tool, or partner program is named that isn't traceable to those sources.
 
 ## Eval 9 — mtls-azure-availability
 
@@ -91,22 +102,48 @@ Pair this checklist with `evals.json` — `evals.json` covers artifact-grounded 
 
 ## Eval 20 — switchover-pattern-mechanism
 
-- [ ] **Three pattern × mechanism cells produce materially different runbook content.** The Incremental + Gateway, Big-bang + Gateway, and Big-bang + Manual CL cells each emit distinct content in the Plan: KCP group definition (multiple groups vs. single group vs. N/A), cutover cadence (per-group vs. single window vs. coordinated stop-and-restart), validation pattern, and rollback scope (per-group vs. all-or-nothing). Three labels for similar behavior fails this item.
-- [ ] **Lands as a Confluent best-practice recommendation, not a neutral menu.** The Switchover Approach reads as a recommendation (Incremental + Gateway as the default), not as a neutral menu of equivalent options. The reader should come away knowing what Confluent recommends and why, not weighing four roughly-equal choices.
-- [ ] **"Incremental + Manual CL not recommended" warning is clearly visible.** The note about Incremental + Manual CL being operationally heavy without the Gateway's atomic flip appears clearly enough that a customer reading the Plan would not pursue that path. A buried one-line footnote fails this item.
-- [ ] **Dual-write framing discourages customers from picking it without strong reason.** The Dual-write row makes clear the operational complexity, dual cost, and absence of Confluent-specific tooling. A customer reading the Plan should not interpret Dual-write as a peer option to the other three patterns.
+- [ ] **Three cells (Incremental + Gateway, Big-bang + Gateway, Big-bang + Manual CL) have distinct content in all four runbook columns.** Scan each column down: KCP-group, cutover-cadence, validation, and rollback columns each contain different text per row — no two rows share identical content in the same column.
+- [ ] **Incremental + Gateway row carries a RECOMMENDED tag on the row itself.** Tag is in column 1 or 2 (or appended to the pattern label), not a separate sentence elsewhere in the section.
+- [ ] **"Incremental + Manual CL not recommended" appears as its own paragraph, callout, or labeled row note.** Standalone block — not embedded inside another row's prose or hidden in a parenthetical.
+- [ ] **Dual-write row prose contains all three substrings: operational-complexity language, dual-cost language, "no Confluent-specific tooling" (or "generic CL only").** All three present in the Dual-write row.
 
 ## Eval 21 — per-connector-classification
 
-- [ ] **Per-connector table reads as actionable.** The per-connector table presents a clear path per connector (CMU + kcp create-asset for available, defer to account team for not-available). The table does not blur into a generic "use CMU for all MSK Connect connectors" recommendation that ignores per-connector classification.
-- [ ] **Substitution-nuance handoff to account team lands specifically.** When a connector requires substitution-specific guidance (e.g., Debezium 1.x → V2 config key differences), the handoff to the Confluent account team is concrete — citing the specific substitution issue if known — rather than a generic "talk to Sales" punt. The third row of the per-connector table should differentiate substitution-nuance cases from straight CC-equivalent or no-equivalent cases.
+- [ ] **Each source connector has its own row with a distinct classification.** Fixture has s3-sink and custom-internal-validator. s3-sink row contains CMU + `kcp create-asset migrate-connectors` path. custom-internal-validator row contains the defer-to-account-team path. Two rows, two paths.
+- [ ] **Substitution-nuance row, if present, names a specific substitution issue.** Substring anchor: "Debezium 1.x", "V2 config key", "config key difference", or equivalent named issue — not a generic "config differences" or "talk to Sales" phrase.
 
 ## Eval 22 — networking-pni-default
 
-- [ ] **PNI-default framing reads as Confluent best practice, not an arbitrary flip.** The Plan presents PNI as the recommended default for AWS-to-AWS private migrations, with the cost reasoning (cross-AZ traffic vs data processing + hourly endpoint fees) cited as the rationale. A reader should understand WHY PNI is preferred, not just that the skill prefers it.
-- [ ] **Three citable PrivateLink exceptions cleanly distinguished from deferral cases.** The Plan distinguishes the three publicly cited exceptions (cc_egress_required, gateway limit reached, non-AWS target) from the deferral-to-account-team cases (compliance, organizational policy, latency-sensitivity, substrate constraints). A reader can tell which path applies to their situation without rereading paragraphs.
+- [ ] **PNI recommendation and cost reasoning are adjacent in the Networking Decision section.** PNI recommendation sentence is immediately followed (within the same paragraph or the next paragraph) by cost reasoning containing both "cross-AZ" anchor AND one of "data processing" / "hourly endpoint" anchors.
+- [ ] **Three citable PrivateLink exceptions and the deferral cases live in separate blocks.** Three citable exceptions (cc_egress_required, gateway limit, non-AWS target) each appear in their own bullet/row with the trigger labeled. Deferral cases (compliance, organizational policy, latency-sensitivity, substrate) are grouped in a distinct bullet/row or sub-section — not interleaved with the citable exceptions.
 
 ## Eval 23 — cl-direction-source-initiated
 
-- [ ] **CL Direction section conveys reachability as the determinant.** The section helps the reader understand that direction is determined by network reachability (whether CC can reach MSK from the chosen target networking VPC), not by customer preference or convenience. Direction reads as a derived outcome of a cascade, not as a configuration choice the customer makes independently.
-- [ ] **Manual-setup callout for source-initiated is actionable, not a buried handoff.** When the Plan emits source-initiated CL direction, the customer-owned manual-setup step is clearly stated with a path to the right doc (private-networking.html). A customer reading the Plan should understand: (1) what they need to do (establish the link manually before KCP migration commands resume), (2) where to look (private-networking.html), and (3) what's permanent (link.mode=SOURCE cannot be changed after the link is created).
+- [ ] **CL Direction section contains a visible derivation line.** Section contains a derivation of the form `target_networking={value} → reachability={value} → direction={value}` (or equivalent inline cascade format). Direction is derived, not configured — the cascade chain is on the page.
+- [ ] **Source-initiated manual-setup callout contains all three anchors in one block.** Single paragraph/list/callout contains: (a) the manual-setup action ("establish the link manually" or "customer-owned setup"), (b) the doc citation `private-networking.html`, (c) the permanence note ("link.mode=SOURCE permanent" or "cannot be changed after the link is created"). All three within the same block — not scattered across separate paragraphs.
+
+## Eval 24 — schema-linking-no-outbound
+
+- [ ] **Schema Migration section opens with source-SR-type enumeration before the cascade.** First structural content of the section is the source SR type table or list (Confluent SR / Glue / other / clean-break / adopt / skip). Path selection and recommendations follow that enumeration, not precede it.
+- [ ] **Plan names source-side outbound reachability as the SL gating constraint.** Substring anchor present in the cascade reasoning: "source-side outbound", "source SR can reach CC SR", "outbound reachability", or `source_sr_can_push_to_cc_sr`. Anchor appears in the cascade prose, not just a passing mention elsewhere.
+
+## Eval 25 — auth-target-oauth
+
+- [ ] **Three target identity models each paired with their specific CC SASL/SSL mechanism.** OAuth row/bullet names SASL/OAUTHBEARER. API Keys row/bullet names SASL/PLAIN. mTLS row/bullet names SSL with client certs. Three distinct mechanism strings, one per identity model.
+- [ ] **Auth Approach has two visibly separate blocks: source-side pre-migration, then target-side identity choice.** Block 1 cites Invariant 8 and the IAM → SCRAM/mTLS source pre-migration path. Block 2 emits the OAUTHBEARER / PLAIN / SSL target cascade. Two blocks separated by a header, list boundary, or table boundary — not collapsed into a single paragraph.
+
+## Eval 26 — mtls-azure-no-dedicated-escalation
+
+- [ ] **"Enterprise supports mTLS on all clouds" claim co-located with cluster-types.html citation.** Cluster Type Decision or Auth Approach section contains the mTLS-all-clouds claim AND the cluster-types.html URL within the same sentence or adjacent bullets. Citation is inline next to the claim, not in a reference list at the bottom.
+- [ ] **cluster-types.html URL appears within the section that contains the mTLS recommendation.** Co-located, not just cited once elsewhere in the Plan.
+
+## Eval 27 — historical-data-handling-not-required
+
+- [ ] **Tiered-storage callout names all three specifics: S3 re-fetch, backfill time, backfill cost.** Substring anchors all present: "S3 re-fetch" (or "re-fetch from S3"), "backfill time" (or "time to backfill"), and "backfill cost" (or "cost of backfill" / "re-fetch cost"). All three in the tiered-storage callout.
+- [ ] **not_required defer-to-account-team row contains a one-line rationale.** Row prose contains substring matching "not a documented default" or "customer-specific setup required" or equivalent rationale anchor — not just "defer to account team" with no reason given.
+- [ ] **Historical Data Handling and Invariant 5 / MSK-decommissioning timing appear in distinct headed blocks.** Consumer history decision and MSK decommissioning timing live in separate sections, sub-sections, or labeled paragraphs. Not collapsed into a single bullet.
+
+## Eval 31 — topic-readiness-manual-opt-out
+
+- [ ] **Opt-out note contains both data-shape anchors.** Note contains substring "manual profile" (or "profile schema") paired with "per-topic broker configs" (or "broker-side configs") AND contains either `topics.details[]` or "KCP state file" / "kcp scan clusters". Both anchors present — explaining the data-shape limitation, not a capability limitation.
+- [ ] **Opt-out note enumerates at least two concrete next steps.** Step 1: re-run with KCP scan (substring anchor: "kcp scan" or "AWS credentials"). Step 2: capture configs manually for high-risk topics (substring anchor from this set: "tiered storage", "cleanup.policy", "RF" / "replication factor", or "unclean leader"). Both steps present.

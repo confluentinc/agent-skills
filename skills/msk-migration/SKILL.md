@@ -55,7 +55,7 @@ Each stage has entry criteria, an exit artifact, and a reference file. Each stag
 
 | Stage | Entry | Exit Artifact (validation for this stage) | Reference |
 |---|---|---|---|
-| Assess | User starts migration | Environment profile with required fields populated; red flags surfaced | references/assess.md |
+| Assess | User starts migration | Environment profile with required fields populated; red flags surfaced; when a KCP state file is provided with `topics.details[]` populated, a Topic-Level Readiness section classifies user topics into four buckets (Skip / Manual / Needs Config / Moves Cleanly) — see references/assess.md "Topic-Level Readiness" section | references/assess.md |
 | Plan | Environment profile exists | Technical Plan output starts with the "About this Technical Plan" boilerplate from references/plan.md; architecture decisions documented; pre-migration requirements identified | references/plan.md |
 
 Users may enter at Assess or Plan. The Plan exit artifact is the handoff for downstream execution stages (Provision, Migrate, Switchover, Monitor) which are out of MVP scope.
@@ -81,7 +81,7 @@ Enterprise is the recommended target for every migration. It is elastic, support
 | ACL count exceeds Enterprise cap | Source scan ACL count ≥ Enterprise cap | **HARDCODED (uncited)** — last verified 2026-04-20: Enterprise cap ~4,000; Dedicated cap ~10,000. No canonical public doc found. Apply HARDCODED protocol. |
 | Networking requires VPC Peering or Transit Gateway | Hub-and-spoke or direct peering topology | **HARDCODED (doc-cited)** — cached assumption: Enterprise supports PrivateLink + PNI only; VPC Peering and TGW are Dedicated-only. cluster-types.html prose only, no structured row. Apply HARDCODED protocol. |
 | Broker-side schema ID validation required | `confluent.value.schema.validation=true` on source or stated requirement | **ROUTE:** [broker-side-schema-validation.html](https://docs.confluent.io/cloud/current/sr/broker-side-schema-validation.html), Prerequisites section |
-| mTLS required on non-AWS target | `source.auth == mTLS && target.cloud != AWS` | **HARDCODED (doc-cited)** — cached assumption: Enterprise mTLS is AWS-only. mTLS overview doc does not publish a cloud-availability table. Apply HARDCODED protocol. |
+| mTLS required, target cluster type doesn't support it on the chosen cloud | Source uses mTLS AND target cluster type × cloud combination doesn't support mTLS | **ROUTE:** [cluster-types.html](https://docs.confluent.io/cloud/current/clusters/cluster-types.html) — fetch the mTLS row of the feature comparison table to verify support. Per 2026-05-14 verification: Basic/Standard = AWS only; Enterprise/Freight/Dedicated = all clouds. Enterprise (the skill's default) supports mTLS on all clouds, so this is rarely a Dedicated escalation; verify live before recommending escalation. |
 | High-throughput Kafka REST Produce v3 | REST-based producers with non-trivial throughput | **ROUTE:** cluster-types.html, "Kafka REST Produce v3 - Max throughput" row |
 | 99.95% single-zone SLA required | Explicit contractual SLA requirement | **ROUTE:** cluster-types.html, "Uptime service level agreement options" table. Legal SLA PDF is not programmatically routable. |
 
@@ -120,16 +120,28 @@ Non-MSK Kafka sources are not handled by this skill. Freight is a documented clu
 
 ### Auth migration mapping (MSK-supported auth types)
 
-For each source MSK auth type, three decisions: target CC auth, Cluster Linking compatibility, Gateway/Zero-Cut support. The starting-point table is directional — verify against live docs before committing.
+Auth migration is a two-step decision: (1) handle any source-side pre-migration requirements, then (2) pick the target CC auth method based on the customer's identity-model preference. The source-side step is determined by the source MSK auth type; the target-side step cascades from `target_context.target_identity_model` (a Plan-stage customer input).
 
-| Source Auth (MSK) | Decisions to Make | Starting-point Guidance (cached — verify against the Sources of truth below before committing) |
+**Source-side pre-migration requirements:**
+
+| Source Auth (MSK) | Pre-migration step required? |
+|---|---|
+| SASL/SCRAM-SHA-512 | No |
+| mTLS | No |
+| Unauthenticated (plaintext) | No |
+| AWS IAM | Yes — pre-migrate source to SASL/SCRAM or mTLS before Zero-Cut Gateway (Invariant 8). Gateway does NOT support IAM directly. Customer-owned step. CL with IAM source requires the IAM JAR workaround. |
+
+**Target auth options (cascade from `target_context.target_identity_model`):**
+
+| `target_identity_model` | CC target auth method | Notes |
 |---|---|---|
-| SASL/SCRAM-SHA-512 | Target CC auth; CL path; Gateway support | API Keys (SASL/PLAIN) or OAuth as CC target. Gateway auto-swaps to PLAIN or OAuth. Most common MSK auth. |
-| mTLS | Target CC auth; CL path; Gateway support; cloud-availability of CC mTLS | mTLS, SASL/PLAIN, or OAuth as CC target. Gateway supports identity passthrough via ACM PCA. mTLS on non-AWS target is a Dedicated trigger (see hard limits). |
-| Unauthenticated (plaintext) | Target CC auth; CL path; Gateway support | API Keys, OAuth, or mTLS as CC target. Gateway maps ANONYMOUS to CC credentials. Rare in production. |
-| AWS IAM | Target CC auth; CL path; **Gateway pre-migration** | API Keys or OAuth as CC target. CL requires the IAM JAR workaround. Gateway does NOT support IAM directly — source must be pre-migrated to SCRAM or mTLS before Zero-Cut. |
+| `oauth` | SASL/OAUTHBEARER | Integrates with enterprise IDP. Requires IDP integration setup on the CC side. |
+| `api_keys` | SASL/PLAIN (CC-managed API keys on service accounts) | Service-account credentials managed by CC. Default when customer is undecided. |
+| `mtls` | SSL with client certs | Customer-managed PKI. Verify cluster-type / cloud availability live against [cluster-types.html](https://docs.confluent.io/cloud/current/clusters/cluster-types.html) — per the verified 2026-05-14 mTLS support matrix, Basic/Standard are AWS-only; Enterprise/Freight/Dedicated support mTLS on all clouds. |
+| `undecided` | Default to API Keys (SASL/PLAIN); flag as Open Question to close before Provision | Working assumption keeps Plan unblocked; customer can override. |
+| `other` (SAML-only, federated assertion not fitting OAuth/IDP integration, custom identity proxy) | Defer to Confluent account team | CC's published identity models don't cover all enterprise scenarios. |
 
-**Sources of truth:** [CC auth docs](https://docs.confluent.io/cloud/current/security/authenticate) for CC auth options and CL support; [KCP zero-cut guide](https://confluentinc.github.io/kcp/latest/getting-started-with-zero-cut-migrations/) for Gateway auth matrix. When starting-point guidance and live sources disagree, the live source wins.
+**Sources of truth:** [CC auth overview](https://docs.confluent.io/cloud/current/security/authenticate/overview.html) for CC auth methods and identity models; [cluster-types.html](https://docs.confluent.io/cloud/current/clusters/cluster-types.html) for the live auth × cluster-type matrix (including mTLS cloud availability); [KCP zero-cut guide](https://confluentinc.github.io/kcp/latest/getting-started-with-zero-cut-migrations/) for Gateway auth-swap matrix. When starting-point guidance and live sources disagree, the live source wins.
 
 ### Switchover approach selection
 
@@ -262,6 +274,8 @@ The skill encodes judgment, not product facts. Decision frameworks, trigger cate
 | mTLS availability by cloud | [mTLS overview](https://docs.confluent.io/cloud/current/security/authenticate/workload-identities/identity-providers/mtls/overview.html) and CC release notes | mTLS + Azure/GCP questions |
 | Broker-side schema ID validation availability | [broker-side-schema-validation.html](https://docs.confluent.io/cloud/current/sr/broker-side-schema-validation.html) | When source uses schema ID validation |
 | Schema Linking support matrix | [docs.confluent.io](https://docs.confluent.io) Schema Registry / Schema Linking pages | Schema migration path selection |
+| Schema Linking exporter mechanism (one-directional source → destination push; source SR's outbound reachability to CC SR is the gating constraint) | [schema-linking.html](https://docs.confluent.io/cloud/current/sr/schema-linking.html) | B2 Schema Migration Path Selection cascade; whenever source SR is Confluent SR meeting SL floor and `target_context.source_sr_can_push_to_cc_sr` is being evaluated |
+| Schema ID in Kafka Headers wire format (GA March 2026 — supports non-disruptive SR adoption on existing topics) | [Confluent Cloud serdes wire format docs](https://docs.confluent.io/cloud/current/sr/fundamentals/serdes-develop/index.html#wire-format) | When customer is considering adopt-SR-during-migration path for an existing schemaless source |
 | Connector catalog (managed connector availability) | [connectors docs](https://docs.confluent.io/cloud/current/connectors) | Connector migration path decisions |
 | CMU usage | [github.com/confluentinc/connect-migration-utility](https://github.com/confluentinc/connect-migration-utility) | Self-managed or MSK Connect connector migration |
 | CC networking availability by cluster type | docs.confluent.io networking + cluster-types.html | Networking selection |
