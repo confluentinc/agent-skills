@@ -1,0 +1,46 @@
+source:
+  platform: msk-serverless
+  cloud_provider: aws
+  region: us-east-2
+  kafka_version: 2.8.1
+  migration_drivers: "Evaluating CC as an alternative to serverless MSK."
+  monthly_cost_usd: 4200
+
+clusters:
+  - name: analytics-dev
+    broker_count: null  # serverless
+    broker_instance_type: null
+    availability_zones: []
+    topic_count: 28
+    partition_count_pre_replication: 180
+    replication_factor: 3
+    peak_ingress_mbps: null  # not populated — serverless returns limited metrics
+    peak_egress_mbps: null
+    auth_types:
+      - iam
+    network_accessibility: private
+    vpc_topology: single-vpc
+    # MSK Serverless: KCP deliberately skips the ACL scan because Serverless
+    # does not support the Kafka Admin API. State file shows `acls: null` by
+    # design. Skill must NOT flag this as a scan gap — it's expected KCP
+    # behavior, not missing data.
+    acl_count: null
+    acl_source: iam-policies
+
+schema_registry:
+  type: none
+  subject_count: 0
+
+connectors:
+  msk_connect_count: 0
+  self_managed_connect_count: 0
+  connector_types: []
+
+downstream:
+  tableflow_planned: null
+  flink_planned: null
+  lakehouse_planned: null
+
+known_gaps:
+  - "peak_ingress_mbps / peak_egress_mbps not available — MSK Serverless returns limited metrics"
+  - "ACL inventory not captured — KCP skips ACL scan on Serverless (expected)"

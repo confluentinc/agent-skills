@@ -1,0 +1,63 @@
+# Mock environment for B3 auth target fork (OAuth identity model) eval.
+#
+# Source uses AWS IAM auth — Invariant 8 requires pre-migration to SCRAM
+# or mTLS before Zero-Cut Gateway. Customer's target identity model is
+# OAuth (enterprise IDP), so the target CC auth method cascades to
+# SASL/OAUTHBEARER.
+#
+# Expected Plan behavior:
+#   - Auth Approach section emits the two-step structure:
+#     (a) Source-side pre-migration: IAM source must pre-migrate to
+#         SCRAM or mTLS before Zero-Cut (Invariant 8). Customer-owned step.
+#     (b) Target-side: target_identity_model=oauth cascades to
+#         SASL/OAUTHBEARER as the CC target auth method.
+#   - Plan emits derivation visible (target_identity_model + oauth +
+#     OAUTHBEARER co-occurrence within Auth Approach section).
+#   - Plan cites authenticate/overview.html for CC auth methods.
+#   - Plan notes mTLS cluster-type/cloud availability defers to live
+#     cluster-types.html (in case customer later considers mTLS).
+
+source:
+  platform: msk-provisioned
+  cloud_provider: aws
+  region: us-east-1
+  kafka_version: 3.5.1
+  migration_drivers: "Moving off MSK; customer is standardizing on enterprise OAuth/IDP for all production identity."
+  monthly_cost_usd: 22000
+
+clusters:
+  - name: payments-iam
+    broker_count: 6
+    broker_instance_type: kafka.m5.large
+    availability_zones: [us-east-1a, us-east-1b, us-east-1c]
+    topic_count: 96
+    partition_count_pre_replication: 1920
+    replication_factor: 3
+    peak_ingress_mbps: 100
+    peak_egress_mbps: 280
+    auth_types:
+      - iam  # AWS IAM auth — Invariant 8 pre-migration required
+    network_accessibility: private
+    vpc_topology: single-vpc
+    acl_count: 0  # IAM source has no Kafka ACLs (authz lives in IAM policies)
+    acl_source: iam-policies
+
+schema_registry:
+  type: confluent-sr
+  subject_count: 64
+
+connectors:
+  msk_connect_count: 0
+  self_managed_connect_count: 0
+  connector_types: []
+
+downstream:
+  tableflow_planned: false
+  flink_planned: false
+  lakehouse_planned: false
+
+target_context:
+  cc_reaches_source: null  # Not exercised here
+  cc_egress_required: false  # No CC managed connectors needing customer-side egress; PNI default applies
+  source_sr_can_push_to_cc_sr: null  # Not exercised here
+  target_identity_model: oauth  # Customer indicated OAuth/IDP integration. Cascade → SASL/OAUTHBEARER as CC target auth.

@@ -1,0 +1,63 @@
+# Mock environment for B2 Schema Linking source-side outbound cascade eval.
+#
+# Source uses Confluent Platform Enterprise Schema Registry, version above
+# the Schema Linking floor (so SL is the natural path on paper). But the
+# source SR sits in a locked-down VPC with no outbound network access to
+# reach CC Schema Registry endpoints (schema-registry.*.confluent.cloud).
+# Customer has confirmed (after the cascade question) that the source SR
+# cannot push to CC SR.
+#
+# Expected Plan behavior:
+#   - Schema Migration section renders the full source-type table.
+#   - For the Confluent-SR-meets-SL-floor row, the cascade derives
+#     `source_sr_can_push_to_cc_sr: false` and defers to the Confluent
+#     account team rather than recommending Schema Linking via Exporter.
+#   - Plan emits the cascade reasoning (SL floor met; outbound blocked;
+#     defer) and cites schema-linking.html for the one-directional
+#     exporter mechanism.
+
+source:
+  platform: msk-provisioned
+  cloud_provider: aws
+  region: us-east-1
+  kafka_version: 3.5.1
+  migration_drivers: "Moving off MSK; source SR is in a locked-down VPC with no outbound internet access."
+  monthly_cost_usd: 24000
+
+clusters:
+  - name: catalog-prod
+    broker_count: 6
+    broker_instance_type: kafka.m5.large
+    availability_zones: [us-east-1a, us-east-1b, us-east-1c]
+    topic_count: 120
+    partition_count_pre_replication: 2400
+    replication_factor: 3
+    peak_ingress_mbps: 140
+    peak_egress_mbps: 380
+    auth_types:
+      - scram
+    network_accessibility: private
+    vpc_topology: single-vpc
+    acl_count: 36
+    acl_source: kafka-acls
+
+schema_registry:
+  type: confluent-sr-cp  # Self-managed Confluent Platform Enterprise SR
+  cp_version: "7.5.0"  # Above the Schema Linking version floor (verify live against schema-linking.html if uncertain)
+  subject_count: 142
+
+connectors:
+  msk_connect_count: 0
+  self_managed_connect_count: 0
+  connector_types: []
+
+downstream:
+  tableflow_planned: false
+  flink_planned: false
+  lakehouse_planned: false
+
+target_context:
+  cc_reaches_source: null  # Not exercised here
+  cc_egress_required: false  # No CC managed connectors needing customer-side egress; PNI default applies
+  source_sr_can_push_to_cc_sr: false  # Customer confirmed source SR has no outbound access to schema-registry.*.confluent.cloud. Cascade → defer to Confluent account team for the Confluent-SR-meets-SL-floor row.
+  target_identity_model: null  # Not the focus of this eval
