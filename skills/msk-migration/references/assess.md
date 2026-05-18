@@ -155,14 +155,31 @@ Classify each user topic into one of four buckets, evaluated per topic in this o
   - `min.insync.replicas` outside CC's allowed range for the target cluster type.
   - Topics with associated ACLs whose pattern type or operation set has no direct CC RBAC equivalent (cite the Row 9 path when triggered).
 
-- **Needs config.** Topics that migrate but need a config adjustment first:
-  - `retention.ms` or `retention.bytes` set to values that exceed CC defaults for the target cluster type (still allowed, but explicit override required).
-  - `segment.bytes` or `segment.ms` outside CC default range.
-  - `compression.type` set to a non-default value the customer wants preserved (CC allows producer-side compression but defaults differ).
-  - `message.timestamp.type: LogAppendTime` (CC default is CreateTime; behavioral change post-migration).
-  - `unclean.leader.election.enable: true` (CC default is false; availability vs. consistency tradeoff to confirm).
+- **Needs config.** Topics that migrate but need a config adjustment first. Each rule has an **explicit numeric threshold** — compute the comparison for every topic before summarizing the bucket. Vague "non-default" language is not a license to skip the comparison; if the threshold isn't computed per-topic, the bucket count is wrong.
+  - `retention.ms` > 604800000 (CC default is 7 days = 604800000 ms). Topics with longer retention preserve the longer value only with an explicit override at topic creation. **Verify the CC default live against [cluster-types.html](https://docs.confluent.io/cloud/current/clusters/cluster-types.html) before recommending** — defaults can shift by cluster type.
+  - `retention.bytes` set to a finite non-default value (CC default is `-1` for unlimited on most cluster types; verify live).
+  - `segment.bytes` outside CC default range (CC default is 1 GB = 1073741824 bytes; verify live).
+  - `compression.type` set to anything other than `producer` (CC default is `producer`; preserving customer-specific compression — `lz4`, `zstd`, `gzip`, `snappy` — requires an explicit override at topic creation).
+  - `message.timestamp.type` set to `LogAppendTime` (CC default is `CreateTime`; behavioral change post-migration that consumers may depend on).
+  - `unclean.leader.election.enable` set to `true` (CC default is `false`; availability vs. consistency tradeoff to confirm).
 
-- **Moves cleanly.** Everything else. Default bucket when no rule above triggers.
+- **Moves cleanly.** Everything else. Default bucket when no Skip / Manual / Needs config rule above triggers.
+
+### Bucket-count discipline — verify before emitting
+
+Inconsistent bucket counts or skipped rule checks lose customer trust faster than any other issue in the Assess output. Before emitting the Topic-Level Readiness section, verify each of the following:
+
+1. **Classify per-topic first, summarize second.** For each user topic in `kafka_admin_client_information.topics.details[]`, iterate through the bucket rules in order (Skip → Manual → Needs config → Moves cleanly). Place the topic in the FIRST bucket whose rule fires. Do not summarize the bucket counts before classifying every topic individually.
+
+2. **Needs config requires per-topic threshold evaluation.** Reporting `Needs config: 0` is only valid after evaluating every topic against every Needs-config threshold (retention.ms > 604800000, compression.type != producer, etc.). If the per-topic comparison wasn't computed, the count is unverified — re-run the classification before emitting.
+
+3. **Counts must equal enumerated-list length.** When the rendered output names a Skip count ("Skip bucket: N topics excluded"), N must equal the literal count of topics enumerated in the list that follows. If the introductory narrative pre-states a count, it must match the enumeration. Derive the count from the enumeration, not the other way around.
+
+4. **Sum check — migrate buckets vs. user-topic denominator.** Moves cleanly + Needs config + Manual work = the user-topic count actually in migrate scope. The Skip bucket counts framework-managed topics (Connect coordination triads, MM2 artifacts, Streams changelogs) plus any Kafka internals the runner observes in `topics.details[]` — it is reported separately and is NOT part of the migrate-scope sum. State both checks inline: `migrate-scope total = X` (matches user_topic_count from Source Environment minus Skip-bucket topics that originated from user_topic_count), and `Skip total = Y`. If either count contradicts an enumeration that follows, re-classify before emitting.
+
+5. **No topic in multiple buckets.** Each topic in `topics.details[]` belongs to exactly one bucket — the first rule that fires per the order above wins.
+
+6. **Self-check before emit.** State the bucket counts inline in this form: "Moves cleanly: A + Needs config: B + Manual work: C = M migrate-scope topics; Skip: D framework-managed/internal topics reported separately." If the migrate-scope sum doesn't match the user-topic total reported in the Source Environment cluster table (minus any Skip-bucket topics drawn from user_topic_count), do not emit the section until classifications are corrected. The narrative must not pre-state a count that contradicts the enumeration.
 
 ### Schema coverage (derived metric)
 
@@ -180,9 +197,12 @@ bucket; classification logic below), bucketed by migration readiness:
   recommended Enterprise target. Cluster Linking transfers these topics with
   no pre-migration config work.
 - **Needs config: 19 (13%).** Migrate via CL but require a config change on
-  the target before or at topic creation. Most common in this set: retention
-  policy values above CC defaults (14 topics), compression.type mismatch
-  (3 topics), unclean.leader.election.enable=true (2 topics).
+  the target before or at topic creation. Per-topic threshold evaluation:
+  `retention.ms` > 604800000 on 14 topics (e.g., `audit-events` at 2592000000
+  = 30 days; `compliance-logs` at 7776000000 = 90 days); `compression.type`
+  != `producer` on 3 topics (set to `lz4`); `unclean.leader.election.enable`
+  = `true` on 2 topics. Total 19 distinct topics — each topic counted once
+  even when multiple thresholds trip; the first rule that fires wins.
 - **Manual work: 5 (4%).** Require code or design work before migration:
   - `internal-metrics`: replication_factor=2 (CC requires RF=3 on Enterprise per cluster-types.html).
     Recreate at RF=3 on target. Consumer offset behavior on recreate is an operational consideration for your IT team.
@@ -194,16 +214,26 @@ bucket; classification logic below), bucketed by migration readiness:
     PREFIXED with custom Deny rules (3 topics). CC RBAC has no direct
     equivalent for Deny semantics; redesign as Allow-only RBAC bindings before migration.
 
+**Sum check.** 118 + 19 + 5 = 142 user topics (matches the Source Environment cluster table). Skip bucket reports 17 internal/framework topics separately; Skip topics are excluded from the user-topic denominator by definition.
+
 **Schema coverage:** 67 of 142 user topics have schemas registered in
 Confluent SR (47%), assuming TopicNameStrategy subject naming. Coverage is
 approximate when source uses TopicRecordNameStrategy or RecordNameStrategy
 — KCP does not capture the subject naming strategy.
 
-**Skip bucket:** 17 topics excluded as Kafka internals or framework
-coordination topics (`__consumer_offsets`, `__transaction_state`,
-`__amazon_msk_canary`, `connect-offsets-cdc`, `connect-status-cdc`,
-`connect-configs-cdc`, `mm2-*`, 5× `*-changelog`). These do not migrate
-via CL and are recreated by Kafka, Connect, or Streams on the destination.
+**Skip bucket: 17 topics** excluded as Kafka internals or framework
+coordination topics. Composition (count derived from enumeration, sums
+to 17):
+
+- 3 Kafka internals: `__consumer_offsets`, `__transaction_state`, `__amazon_msk_canary`.
+- 3 Connect framework triads: `connect-offsets-cdc`, `connect-status-cdc`, `connect-configs-cdc`.
+- 6 MM2 artifacts: 4× `mm2-offsets-*` topics + 2× `*.checkpoints.internal` topics.
+- 5 Streams changelog topics: `app-store-changelog-0` through `app-store-changelog-4`.
+
+These do not migrate via CL and are recreated by Kafka, Connect, or
+Streams on the destination. The narrative Skip count (17) and the
+enumeration above must agree — derive the count from the enumeration,
+not the other way around.
 
 **Classification logic.** See assess.md "Topic-Level Readiness bucketing
 rules" for the full rule set, including which broker configs trigger each
