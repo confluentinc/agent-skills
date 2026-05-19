@@ -2,6 +2,14 @@
 
 Plan turns the environment profile into architecture decisions: cluster type, networking, auth mapping, sizing, schema migration path, connector migration path, pre-migration requirements, and risks. High-level decision tables (cluster type, auth mapping, networking, switchover) live in SKILL.md. This file covers details and edge cases.
 
+## Voice in Plan output
+
+Plan artifacts go to the customer's account team, IT team, and decision-makers. They are user-facing artifacts, not internal development docs. Apply the SKILL.md Voice principle in every Plan output:
+
+- **Do NOT use MVP-style framing** anywhere in the Plan — "MVP", "MVP scope", "next iteration", "future version", "scoped for later", "v0.1", "current skill release". These are skill-development internals and have no place in a customer-facing Technical Plan. This includes the Next Step section, footnotes, parentheticals, and any "this skill doesn't cover..." asides.
+- **Do NOT enumerate out-of-scope downstream stages by name** in user-facing language. Phrases like "Provision, Migrate, Switchover, Monitor are outside this skill's scope" are roadmap leakage. When downstream execution needs to be referenced, name what the user does next ("engage your Confluent account team for Provision and Migrate execution") without framing it as a scope boundary of the skill.
+- **State what is in scope; redirect on out-of-scope intent only when the user signals it.** The Plan is a Technical Plan covering architecture and migration approach. Operational planning, commercial review, legal review, and downstream execution belong with the customer's account team and IT team — already framed positively in the "About this Technical Plan" prologue. No additional "this skill doesn't do X" disclaimers needed.
+
 ## Capacity Sizing Procedure
 
 **Sizing is committed during Plan, not deferred.** Fetch the per-eCKU values live during the Plan conversation and compute eCKU counts with visible math. Do not leave the Technical Plan with "sizing TBD — requires live fetch" — that's deferral, not a plan. The only valid reasons to defer are (a) throughput data is missing from the state file (scan gap), or (b) the projected unit count exceeds the Enterprise eCKU cap and requires a Dedicated escalation conversation. Both get flagged explicitly, not left silent.
@@ -20,12 +28,28 @@ Plan turns the environment profile into architecture decisions: cluster type, ne
 
 Do NOT silently size on peak without surfacing the overestimation. The user needs to know the eCKU number is conservative-bound so they can decide whether to refine or accept.
 4. **Spiky-workload flag.** If `peak > 2× P95` on any throughput metric, the workload is spiky. Surface as an Open Question: "Is this spike a steady-state or a seasonal event? P95 sizing handles sustained load + elasticity absorbs spikes. If you want to size for the absolute peak instead, say so and we'll re-run with max."
-5. Fetch per-eCKU values live from [cluster-types.html](https://docs.confluent.io/cloud/current/clusters/cluster-types.html):
-   - per-eCKU ingress (MBps)
-   - per-eCKU egress (MBps)
-   - per-eCKU partition rate
-   - Enterprise eCKU cap
-   - (Also: PrivateLink eCKU cap, since it's lower than PNI)
+5. Fetch per-eCKU values live from the `.md` variant of cluster-types: `https://docs.confluent.io/cloud/current/clusters/cluster-types.md` (per the SKILL.md "Fetch via the `.md` extension on docs.confluent.io URLs" directive — the `.html` page truncates the comparison table when WebFetched). The cited URL in the Plan artifact stays `.html` for user navigation: [cluster-types.html](https://docs.confluent.io/cloud/current/clusters/cluster-types.html). Five values to extract from the Enterprise eCKU column of the "eCKU/CKU comparison" table:
+   - per-eCKU ingress (MBps) — row label "Ingress (MBps)"
+   - per-eCKU egress (MBps) — row label "Egress (MBps)"
+   - per-eCKU partition rate — row label "Partitions (pre-replication)"
+   - Enterprise eCKU cap (PNI) — from prose in scaling considerations / networking limits section
+   - Enterprise eCKU cap (PrivateLink) — same section (lower than PNI; needed for the PrivateLink-vs-PNI sizing-driven networking check in step 11)
+
+5a. **Verify the fetch before proceeding.** Even with `.md` URLs, a fetch can return truncated content, redirect to a different page, or extract a value from the wrong row. Sizing math committed against a wrong per-eCKU value produces a wrong eCKU verdict that downstream readers cannot detect from the Plan. Catch the failure here, not after the customer has read the Plan.
+
+   - **Echo the five extracted values explicitly** in the Sizing section before doing any math. Render as a small `Sizing Inputs (live from cluster-types.md)` table — per-eCKU ingress, per-eCKU egress, per-eCKU partition rate, Enterprise eCKU cap (PNI), Enterprise eCKU cap (PrivateLink). For each value, cite the row label exactly as it appeared in the fetched markdown.
+   - **Each value must be a concrete number.** "Partially obscured", "see doc", "TBD", "approximately X", "values returned truncated in fetch", "N/A" — all unacceptable. If the live fetch returned any of those for any of the five values, the fetch failed.
+   - **Verify the row labels match expected structure.** Each value must be cited with a row label that names the dimension explicitly. Expected anchors:
+     - Ingress value cited with "Ingress (MBps)" (case-insensitive, allow minor variations like "Max ingress" or "Ingress per eCKU")
+     - Egress value cited with "Egress (MBps)" (same flexibility)
+     - Partition rate cited with "Partitions (pre-replication)" or "Partition rate" or "Max partitions per eCKU"
+     - PNI cap cited from prose containing "PNI" and "32" (or current value) together
+     - PrivateLink cap cited from prose containing "PrivateLink" and "10" (or current value) together
+   - If a value is cited from a row label that doesn't match these anchors — e.g., "Total client connections", "Connection attempts", "Compactable partitions" (a sub-limit, not the main partition rate), or "Kafka REST Produce v3" — the fetch grabbed the wrong row. Treat as failure.
+   - **On fetch failure (any value missing, unparseable, non-numeric, or extracted from an unexpected row): STOP sizing.** Mark Sizing as blocked on cluster-types.md fetch failure. Surface as an Open Question: "Verify per-eCKU values manually from cluster-types.html before sizing can commit. Fetched values were: [list what was extracted, including the row label and failure mode]." Do not produce eCKU verdicts. Do not fall back to remembered values from training data. Wait for the user to confirm the values manually, then resume.
+
+   This is row-label verification, not range checking. Per-eCKU numbers themselves drift as Confluent revs cluster generations; hardcoding a "plausibility range" in this skill creates maintenance debt and can falsely reject correct live values. The row label is the structural anchor — if the model cites the right row, the value is whatever the doc currently publishes; if the model cites the wrong row (or no row), the fetch failed regardless of how plausible the number looks.
+
 6. Compute required units per cluster using P95 inputs at exact precision:
    - minimum eCKUs = max(p95_ingress_mbps ÷ per-eCKU-ingress, p95_egress_mbps ÷ per-eCKU-egress, user_partitions ÷ per-eCKU-partition-rate)
    - use **user partitions only** (internal topics don't migrate — they're recreated on the destination)
@@ -62,6 +86,12 @@ All three fetches should happen before writing the Technical Plan — not in a l
 For private AWS-to-AWS migrations, **PNI is the recommended default**. PNI charges only for cross-AZ traffic, while PrivateLink adds data processing fees and hourly endpoint fees. Actual customer savings depend on traffic profile and are best validated with your Confluent account team. PNI is AWS-only, supports Enterprise and Freight cluster types, and requires customer-side setup (51 ENIs + network interface permissions for CC) per [aws-pni.html](https://docs.confluent.io/cloud/current/networking/aws-pni.html).
 
 When `target_cloud` is AWS, the skill asks the customer: "Will your CC environment need to reach customer-side network resources — for example, managed connectors connecting to customer-hosted databases? This affects networking choice because PNI doesn't yet support egress." Captured in `target_context.cc_egress_required`. Drives the networking recommendation per the exception table below.
+
+**Default on undetermined: `cc_egress_required = false`.** When the value is not provided by the customer, the Plan defaults to `false` and surfaces it as an Open Question. Reasoning: PNI is the skill's stated cost-preferred default; flipping to PrivateLink reverses that default and adds materially to networking cost. The customer needs to actively confirm an egress requirement before the Plan recommends PrivateLink.
+
+**Do NOT infer `cc_egress_required = true` from source-side signals.** Observing a self-managed Connect / Debezium pipeline on the source, or any other customer-side data integration, does NOT imply the customer will migrate that pipeline to CC managed connectors needing egress from CC. The Connect fleet may stay self-managed off-CC; the customer may keep customer-side connectors; the destination architecture is a customer decision the skill cannot make from source observation alone. Surface the question, default to false, do not assume the customer will move the pipeline.
+
+The inference *"CDC pipeline on source → CC managed Debezium needs egress → cc_egress_required = true"* is plausible but premature — every step after the first is a customer decision, not a source-data fact. If the customer states they will migrate the Connect fleet to CC managed connectors against customer-hosted databases, the value flips to true and the cascade emits PrivateLink. Until they say so, default false stands.
 
 ### PrivateLink exceptions on AWS
 
@@ -219,7 +249,7 @@ or requirements change.
 
 After the prologue, render the 13 required sections starting with Section 1 Header.
 
-**Required sections — always present, in this order:**
+**Required sections — always present, in this order. Section numbers are FIXED — 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13 — and Pre-Migration Workstream is always 10, Risks always 11, Open Questions always 12, Next Step always 13. Do NOT skip a number, do NOT renumber to "make room" for conditional sections, and do NOT reorder Pre-Migration Workstream to follow Risks. Conditional sections (Schema Migration, Connector Migration, Historical Data Handling, Multi-VPC / Multi-Region, Cluster Linking — Special Considerations) are inserted unnumbered between section 9 (Switchover Approach) and section 10 (Pre-Migration Workstream) — they do NOT consume a number, and they do NOT displace section 10.**
 
 1. **Header.** Source, target, state file path, drafted date. One-liner each.
 2. **Inputs & Default Assumptions.** Parameters the Plan is built on. Surface them upfront so the user can challenge any default before reading recommendations that depend on them. Required rows: Sizing percentile, Headroom, SLA target, Target cloud/region, Schema posture. Add others as relevant. Format: 4-column table — Parameter | Value | Source | Implication of Change.
@@ -227,13 +257,15 @@ After the prologue, render the 13 required sections starting with Section 1 Head
 4. **Source Environment.** Cluster table (standard columns below) + auth posture (server-side) + networking topology + VPC / region summary. When the Assess output included a Topic-Level Readiness section (KCP state file with `topics.details[]`), restate the per-cluster bucket counts (Skip / Manual / Needs Config / Moves Cleanly) as a subsection here. Manual-bucket entries are itemized; Needs-config entries are summarized by reason.
 5. **Sizing.** Per-cluster eCKU math with citations. Either committed numbers with visible formulas, or explicit "deferred because [scan gap | Dedicated escalation conversation needed]" — never silently missing.
 6. **Cluster Type Decision.** Enterprise vs Dedicated per cluster. If any cluster is Dedicated, cite which hard-limit row triggered the escalation.
-7. **Networking Decision.** Per-cluster networking choice (PrivateLink, PNI, VPC Peering, TGW, public) with justification.
+7. **Networking Decision.** Per-cluster networking choice (PrivateLink, PNI, VPC Peering, TGW, public) with justification. **When the source spans multiple clusters or multiple regions, name each cluster or region explicitly in the Networking Decision section** — either as table rows (one row per cluster with cluster name and region) or as inline references in the prose. The reader should see each source identifier (cluster name, region, or both) within §7 itself, not only in §4 Source Environment. Generic phrasing like "all three clusters" or "three target regions" is insufficient — the reader needs to know which cluster maps to which networking decision without chaining back to the cluster table. For single-cluster fixtures, the cluster name appears once in the prose.
 8. **Auth Approach.** Two-step: (a) source-side pre-migration requirements per source MSK auth type (IAM source requires pre-migration to SCRAM or mTLS before Zero-Cut per Invariant 8; other source auths have no pre-migration step). (b) Target CC auth method cascaded from `target_context.target_identity_model` per the SKILL.md target-options table — `oauth` → SASL/OAUTHBEARER, `api_keys` → SASL/PLAIN, `mtls` → SSL with client certs (verify live cluster-type × cloud support against cluster-types.html), `undecided` → default to API Keys + flag as Open Question, `other` → defer to Confluent account team. Emit derivation visible: customer's chosen `target_identity_model` and the resulting CC auth method. Keep the source-side pre-migration step clearly separated from the target-side identity choice in the output so readers don't conflate them.
 9. **Switchover Approach.** Pattern × mechanism (incremental + Gateway recommended; big-bang + Gateway when single window desired; big-bang + Manual CL fallback when Zero-Cut prereqs not met). Dual-write described for completeness only — no Confluent-specific tooling. Note that Incremental + Manual CL is not recommended (operationally heavy without the Gateway's atomic flip). Prerequisites fetched live at Switchover stage — don't cache them in Plan.
-10. **Pre-Migration Workstream.** What has to happen before migration proper. Commonly: IAM→SCRAM auth migration, Kafka version upgrade, client inventory reconstruction. Include rough duration where known. **Topic-Level Readiness rollforward:** if Assess produced a Topic-Level Readiness section with Manual-bucket entries, each entry rolls into Pre-Migration Workstream as a discrete item (e.g., "Recreate `internal-metrics` at RF=3 on target," "Redesign Deny ACLs as Allow-only RBAC for `dlq-*` topics") so the workstream surface matches the topic-level reality.
+10. **Pre-Migration Workstream.** What has to happen before migration proper. Commonly: IAM→SCRAM auth migration, Kafka version upgrade, client inventory reconstruction. **Do NOT include duration estimates, rough timelines, or sequencing predictions** ("1-2 days", "several weeks", "Plan for X days of rollout", "longest-pole step", "lead time", "sequence first"). Runbook timing is an operational planning decision the customer's IT team owns — it depends on org-specific constraints, change windows, and team availability the skill cannot see. Per the D1 scope rule, the Plan stays architectural: what work is required and what triggers it, not when or how long. Owner column is fine (naming who does the work); a Duration column or any duration prose is not. **Topic-Level Readiness rollforward:** if Assess produced a Topic-Level Readiness section with Manual-bucket entries, each entry rolls into Pre-Migration Workstream as a discrete item (e.g., "Recreate `internal-metrics` at RF=3 on target," "Redesign Deny ACLs as Allow-only RBAC for `dlq-*` topics") so the workstream surface matches the topic-level reality.
 11. **Risks.** Table format (standardized below).
 12. **Open Questions.** Numbered list with owner (User / Live fetch / etc.). These are the specific items that close before Provisioning.
 13. **Next Step.** Single next action. Usually "confirm X, then move to Provision."
+
+**Self-check the section order before delivering the Plan.** Scan the rendered headings top-to-bottom: section 10 (Pre-Migration Workstream) MUST appear before section 11 (Risks). If conditional sections moved the numbered sections out of order, renumber and reorder before delivering. The canonical sequence is the reader's load-bearing structure — Pre-Migration Workstream after Risks is a reordering bug that breaks downstream comparability across migrations.
 
 **Inputs & Default Assumptions — required rows and defaults:**
 

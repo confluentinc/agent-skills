@@ -4,7 +4,12 @@ The goal of Assess is to produce an **environment profile** — enough data abou
 
 ## Ambiguities do not block the Assess output
 
-When a state file is provided, produce the **full Assess output** (Scan Coverage + Environment Summary + Red Flags checklist + Additional Observations + handoff prompt) in one response. Do not stop mid-assessment to ask clarifying questions. Ambiguities and gaps belong in the output itself, not as blockers before it:
+Produce the **full Assess output** in one response — both intake modes use the same section skeleton, only the first section name differs by intake mode:
+
+- **KCP state file intake:** Scan Coverage + Environment Summary + Topic-Level Readiness (when `topics.details[]` populated) + Red Flags checklist + Additional Observations + handoff prompt.
+- **Manual `migration-profile.yaml` intake:** **Profile Coverage** + Environment Summary + Topic-Level Readiness (opt-out note — manual profiles do not carry per-topic configs) + Red Flags checklist + Additional Observations + handoff prompt.
+
+Do not stop mid-assessment to ask clarifying questions. Ambiguities and gaps belong in the output itself, not as blockers before it:
 
 - **Ambiguous scan coverage** (e.g., `.schema_registries` empty — could mean no SR or scan didn't run) → report the Scan Coverage row as "Empty / ambiguous" and proceed. Capture the question in Open Questions at the end.
 - **Unknown red flags** (e.g., EOS / Kafka Streams usage not detectable from state file) → report the row as "Unknown (needs user confirmation)" and proceed.
@@ -14,7 +19,23 @@ The user gets a complete picture first, then decides which ambiguities to close.
 
 **Only two exceptions block Assess:** (1) the state file is malformed or unreadable, or (2) the user hasn't yet provided a state file or picked a path. In either case, ask — but every other ambiguity goes into the output and is resolved via Open Questions.
 
+### Profile Coverage section — manual-intake equivalent of Scan Coverage
+
+Manual `migration-profile.yaml` intakes use a **Profile Coverage** section header in place of Scan Coverage. The section serves the same role: surface gaps the user should close before Plan. Render as a section header `## Profile Coverage` and list the fields the profile populates vs. the fields it leaves null/absent. For each absent field, name what's missing and what Plan would have used it for. Treat the following as load-bearing fields to call out when absent:
+
+- `clusters[].peak_ingress_mbps` / `peak_egress_mbps` — when null, describe the throughput coverage gap and what Plan sizing falls back to (customer-provided estimate or billing-derived proxy). On MSK Serverless, note that the limitation is by-design rather than scan failure — CloudWatch metrics KCP would normally pull aren't exposed.
+- `clusters[].user_topic_count` / `internal_topic_count` — when null, name the gap as a user/internal topic-split gap.
+- `clusters[].user_partition_count` / `internal_partition_count` — same pattern as topics.
+- `clusters[].acl_count` — when null with `acl_source: iam-policies`, note that Serverless does not support Kafka Admin API (by design, not scan gap).
+- `clusters[].storage_mode` — when absent, note as not-indicated-in-manual-profile per the manual-intake default rule below.
+- `connectors.*` — when present but zero, note distinctly from absent fields.
+- `schema_registry.*` — when `type: none`, note as schemaless source.
+
+The Profile Coverage section is the manual-intake equivalent of Scan Coverage and is required on every manual-intake Assess output. Do not fold this content into the Environment Summary preamble — emit it as a discrete `## Profile Coverage` heading so downstream readers (and downstream Plan stage consumers) can locate the coverage surface by header.
+
 ## State File Audit — run first when a KCP state file is provided
+
+**Run on receipt, no permission prompt.** When the user provides a state file path, begin the audit immediately. Do not present the audit table as a menu, do not ask "Want me to run these myself, or would you prefer to run them?", do not stage the queries as a proposal. jq queries against a file the user just handed over are read-only parsing and auto-run per the command-execution principle in SKILL.md. The audit table below is the skill's internal reference for what to check, not a user-facing choice.
 
 Before producing any environment summary, run this scan-coverage audit. This forces every Assess session to read the state file the same way and prevents missing data that's present (e.g., skipping region-level fields like `costs` because you went straight to per-cluster details). Do not skim; run the queries.
 
@@ -54,6 +75,21 @@ Canonical metric labels to use:
 Convert bytes/sec values to MBps using 1 MB = 1,048,576 bytes (binary).
 
 **Topic and partition count convention.** Always report topic and partition counts as `user + internal = total` when the split is available (e.g., "1,124 user + 53 internal = 1,177 total topics; 4,058 user + 53 internal = 4,111 total partitions"). Never report only one of the three without labeling which it is. Internal topics don't migrate — they're recreated by Kafka, Connect, or Streams on the destination — but knowing both counts is useful for environment understanding.
+
+**Cost data — enumerate line items, do not compute sums or totals.** Cost data in `regions[0].costs.results[].Groups[]` is a list of line items (usage type + amount). Enumerate these as a table or list with usage-type label, amount, and which discovered cluster (if any) the line item maps to. **Do NOT compute or report:**
+
+- A total annual spend across all line items
+- A "discovered-cluster broker spend" or "compute baseline" computed as a sum across multiple line items
+- A percentage of total spend that's unaccounted-for
+- Any other derived arithmetic that sums or divides across line items
+
+Reason: derived totals are a recurring error mode. The sum looks plausible but is wrong, and a single wrong number undermines confidence in the Row 16 reasoning that depends on the cost evidence. Row 16's materiality threshold is **per-line-item** by design ("a line item on par with or larger than one of the scanned clusters is material") — comparing each unmapped line item against discovered-cluster line items individually preserves the evidence chain without arithmetic risk.
+
+Acceptable framing: name the unmapped line item, name a discovered-cluster line item, compare them directly. "Unmapped line item X at $A/yr is N× the discovered cluster Y's line item ($B/yr) — material."
+
+Avoid framings that sum across line items: "Total spend is $T", "$U of $T is unaccounted-for (P%)", "Discovered compute = $D; unaccounted = $U; ratio R×".
+
+If the user explicitly asks for a total, compute it then with the disclaimer that line items may not all add cleanly (rounding, line items spanning multiple services). Otherwise enumerate and stop.
 
 Source fields per intake type:
 - **KCP state file:** `.topics.summary.topics` (user), `.topics.summary.internal_topics` (internal), `.topics.summary.total_partitions` (user), `.topics.summary.total_internal_partitions` (internal). Always available.
@@ -103,7 +139,7 @@ Once the user is ready, walk through the sequence one step at a time. For each s
 
 Output: `kcp-state.json` — the canonical environment artifact that feeds Plan, Provision, Migrate, and asset-generation stages.
 
-**Parsing the state file.** Use `jq` for structured queries and the Read tool for full-file inspection. Do NOT use inline Python (`python3 <<EOF ... EOF`) or Node (`node -e ...`) to parse state files. Reasons: (1) KCP state files contain many optional fields that may be null, and Python scripts crash on `len()`/iteration against null without defensive coding every script would need; (2) inline interpreters are slow and noisy in Claude Code; (3) `jq` handles null fields cleanly and is the right tool for JSON query. When running jq through the user (per command-execution principle in SKILL.md), offer the exact jq expression and ask if they want to run it or have the skill run it.
+**Parsing the state file.** Use `jq` for structured queries and the Read tool for full-file inspection. Do NOT use inline Python (`python3 <<EOF ... EOF`) or Node (`node -e ...`) to parse state files. Reasons: (1) KCP state files contain many optional fields that may be null, and Python scripts crash on `len()`/iteration against null without defensive coding every script would need; (2) inline interpreters are slow and noisy in Claude Code; (3) `jq` handles null fields cleanly and is the right tool for JSON query. jq queries against a state file the user provided are read-only parsing — auto-run them per the command-execution principle in SKILL.md, no approval prompt.
 
 **Run each `jq` query as its own Bash tool call.** Per the one-command-per-Bash-call principle in SKILL.md (Skill Conduct), issue each audit query as a separate Bash invocation rather than batching into a compound shell command (variable assignment + chained `jq` calls). Applies to the 6-scan coverage audit and any multi-query sequence in Assess.
 
@@ -181,9 +217,17 @@ Inconsistent bucket counts or skipped rule checks lose customer trust faster tha
 
 6. **Self-check before emit.** State the bucket counts inline in this form: "Moves cleanly: A + Needs config: B + Manual work: C = M migrate-scope topics; Skip: D framework-managed/internal topics reported separately." If the migrate-scope sum doesn't match the user-topic total reported in the Source Environment cluster table (minus any Skip-bucket topics drawn from user_topic_count), do not emit the section until classifications are corrected. The narrative must not pre-state a count that contradicts the enumeration.
 
+7. **Bucket percentages use migrate-scope as denominator, not user_topic_count.** For the three migrate buckets (Moves cleanly, Needs config, Manual work), the percentage is `bucket_count ÷ migrate_scope_total × 100`, where `migrate_scope_total = user_topic_count − Skip-bucket-topics-drawn-from-user-count`. Schema coverage is the exception — it uses `user_topic_count` per the rule in the next section, because schemas are an application-side property of every topic the application owns. Bucket percentages are about migration behavior; topics that don't migrate (Skip) don't belong in the denominator. Two consequences worth restating in the output to avoid ambiguity:
+   - On a cluster where 6 of 10 user topics are Skip-bucket framework topics (e.g., Connect triad + Debezium heartbeats), migrate-scope is 4, and "Moves cleanly: 4 (100%)" is correct. "Moves cleanly: 4 (40%)" using user_topic_count would falsely read as "60% of cluster has migration friction" when the friction is actually zero — the other 6 simply don't migrate.
+   - State `migrate-scope = N` explicitly before the bucket list so the reader sees the denominator the percentages rest on. Generic shape: *"On `<cluster-name>`: U user topics (`topics.summary.topics`). Of these, S land in Skip-from-user-count (e.g., Connect framework triad + Debezium heartbeats), so **migrate-scope = U−S**. Bucketed by migration readiness: Moves cleanly: A (A÷(U−S)%), Needs config: B (B÷(U−S)%), Manual work: C (C÷(U−S)%)."*
+
+8. **Scope is per-cluster.** Render Topic-Level Readiness per cluster — bucket counts, percentages, migrate-scope total, sum check, Skip composition all reported within each cluster's section. Do NOT default to a cross-cluster aggregate ("Moves cleanly: 8 (47%)" across both clusters). Migration is cluster-by-cluster: switchover groups are per cluster, pre-migration workstream items are per cluster, the user's mental model of "what needs to happen for cluster X" is per cluster. A cross-cluster summary line at the end of the section is acceptable ("Migrate-scope total across both clusters: 11; Skip total: 10") but does not replace per-cluster reporting. Mixing scopes within a single output (per-cluster on one cluster, cross-cluster aggregate on another) is not acceptable — pick per-cluster and stay per-cluster.
+
 ### Schema coverage (derived metric)
 
 Below the bucket counts, report schema coverage: "X of Y user topics have schemas registered (Z%)" computed by joining `topics.details[].name` against `schema_registries[].subjects[].name` using the TopicNameStrategy convention (`<topic>-value` and `<topic>-key` suffix stripping). Cite the join logic and note the limitation: "TopicNameStrategy assumed; coverage % is approximate when source uses TopicRecordNameStrategy or RecordNameStrategy. KCP does not capture subject naming strategy."
+
+**Denominator rule.** Y is the **user topic count** — `topics.summary.topics` per cluster, summed across clusters when reporting a cross-cluster figure. Do NOT subtract Skip-bucket topics (Connect framework triads, MM2 artifacts, Streams changelogs, Debezium heartbeats) from the denominator. Skip-bucket topics are framework-managed and have no application-side schemas, but they count toward the user-topic universe by KCP's accounting and must stay in Y so coverage % is comparable across migrations. The numerator X is the count of user topics with a matching subject under the join convention. When reporting per-cluster coverage, use that cluster's `topics.summary.topics`; when reporting cross-cluster, sum `topics.summary.topics` across all clusters in scope. Do not switch between migrate-scope and user-scope denominators within a single Assess output.
 
 ### Output format (render verbatim)
 
