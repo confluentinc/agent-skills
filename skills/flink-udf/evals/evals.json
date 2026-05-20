@@ -1,0 +1,773 @@
+{
+  "skill_name": "flink-udf",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I need to build a Flink scalar UDF in Java that converts email addresses to their domain names. I want to deploy this to Confluent Cloud and use it from Flink SQL. Can you help me create the function, build it, and deploy it?",
+      "expected_output": "Creates a Java scalar UDF that extracts domain from email, provides Maven/Gradle build configuration, generates the JAR, uploads it to Confluent Cloud as an artifact, and shows how to register and invoke the function in Flink SQL.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "pom-exists",
+          "type": "file_exists",
+          "description": "pom.xml is generated for Maven build",
+          "path": "pom.xml"
+        },
+        {
+          "id": "pom-has-flink-table-api",
+          "type": "file_contains",
+          "description": "pom.xml depends on flink-table-api-java",
+          "path": "pom.xml",
+          "contains": "flink-table-api-java"
+        },
+        {
+          "id": "pom-has-provided-scope",
+          "type": "file_contains",
+          "description": "Flink dependencies are marked as 'provided'",
+          "path": "pom.xml",
+          "contains": "provided"
+        },
+        {
+          "id": "udf-extends-scalar-function",
+          "type": "command",
+          "description": "Java source contains a class extending ScalarFunction",
+          "command": "grep -r 'extends ScalarFunction' {{output_dir}}/src/main/java 2>&1",
+          "expect_exit_code": 0
+        },
+        {
+          "id": "udf-has-eval-method",
+          "type": "command",
+          "description": "Java source contains an eval() method",
+          "command": "grep -rE 'public[[:space:]]+[A-Za-z<>]+[[:space:]]+eval[[:space:]]*\\(' {{output_dir}}/src/main/java 2>&1",
+          "expect_exit_code": 0
+        },
+        {
+          "id": "udf-handles-null",
+          "type": "command",
+          "description": "Java source handles null inputs",
+          "command": "grep -r 'null' {{output_dir}}/src/main/java 2>&1",
+          "expect_exit_code": 0
+        },
+        {
+          "id": "readme-exists",
+          "type": "file_exists",
+          "description": "README.md is generated with build/deploy instructions",
+          "path": "README.md"
+        },
+        {
+          "id": "readme-has-build-command",
+          "type": "file_contains",
+          "description": "README shows how to build the JAR with Maven",
+          "path": "README.md",
+          "contains": "mvn clean package"
+        },
+        {
+          "id": "readme-has-artifact-upload",
+          "type": "file_contains",
+          "description": "README shows confluent flink artifact create command",
+          "path": "README.md",
+          "contains": "confluent flink artifact create"
+        },
+        {
+          "id": "readme-has-create-function",
+          "type": "file_contains",
+          "description": "README includes CREATE FUNCTION SQL",
+          "path": "README.md",
+          "contains": "CREATE FUNCTION"
+        },
+        {
+          "id": "readme-has-using-jar",
+          "type": "file_contains",
+          "description": "README uses USING JAR clause for artifact reference",
+          "path": "README.md",
+          "contains": "USING JAR"
+        },
+        {
+          "id": "readme-has-select-example",
+          "type": "file_contains",
+          "description": "README shows an example SELECT query using the UDF",
+          "path": "README.md",
+          "contains": "SELECT"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "i want to create a flink process table function that calculates a running median over the last 5 temperature readings per sensor. i'm running flink locally with docker and need it to work with kafka topics.",
+      "expected_output": "Creates a Java PTF with state management, provides Docker deployment steps, and shows how to test with Kafka topics.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "pom-exists",
+          "type": "file_exists",
+          "description": "pom.xml is generated for Maven build",
+          "path": "pom.xml"
+        },
+        {
+          "id": "pom-has-flink-table-api",
+          "type": "file_contains",
+          "description": "pom.xml depends on flink-table-api-java",
+          "path": "pom.xml",
+          "contains": "flink-table-api-java"
+        },
+        {
+          "id": "ptf-has-datatype-hint",
+          "type": "command",
+          "description": "PTF uses @DataTypeHint annotation",
+          "command": "grep -r '@DataTypeHint' {{output_dir}}/src/main/java 2>&1",
+          "expect_exit_code": 0
+        },
+        {
+          "id": "ptf-has-state-hint",
+          "type": "command",
+          "description": "PTF uses @StateHint annotation for managed state",
+          "command": "grep -r '@StateHint' {{output_dir}}/src/main/java 2>&1",
+          "expect_exit_code": 0
+        },
+        {
+          "id": "ptf-has-argument-hint",
+          "type": "command",
+          "description": "PTF uses @ArgumentHint annotation",
+          "command": "grep -r '@ArgumentHint' {{output_dir}}/src/main/java 2>&1",
+          "expect_exit_code": 0
+        },
+        {
+          "id": "ptf-uses-isset-true",
+          "type": "command",
+          "description": "Table input parameter uses @ArgumentHint(isSet = true)",
+          "command": "grep -rE 'isSet[[:space:]]*=[[:space:]]*true' {{output_dir}}/src/main/java 2>&1",
+          "expect_exit_code": 0
+        },
+        {
+          "id": "ptf-state-has-list",
+          "type": "command",
+          "description": "State POJO contains a List of values to track readings",
+          "command": "grep -rE 'List<(Double|Float|Number)' {{output_dir}}/src/main/java 2>&1",
+          "expect_exit_code": 0
+        },
+        {
+          "id": "ptf-prunes-old-values",
+          "type": "command",
+          "description": "State management prunes old values (keeps last N) via remove/subList",
+          "command": "grep -rE 'remove\\(|subList\\(|\\.size\\(\\)[[:space:]]*>' {{output_dir}}/src/main/java 2>&1",
+          "expect_exit_code": 0
+        },
+        {
+          "id": "readme-exists",
+          "type": "file_exists",
+          "description": "README.md is generated with build/deploy instructions",
+          "path": "README.md"
+        },
+        {
+          "id": "readme-has-build-command",
+          "type": "file_contains",
+          "description": "README shows how to build the JAR with Maven",
+          "path": "README.md",
+          "contains": "mvn clean package"
+        },
+        {
+          "id": "readme-has-docker-cp",
+          "type": "file_contains",
+          "description": "README uses docker cp to deploy JAR to flink-sql-client",
+          "path": "README.md",
+          "contains": "docker cp"
+        },
+        {
+          "id": "readme-has-add-jar",
+          "type": "file_contains",
+          "description": "README includes ADD JAR statement for runtime loading",
+          "path": "README.md",
+          "contains": "ADD JAR"
+        },
+        {
+          "id": "readme-has-create-function",
+          "type": "file_contains",
+          "description": "README includes CREATE FUNCTION SQL",
+          "path": "README.md",
+          "contains": "CREATE FUNCTION"
+        },
+        {
+          "id": "readme-has-watermark",
+          "type": "file_contains",
+          "description": "README's Kafka table DDL includes WATERMARK clause",
+          "path": "README.md",
+          "contains": "WATERMARK"
+        },
+        {
+          "id": "readme-has-partition-by",
+          "type": "file_contains",
+          "description": "PTF invocation uses PARTITION BY",
+          "path": "README.md",
+          "contains": "PARTITION BY"
+        },
+        {
+          "id": "readme-has-uid",
+          "type": "file_contains",
+          "description": "PTF invocation includes uid parameter for state recovery",
+          "path": "README.md",
+          "contains": "uid"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Build me a UDTF in Java that splits a comma-separated string into rows. I'm using the Table API (not SQL) and want to run it on my local docker setup. No infrastructure setup needed, I already have everything running.",
+      "expected_output": "Creates a Java UDTF (TableFunction) for string splitting, provides build steps, local Docker deployment, and shows how to invoke from Table API with joinLateral.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "pom-exists",
+          "type": "file_exists",
+          "description": "pom.xml is generated for Maven build",
+          "path": "pom.xml"
+        },
+        {
+          "id": "pom-has-flink-table-api",
+          "type": "file_contains",
+          "description": "pom.xml depends on flink-table-api-java",
+          "path": "pom.xml",
+          "contains": "flink-table-api-java"
+        },
+        {
+          "id": "udtf-extends-table-function",
+          "type": "command",
+          "description": "Java source contains a class extending TableFunction<Row>",
+          "command": "grep -rE 'extends[[:space:]]+TableFunction<Row>' {{output_dir}}/src/main/java 2>&1",
+          "expect_exit_code": 0
+        },
+        {
+          "id": "udtf-uses-collect-row",
+          "type": "command",
+          "description": "UDTF uses collect(Row.of(...)) to emit rows",
+          "command": "grep -rE 'collect\\(Row\\.of' {{output_dir}}/src/main/java 2>&1",
+          "expect_exit_code": 0
+        },
+        {
+          "id": "udtf-handles-null-or-empty",
+          "type": "command",
+          "description": "UDTF handles null and empty string inputs",
+          "command": "grep -rE 'null|isEmpty\\(\\)' {{output_dir}}/src/main/java 2>&1",
+          "expect_exit_code": 0
+        },
+        {
+          "id": "no-scalar-function",
+          "type": "command",
+          "description": "UDTF does not extend ScalarFunction",
+          "command": "! grep -r 'extends ScalarFunction' {{output_dir}}/src/main/java 2>&1",
+          "expect_exit_code": 0
+        },
+        {
+          "id": "readme-exists",
+          "type": "file_exists",
+          "description": "README.md is generated with build/deploy instructions",
+          "path": "README.md"
+        },
+        {
+          "id": "readme-has-build-command",
+          "type": "file_contains",
+          "description": "README shows how to build the JAR with Maven",
+          "path": "README.md",
+          "contains": "mvn clean package"
+        },
+        {
+          "id": "readme-has-docker-cp",
+          "type": "file_contains",
+          "description": "README uses docker cp to deploy JAR",
+          "path": "README.md",
+          "contains": "docker cp"
+        },
+        {
+          "id": "readme-has-create-temp-system-function",
+          "type": "file_contains",
+          "description": "README registers UDTF with createTemporarySystemFunction",
+          "path": "README.md",
+          "contains": "createTemporarySystemFunction"
+        },
+        {
+          "id": "readme-has-join-lateral",
+          "type": "file_contains",
+          "description": "README shows joinLateral() usage for Table API invocation",
+          "path": "README.md",
+          "contains": "joinLateral"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "I need a PTF for Confluent Cloud that detects duplicate events within a 1-hour window per user. The input has user_id, event_id, and event_time. Output should be user_id, event_id, is_duplicate (boolean). I have Confluent Cloud set up already.",
+      "expected_output": "Creates a PTF for Confluent Cloud with state management for duplicate detection, uses artifact upload (not docker cp), provides proper CREATE FUNCTION with USING JAR confluent-artifact:// syntax, shows PTF invocation with uid parameter, and includes proper PARTITION BY and windowing logic.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "pom-exists",
+          "type": "file_exists",
+          "description": "pom.xml is generated for Maven build",
+          "path": "pom.xml"
+        },
+        {
+          "id": "pom-has-flink-table-api",
+          "type": "file_contains",
+          "description": "pom.xml depends on flink-table-api-java",
+          "path": "pom.xml",
+          "contains": "flink-table-api-java"
+        },
+        {
+          "id": "pom-has-provided-scope",
+          "type": "file_contains",
+          "description": "Flink dependencies are marked as 'provided' for Confluent Cloud",
+          "path": "pom.xml",
+          "contains": "provided"
+        },
+        {
+          "id": "ptf-has-argument-hint",
+          "type": "command",
+          "description": "PTF uses @ArgumentHint annotation",
+          "command": "grep -r '@ArgumentHint' {{output_dir}}/src/main/java 2>&1",
+          "expect_exit_code": 0
+        },
+        {
+          "id": "ptf-uses-isset-true",
+          "type": "command",
+          "description": "Table input parameter uses @ArgumentHint(isSet = true)",
+          "command": "grep -rE 'isSet[[:space:]]*=[[:space:]]*true' {{output_dir}}/src/main/java 2>&1",
+          "expect_exit_code": 0
+        },
+        {
+          "id": "ptf-state-tracks-seen-ids",
+          "type": "command",
+          "description": "State POJO uses Set/HashSet/Map to track seen event IDs",
+          "command": "grep -rE 'Set<|HashSet|HashMap|Map<' {{output_dir}}/src/main/java 2>&1",
+          "expect_exit_code": 0
+        },
+        {
+          "id": "ptf-prunes-old-events",
+          "type": "command",
+          "description": "State management includes time-based pruning logic",
+          "command": "grep -rE 'remove\\(|expire|cleanup|3600|hour|minus|isBefore|isAfter' {{output_dir}}/src/main/java 2>&1",
+          "expect_exit_code": 0
+        },
+        {
+          "id": "ptf-output-has-is-duplicate",
+          "type": "command",
+          "description": "PTF output includes boolean is_duplicate field",
+          "command": "grep -rE 'is_duplicate|isDuplicate' {{output_dir}}/src/main/java 2>&1",
+          "expect_exit_code": 0
+        },
+        {
+          "id": "readme-exists",
+          "type": "file_exists",
+          "description": "README.md is generated with build/deploy instructions",
+          "path": "README.md"
+        },
+        {
+          "id": "readme-has-artifact-upload",
+          "type": "file_contains",
+          "description": "README uses confluent flink artifact create command",
+          "path": "README.md",
+          "contains": "confluent flink artifact create"
+        },
+        {
+          "id": "readme-has-confluent-artifact-uri",
+          "type": "file_contains",
+          "description": "CREATE FUNCTION uses USING JAR 'confluent-artifact://' syntax",
+          "path": "README.md",
+          "contains": "confluent-artifact://"
+        },
+        {
+          "id": "readme-has-uid",
+          "type": "file_contains",
+          "description": "PTF invocation includes uid parameter for state recovery",
+          "path": "README.md",
+          "contains": "uid"
+        },
+        {
+          "id": "readme-has-partition-by",
+          "type": "file_contains",
+          "description": "PTF invocation uses PARTITION BY",
+          "path": "README.md",
+          "contains": "PARTITION BY"
+        },
+        {
+          "id": "no-docker-cp",
+          "type": "file_not_contains",
+          "description": "README does NOT include docker cp (CC deployment uses artifact upload)",
+          "path": "README.md",
+          "contains": "docker cp"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "Build a UDTF that takes a JSON string and explodes it into multiple rows with column_name and column_value. Use it from Flink SQL (not Table API) on my local docker. Example: input '{\"a\":1,\"b\":2}' should output rows (\"a\",\"1\") and (\"b\",\"2\"). Infrastructure is ready.",
+      "expected_output": "Creates UDTF extending TableFunction<Row> with JSON parsing, uses @FunctionHint to define output schema with two STRING columns, provides docker deployment, shows SQL invocation with LATERAL TABLE syntax (not Table API joinLateral), and handles malformed JSON gracefully.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "pom-exists",
+          "type": "file_exists",
+          "description": "pom.xml is generated for Maven build",
+          "path": "pom.xml"
+        },
+        {
+          "id": "pom-has-flink-table-api",
+          "type": "file_contains",
+          "description": "pom.xml depends on flink-table-api-java",
+          "path": "pom.xml",
+          "contains": "flink-table-api-java"
+        },
+        {
+          "id": "pom-has-json-library",
+          "type": "command",
+          "description": "pom.xml includes a JSON library dependency (Jackson or Gson)",
+          "command": "grep -E 'jackson|gson|org\\.json' {{output_dir}}/pom.xml 2>&1",
+          "expect_exit_code": 0
+        },
+        {
+          "id": "udtf-has-function-hint",
+          "type": "command",
+          "description": "UDTF uses @FunctionHint annotation to define output schema",
+          "command": "grep -r '@FunctionHint' {{output_dir}}/src/main/java 2>&1",
+          "expect_exit_code": 0
+        },
+        {
+          "id": "udtf-extends-table-function",
+          "type": "command",
+          "description": "Java source contains a class extending TableFunction<Row>",
+          "command": "grep -rE 'extends[[:space:]]+TableFunction<Row>' {{output_dir}}/src/main/java 2>&1",
+          "expect_exit_code": 0
+        },
+        {
+          "id": "udtf-uses-collect-row",
+          "type": "command",
+          "description": "UDTF uses collect(Row.of(...)) to emit rows",
+          "command": "grep -rE 'collect\\(Row\\.of' {{output_dir}}/src/main/java 2>&1",
+          "expect_exit_code": 0
+        },
+        {
+          "id": "udtf-parses-json",
+          "type": "command",
+          "description": "UDTF uses a JSON parser (Jackson/Gson)",
+          "command": "grep -rE 'ObjectMapper|JsonNode|JsonParser|JsonObject|Gson|JSONObject' {{output_dir}}/src/main/java 2>&1",
+          "expect_exit_code": 0
+        },
+        {
+          "id": "udtf-handles-malformed-json",
+          "type": "command",
+          "description": "UDTF handles malformed JSON with try/catch",
+          "command": "grep -rE 'try[[:space:]]*\\{|catch[[:space:]]*\\(' {{output_dir}}/src/main/java 2>&1",
+          "expect_exit_code": 0
+        },
+        {
+          "id": "readme-exists",
+          "type": "file_exists",
+          "description": "README.md is generated with build/deploy instructions",
+          "path": "README.md"
+        },
+        {
+          "id": "readme-has-docker-cp",
+          "type": "file_contains",
+          "description": "README uses docker cp to deploy JAR",
+          "path": "README.md",
+          "contains": "docker cp"
+        },
+        {
+          "id": "readme-has-lateral-table",
+          "type": "file_contains",
+          "description": "README uses LATERAL TABLE SQL syntax (not Table API)",
+          "path": "README.md",
+          "contains": "LATERAL TABLE"
+        },
+        {
+          "id": "no-join-lateral",
+          "type": "file_not_contains",
+          "description": "README does NOT use joinLateral (Table API is not requested)",
+          "path": "README.md",
+          "contains": "joinLateral"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "Create a scalar UDF that validates US phone numbers (returns true/false). I want to run it locally with docker but I don't have any infrastructure set up yet - need the full setup from scratch.",
+      "expected_output": "Detects need for infrastructure setup, reads local-docker-setup.md first, provides docker-compose configuration for Kafka + Flink, creates ScalarFunction for phone validation with regex, deploys via docker cp, and shows both SQL and Table API usage examples.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "docker-compose-exists",
+          "type": "file_exists",
+          "description": "docker-compose.yml is generated for Kafka + Flink infrastructure",
+          "path": "docker-compose.yml"
+        },
+        {
+          "id": "docker-compose-has-flink",
+          "type": "file_contains",
+          "description": "docker-compose.yml includes a Flink service",
+          "path": "docker-compose.yml",
+          "contains": "flink"
+        },
+        {
+          "id": "docker-compose-has-kafka",
+          "type": "command",
+          "description": "docker-compose.yml includes a Kafka/broker service",
+          "command": "grep -iE 'kafka|broker|redpanda' {{output_dir}}/docker-compose.yml 2>&1",
+          "expect_exit_code": 0
+        },
+        {
+          "id": "pom-exists",
+          "type": "file_exists",
+          "description": "pom.xml is generated for Maven build",
+          "path": "pom.xml"
+        },
+        {
+          "id": "pom-has-flink-table-api",
+          "type": "file_contains",
+          "description": "pom.xml depends on flink-table-api-java",
+          "path": "pom.xml",
+          "contains": "flink-table-api-java"
+        },
+        {
+          "id": "udf-extends-scalar-function",
+          "type": "command",
+          "description": "Java source contains a class extending ScalarFunction",
+          "command": "grep -r 'extends ScalarFunction' {{output_dir}}/src/main/java 2>&1",
+          "expect_exit_code": 0
+        },
+        {
+          "id": "udf-returns-boolean",
+          "type": "command",
+          "description": "eval() returns boolean",
+          "command": "grep -rE 'public[[:space:]]+(boolean|Boolean)[[:space:]]+eval' {{output_dir}}/src/main/java 2>&1",
+          "expect_exit_code": 0
+        },
+        {
+          "id": "udf-uses-regex",
+          "type": "command",
+          "description": "Phone validation uses regex (Pattern, matches, or similar)",
+          "command": "grep -rE 'Pattern|matches\\(|\\\\\\\\d' {{output_dir}}/src/main/java 2>&1",
+          "expect_exit_code": 0
+        },
+        {
+          "id": "readme-exists",
+          "type": "file_exists",
+          "description": "README.md is generated with build/deploy instructions",
+          "path": "README.md"
+        },
+        {
+          "id": "readme-has-docker-cp",
+          "type": "file_contains",
+          "description": "README uses docker cp to deploy JAR",
+          "path": "README.md",
+          "contains": "docker cp"
+        },
+        {
+          "id": "readme-has-add-jar",
+          "type": "file_contains",
+          "description": "README includes ADD JAR statement",
+          "path": "README.md",
+          "contains": "ADD JAR"
+        },
+        {
+          "id": "readme-has-create-function",
+          "type": "file_contains",
+          "description": "README includes CREATE FUNCTION SQL",
+          "path": "README.md",
+          "contains": "CREATE FUNCTION"
+        },
+        {
+          "id": "readme-has-select-example",
+          "type": "file_contains",
+          "description": "README shows an example SELECT query testing the UDF",
+          "path": "README.md",
+          "contains": "SELECT"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "i need a ptf that does sessionization - group events into sessions where any gap > 30 minutes starts a new session. each user gets their own sessions. local flink docker setup. input: user_id (int), event_time (timestamp), event_type (string). output: user_id, session_id, event_type, session_start, session_end. my docker env is already running",
+      "expected_output": "Creates PTF with complex state management tracking current session per user, implements gap detection logic, handles session boundaries correctly, uses local Docker deployment with docker cp, and provides proper PTF invocation with PARTITION BY user_id.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "pom-exists",
+          "type": "file_exists",
+          "description": "pom.xml is generated for Maven build",
+          "path": "pom.xml"
+        },
+        {
+          "id": "pom-has-flink-table-api",
+          "type": "file_contains",
+          "description": "pom.xml depends on flink-table-api-java",
+          "path": "pom.xml",
+          "contains": "flink-table-api-java"
+        },
+        {
+          "id": "ptf-has-argument-hint",
+          "type": "command",
+          "description": "PTF uses @ArgumentHint annotation",
+          "command": "grep -r '@ArgumentHint' {{output_dir}}/src/main/java 2>&1",
+          "expect_exit_code": 0
+        },
+        {
+          "id": "ptf-uses-isset-true",
+          "type": "command",
+          "description": "Table input parameter uses @ArgumentHint(isSet = true)",
+          "command": "grep -rE 'isSet[[:space:]]*=[[:space:]]*true' {{output_dir}}/src/main/java 2>&1",
+          "expect_exit_code": 0
+        },
+        {
+          "id": "state-has-session-fields",
+          "type": "command",
+          "description": "State POJO tracks session_id, session_start, and last_event_time",
+          "command": "grep -rE 'sessionId|session_id' {{output_dir}}/src/main/java 2>&1",
+          "expect_exit_code": 0
+        },
+        {
+          "id": "state-has-last-event-time",
+          "type": "command",
+          "description": "State tracks last event time for gap detection",
+          "command": "grep -rE 'lastEvent|last_event|lastSeen' {{output_dir}}/src/main/java 2>&1",
+          "expect_exit_code": 0
+        },
+        {
+          "id": "ptf-detects-30-min-gap",
+          "type": "command",
+          "description": "PTF implements 30-minute gap detection (1800s, 30, or Duration-based)",
+          "command": "grep -rE '30|1800|Duration\\.ofMinutes|ChronoUnit\\.MINUTES' {{output_dir}}/src/main/java 2>&1",
+          "expect_exit_code": 0
+        },
+        {
+          "id": "ptf-output-has-session-fields",
+          "type": "command",
+          "description": "PTF emits session_id, session_start, session_end fields",
+          "command": "grep -rE 'session_id|session_start|session_end|sessionStart|sessionEnd' {{output_dir}}/src/main/java 2>&1",
+          "expect_exit_code": 0
+        },
+        {
+          "id": "readme-exists",
+          "type": "file_exists",
+          "description": "README.md is generated with build/deploy instructions",
+          "path": "README.md"
+        },
+        {
+          "id": "readme-has-docker-cp",
+          "type": "file_contains",
+          "description": "README uses docker cp to deploy JAR",
+          "path": "README.md",
+          "contains": "docker cp"
+        },
+        {
+          "id": "readme-has-partition-by-user",
+          "type": "file_contains",
+          "description": "PTF invocation uses PARTITION BY user_id",
+          "path": "README.md",
+          "contains": "PARTITION BY user_id"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "I want a UDTF in Java for Confluent Cloud that takes a pipe-delimited string like \"name|age|city\" and explodes it into rows with a position field. So \"alice|30|NYC\" becomes 3 rows: (1,\"alice\"), (2,\"30\"), (3,\"NYC\"). Need to call it from Table API in my Flink job.",
+      "expected_output": "Creates UDTF for Confluent Cloud with artifact upload, provides @FunctionHint with schema defining position (INT) and value (STRING) columns, shows Table API registration and joinLateral usage, and includes proper build configuration with dependencies.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "pom-exists",
+          "type": "file_exists",
+          "description": "pom.xml is generated for Maven build",
+          "path": "pom.xml"
+        },
+        {
+          "id": "pom-has-flink-table-api",
+          "type": "file_contains",
+          "description": "pom.xml depends on flink-table-api-java",
+          "path": "pom.xml",
+          "contains": "flink-table-api-java"
+        },
+        {
+          "id": "pom-has-provided-scope",
+          "type": "file_contains",
+          "description": "Flink dependencies are marked as 'provided' for Confluent Cloud",
+          "path": "pom.xml",
+          "contains": "provided"
+        },
+        {
+          "id": "udtf-has-function-hint",
+          "type": "command",
+          "description": "UDTF uses @FunctionHint annotation to define output schema",
+          "command": "grep -r '@FunctionHint' {{output_dir}}/src/main/java 2>&1",
+          "expect_exit_code": 0
+        },
+        {
+          "id": "udtf-output-has-position-int",
+          "type": "command",
+          "description": "Output schema declares a position INT column",
+          "command": "grep -rE 'position[[:space:]]+INT|INT[[:space:]]+position' {{output_dir}}/src/main/java 2>&1",
+          "expect_exit_code": 0
+        },
+        {
+          "id": "udtf-output-has-value-string",
+          "type": "command",
+          "description": "Output schema declares a value STRING column",
+          "command": "grep -rE 'value[[:space:]]+STRING|STRING[[:space:]]+value' {{output_dir}}/src/main/java 2>&1",
+          "expect_exit_code": 0
+        },
+        {
+          "id": "udtf-extends-table-function",
+          "type": "command",
+          "description": "Java source contains a class extending TableFunction<Row>",
+          "command": "grep -rE 'extends[[:space:]]+TableFunction<Row>' {{output_dir}}/src/main/java 2>&1",
+          "expect_exit_code": 0
+        },
+        {
+          "id": "udtf-uses-collect-row",
+          "type": "command",
+          "description": "UDTF uses collect(Row.of(...)) to emit rows",
+          "command": "grep -rE 'collect\\(Row\\.of' {{output_dir}}/src/main/java 2>&1",
+          "expect_exit_code": 0
+        },
+        {
+          "id": "udtf-handles-null-or-empty",
+          "type": "command",
+          "description": "UDTF handles null and empty string inputs",
+          "command": "grep -rE 'null|isEmpty\\(\\)' {{output_dir}}/src/main/java 2>&1",
+          "expect_exit_code": 0
+        },
+        {
+          "id": "readme-exists",
+          "type": "file_exists",
+          "description": "README.md is generated with build/deploy instructions",
+          "path": "README.md"
+        },
+        {
+          "id": "readme-has-artifact-upload",
+          "type": "file_contains",
+          "description": "README uses confluent flink artifact create command",
+          "path": "README.md",
+          "contains": "confluent flink artifact create"
+        },
+        {
+          "id": "readme-has-create-temp-system-function",
+          "type": "file_contains",
+          "description": "README registers UDTF with createTemporarySystemFunction",
+          "path": "README.md",
+          "contains": "createTemporarySystemFunction"
+        },
+        {
+          "id": "readme-has-join-lateral",
+          "type": "file_contains",
+          "description": "README shows joinLateral(call(...)) usage for Table API invocation",
+          "path": "README.md",
+          "contains": "joinLateral"
+        },
+        {
+          "id": "no-docker-cp",
+          "type": "file_not_contains",
+          "description": "README does NOT include docker cp (CC deployment uses artifact upload)",
+          "path": "README.md",
+          "contains": "docker cp"
+        }
+      ]
+    }
+  ]
+}
