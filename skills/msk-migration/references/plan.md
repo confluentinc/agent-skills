@@ -64,7 +64,7 @@ Do NOT silently size on peak without surfacing the overestimation. The user need
 **Required live fetches during Plan.** Before committing the Technical Plan, fetch these three sources live — do not rely on cached knowledge of caps, version floors, or Zero-Cut prerequisites. **Use `WebFetch` for all three — not `curl`, `wget`, `python3 -c`, or heredoc scripts that strip HTML. `WebFetch` handles HTML→markdown and targeted extraction in one call; pass a focused extraction prompt rather than fetching raw content and parsing.** See SKILL.md "Fetch tool" directive for the full rule.
 
 1. **[cluster-types.html](https://docs.confluent.io/cloud/current/clusters/cluster-types.html)** — per-eCKU ingress, per-eCKU egress, per-eCKU partition rate, Enterprise eCKU cap (PNI and PrivateLink), cluster-type feature matrix. Without this fetch, the sizing math is guesswork.
-2. **[Cluster Linking source requirements](https://docs.confluent.io/cloud/current/multi-cloud/cluster-linking)** — minimum source Kafka version, auth support matrix, supported source topologies (including MSK Express broker tier if present). Without this fetch, CL compatibility claims rest on stale general knowledge.
+2. **[Cluster Linking source requirements](https://docs.confluent.io/cloud/current/multi-cloud/cluster-linking)** — the **migration-use-case** source version floor (Kafka 2.4.0+ / CP 5.4.0+, NOT the general Kafka 3.0+ floor — this skill is MSK-only and always operates in the migration-exception path), the `inter.broker.protocol=2.4` requirement, the auth support matrix, and supported source topologies (including MSK Express broker tier if present). Without this fetch, CL compatibility claims rest on stale general knowledge — and the wrong floor can produce false positives (rejecting eligible Kafka-2.4–2.9 sources) or false negatives (missing the IBP=2.4 check on Kafka-3.x sources with stale IBP).
 3. **[KCP zero-cut guide](https://confluentinc.github.io/kcp/latest/getting-started-with-zero-cut-migrations/)** — current Zero-Cut prerequisites (Kubernetes distribution, CP licensing, minimum KCP version, auth compatibility). Required if the Plan recommends Zero-Cut as the switchover approach (the default). Without this fetch, the Switchover Approach section is incomplete.
 
 All three fetches should happen before writing the Technical Plan — not in a later iteration. Cite them inline per the Technical Plan Conventions (Style A).
@@ -294,7 +294,7 @@ After the prologue, render the required sections starting with the Header sectio
 **Cluster Type Decision audit rendering — conditional on verdict.** For each cluster in the Plan:
 
 - **If the verdict is Dedicated:** render the full hard-limits row table with `Triggered` or `Not triggered` status on each of the 7 rows (eCKU cap / Kafka REST throughput, ACL count, networking topology, broker-side schema validation, mTLS x cluster type x cloud, REST throughput, single-zone SLA). At least one row is `Triggered`. Cite the live cap source on every `Triggered` row.
-- **If the verdict is Enterprise:** emit a one-line audit summary listing each of the 7 triggers with its evaluated value. Example: *"All 7 hard-limits triggers evaluated and clear: eCKU cap (projected 4, cap 32), ACL count (12, cap ~4,000), networking (PNI, no escalation), broker-side schema validation (none), mTLS (target type/cloud OK), REST throughput (n/a), single-zone SLA (multi-zone)."* Cite the live cap source for each.
+- **If the verdict is Enterprise:** emit a one-line audit summary listing each of the 7 triggers with its evaluated value. Example: *"All 7 hard-limits triggers evaluated and clear: eCKU cap (projected 4, cap 32), ACL count (12, cap 4,000), networking (PNI, no escalation), broker-side schema validation (none), mTLS (target type/cloud OK), REST throughput (n/a), single-zone SLA (multi-zone)."* Cite the live cap source for each.
 - **Multi-cluster fixtures:** emit a verdict and audit (table or one-liner per the verdict) for each cluster individually.
 
 The rendering rule is "show the work that mattered." For Dedicated escalations, the per-row table makes the trigger visible. For Enterprise verdicts, the one-liner confirms every trigger was evaluated without bloating the section with 7 rows of `Not triggered`.
@@ -415,7 +415,7 @@ If a number can't be cited (fabricated, inferred without evidence, or from train
 - Sizing calculated (CKUs/eCKUs with headroom) or deferred to eventsizer.io with the gap recorded
 - Schema migration path chosen (Schema Linking, REST API, adopt-SR, or continue-schemaless — per the table above)
 - Connector migration path chosen per source connector
-- Pre-migration requirements identified and flagged (IAM → SCRAM conversion if Zero-Cut, Kafka version below current CL floor, etc.)
+- Pre-migration requirements identified and flagged (IAM → SCRAM conversion if Zero-Cut, Kafka version below the migration-use-case CL floor of 2.4.0+, `inter.broker.protocol` below 2.4 on the source, etc.)
 - Risks documented and acknowledged by the user
 - Every number in the Technical Plan carries a citation (Style A inline or Style B appendix) per Technical Plan Conventions above
 

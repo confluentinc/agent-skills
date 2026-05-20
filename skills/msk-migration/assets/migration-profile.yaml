@@ -12,7 +12,7 @@ source:
   platform: msk-provisioned  # REQUIRED. msk-provisioned | msk-serverless
   cloud_provider: aws  # REQUIRED. aws (msk-migration is MSK-only)
   region: us-east-1  # REQUIRED. Source AWS region.
-  kafka_version: null  # REQUIRED. Source Kafka version. Verify CL compatibility against docs.
+  kafka_version: null  # REQUIRED. Source Kafka binary version. Cluster Linking migration-use-case floor is Kafka 2.4.0+ (or CP 5.4.0+) — verify live against the CL source requirements doc. Note: CL also requires `inter.broker.protocol=2.4+` on each source cluster; that value lives per-cluster at `clusters[].ibp_version`.
   migration_drivers: null  # Brief note: why migrate? timeline? hard cutover constraint?
   monthly_cost_usd: null  # Rough MSK spend. Populate from kcp report costs if available.
 
@@ -22,6 +22,7 @@ clusters:
     broker_count: null  # REQUIRED for provisioned. Null for serverless.
     broker_instance_type: null  # e.g. kafka.m5.large. Null for serverless.
     availability_zones: []  # List of AZ identifiers the brokers span.
+    ibp_version: null  # `inter.broker.protocol` value on the source cluster (e.g. "2.4", "3.5"). CL requires IBP=2.4+ on the source — a cluster at Kafka 3.x with IBP still at 2.3 is ineligible even though the binary version passes. Source-cluster Kafka binary version lives at `source.kafka_version` (single value across the MSK environment). If IBP is unknown, leave null and flag in `known_gaps[]`.
 
     # Scale (REQUIRED — drives sizing)
     topic_count: null  # Total topics on this cluster (user + internal). Required.
