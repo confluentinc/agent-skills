@@ -1,0 +1,128 @@
+# Mock environment for SC2 (BIDIRECTIONAL switchover exception path).
+#
+# Customer is migrating MSK to Confluent Cloud and has explicitly stated
+# that consumers will be migrated AFTER producers, with a non-trivial gap
+# in time. Producer applications (owned by the platform team) cut over
+# first; consumer applications (owned by multiple downstream app teams)
+# follow in waves over the subsequent 6-8 weeks as each team schedules
+# their own change windows.
+#
+# Expected Plan behavior:
+#   - Switchover Approach surfaces the consumers-after-producers option
+#     and recommends `link.mode=BIDIRECTIONAL` rather than the default
+#     DESTINATION + Zero-Cut Gateway path.
+#   - Plan names the consumer-group-prefixing constraint (cannot be
+#     enabled for bidirectional links per cluster-links-cc.html).
+#   - Plan notes BIDIRECTIONAL is not the rollback-safety pattern —
+#     Zero-Cut Gateway route flip handles rollback.
+#   - DESTINATION + Zero-Cut Gateway remains documented as the default
+#     for typical migrations; BIDIRECTIONAL is opt-in for this case.
+#
+# Trigger signal lives in both:
+#   (a) source.migration_drivers free text (LLM-driven recognition), and
+#   (b) target_context.consumer_migration_timing structured field.
+
+source:
+  platform: msk-provisioned
+  cloud_provider: aws
+  region: us-east-1
+  kafka_version: 3.7.x
+  migration_drivers: |
+    Moving off MSK to Confluent Cloud to consolidate streaming infrastructure.
+    Producers will migrate first in a single platform-team-owned cutover.
+    Consumer applications are owned by 14 downstream app teams; consumer
+    cutovers will follow in waves over 6-8 weeks as each team schedules
+    their own change windows. There is a non-trivial gap between producer
+    cutover and full consumer migration — straggling consumers will remain
+    on the source cluster for several weeks after producers have moved.
+  monthly_cost_usd: 88000
+
+clusters:
+  - name: acme-events-prod
+    broker_count: 6
+    broker_instance_type: kafka.m7g.2xlarge
+    availability_zones: [us-east-1a, us-east-1b, us-east-1c]
+    topic_count: 84
+    user_topic_count: 78
+    internal_topic_count: 6
+    partition_count_pre_replication: 1240
+    user_partition_count: 1180
+    internal_partition_count: 60
+    replication_factor: 3
+    p95_ingress_mbps: 78
+    p95_egress_mbps: 232
+    peak_ingress_mbps: 142
+    peak_egress_mbps: 410
+    storage_mode: TIERED
+    peak_tiered_storage_gb: 4180
+    auth_types:
+      - scram
+    network_accessibility: private
+    vpc_topology: single-vpc
+    acl_count: 28
+    acl_source: kafka-acls
+
+  - name: acme-events-cdc
+    broker_count: 3
+    broker_instance_type: kafka.m7g.large
+    availability_zones: [us-east-1a, us-east-1b, us-east-1c]
+    topic_count: 32
+    user_topic_count: 28
+    internal_topic_count: 4
+    partition_count_pre_replication: 320
+    user_partition_count: 300
+    internal_partition_count: 20
+    replication_factor: 3
+    p95_ingress_mbps: 11
+    p95_egress_mbps: 34
+    peak_ingress_mbps: 22
+    peak_egress_mbps: 62
+    storage_mode: LOCAL
+    peak_tiered_storage_gb: null
+    auth_types:
+      - scram
+    network_accessibility: private
+    vpc_topology: single-vpc
+    acl_count: 12
+    acl_source: kafka-acls
+
+schema_registry:
+  type: confluent-sr
+  subject_count: 142
+  migration_decision: null
+
+connectors:
+  msk_connect_count: 0
+  self_managed_connect_count: 0
+  connector_types: []
+
+cost_line_items: []
+
+downstream:
+  tableflow_planned: false
+  flink_planned: false
+  lakehouse_planned: false
+
+target_context:
+  cc_reaches_source: true
+  cc_egress_required: false
+  source_sr_can_push_to_cc_sr: true
+  target_identity_model: api_keys
+  consumer_history_requirement: required
+  consumer_migration_timing: after_producers   # SC2 signal: consumers migrate after producers with a non-trivial gap
+
+plan:
+  target_cluster_type: null
+  target_cloud: aws
+  target_region: us-east-1
+  target_networking: null
+  sizing_ecku_or_cku: null
+  sizing_headroom_percent: null
+  auth_mapping: {}
+  switchover_approach: null
+  pre_migration_requirements: []
+  risks_acknowledged: []
+
+red_flags: []
+
+known_gaps: []
