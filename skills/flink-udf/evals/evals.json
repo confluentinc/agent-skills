@@ -1,0 +1,389 @@
+{
+  "skill_name": "flink-udf",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I need to build a Flink scalar UDF in Java that converts email addresses to their domain names. I want to deploy this to Confluent Cloud and use it from Flink SQL. Can you help me create the function, build it, and deploy it?",
+      "expected_output": "Creates a Java scalar UDF that extracts domain from email, provides Maven/Gradle build configuration, generates the JAR, uploads it to Confluent Cloud as an artifact, and shows how to register and invoke the function in Flink SQL.",
+      "expectations": [
+        {
+          "text": "Asks whether to use Confluent Cloud or local Docker (or detects it from the prompt)",
+          "weight": 1.0
+        },
+        {
+          "text": "Reads the appropriate reference file (udf-udtf-java-confluent-cloud.md)",
+          "weight": 2.0
+        },
+        {
+          "text": "Provides a Java class extending ScalarFunction with an eval() method",
+          "weight": 2.0
+        },
+        {
+          "text": "Includes Maven or Gradle build configuration with flink-table-api-java dependency marked as 'provided'",
+          "weight": 2.0
+        },
+        {
+          "text": "Shows how to build the JAR with mvn clean package or ./gradlew shadowJar",
+          "weight": 1.0
+        },
+        {
+          "text": "Includes confluent flink artifact create command to upload the JAR",
+          "weight": 2.0
+        },
+        {
+          "text": "Provides CREATE FUNCTION SQL statement with fully qualified class name and USING JAR clause",
+          "weight": 2.0
+        },
+        {
+          "text": "Shows example SELECT query using the UDF",
+          "weight": 1.0
+        },
+        {
+          "text": "Handles null inputs properly in the UDF implementation",
+          "weight": 1.0
+        }
+      ],
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "i want to create a flink process table function that calculates a running median over the last 5 temperature readings per sensor. i'm running flink locally with docker and need it to work with kafka topics.",
+      "expected_output": "Creates a Java PTF with state management, provides Docker deployment steps, and shows how to test with Kafka topics.",
+      "expectations": [
+        {
+          "text": "Detects local Docker deployment from prompt or confirms with user",
+          "weight": 1.0
+        },
+        {
+          "text": "Reads ptf-java-local.md reference file",
+          "weight": 2.0
+        },
+        {
+          "text": "Provides PTF implementation with @DataTypeHint, @StateHint, and @ArgumentHint annotations",
+          "weight": 2.0
+        },
+        {
+          "text": "Includes a state POJO class with public fields (e.g., List<Double> for temperature values)",
+          "weight": 2.0
+        },
+        {
+          "text": "eval() method uses @ArgumentHint(isSet = true) for table input parameter",
+          "weight": 1.5
+        },
+        {
+          "text": "Shows build command (mvn/gradle) to create JAR",
+          "weight": 1.0
+        },
+        {
+          "text": "Includes docker cp command to copy JAR to flink-sql-client container",
+          "weight": 1.5
+        },
+        {
+          "text": "Shows ADD JAR and CREATE FUNCTION statements for local deployment",
+          "weight": 2.0
+        },
+        {
+          "text": "Provides Kafka table DDL with WATERMARK clause",
+          "weight": 1.5
+        },
+        {
+          "text": "Shows PTF invocation with TABLE ... PARTITION BY syntax and uid parameter",
+          "weight": 2.0
+        },
+        {
+          "text": "State management prunes old values to keep only last N readings",
+          "weight": 1.5
+        }
+      ],
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "Build me a UDTF in Java that splits a comma-separated string into rows. I'm using the Table API (not SQL) and want to run it on my local docker setup. No infrastructure setup needed, I already have everything running.",
+      "expected_output": "Creates a Java UDTF (TableFunction) for string splitting, provides build steps, local Docker deployment, and shows how to invoke from Table API with joinLateral.",
+      "expectations": [
+        {
+          "text": "Detects local Docker deployment from prompt",
+          "weight": 1.0
+        },
+        {
+          "text": "Detects that infrastructure already exists (skips setup)",
+          "weight": 1.0
+        },
+        {
+          "text": "Identifies Table API usage from prompt",
+          "weight": 1.0
+        },
+        {
+          "text": "Reads udf-udtf-java-local.md reference",
+          "weight": 2.0
+        },
+        {
+          "text": "Creates class extending TableFunction<Row> (not ScalarFunction)",
+          "weight": 2.0
+        },
+        {
+          "text": "Uses collect(Row.of(...)) to emit multiple rows",
+          "weight": 2.0
+        },
+        {
+          "text": "Provides build configuration (Maven or Gradle)",
+          "weight": 1.0
+        },
+        {
+          "text": "Shows docker cp command to deploy JAR",
+          "weight": 1.5
+        },
+        {
+          "text": "Provides Table API Java code with tableEnv.createTemporarySystemFunction()",
+          "weight": 2.0
+        },
+        {
+          "text": "Shows joinLateral() usage for invoking UDTF from Table API (not just SQL)",
+          "weight": 2.0
+        },
+        {
+          "text": "Handles null and empty string inputs properly",
+          "weight": 1.0
+        }
+      ],
+      "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "I need a PTF for Confluent Cloud that detects duplicate events within a 1-hour window per user. The input has user_id, event_id, and event_time. Output should be user_id, event_id, is_duplicate (boolean). I have Confluent Cloud set up already.",
+      "expected_output": "Creates a PTF for Confluent Cloud with state management for duplicate detection, uses artifact upload (not docker cp), provides proper CREATE FUNCTION with USING JAR confluent-artifact:// syntax, shows PTF invocation with uid parameter, and includes proper PARTITION BY and windowing logic.",
+      "expectations": [
+        {
+          "text": "Detects Confluent Cloud deployment and skips infrastructure setup",
+          "weight": 1.0
+        },
+        {
+          "text": "Reads ptf-java-confluent-cloud.md reference file (not local)",
+          "weight": 2.0
+        },
+        {
+          "text": "Uses 'confluent flink artifact create' command (not docker cp)",
+          "weight": 2.0
+        },
+        {
+          "text": "CREATE FUNCTION uses 'USING JAR 'confluent-artifact://<artifact-id>' syntax",
+          "weight": 2.0
+        },
+        {
+          "text": "PTF invocation includes uid parameter for state recovery",
+          "weight": 2.0
+        },
+        {
+          "text": "State POJO includes Set<String> or similar for tracking seen event IDs",
+          "weight": 2.0
+        },
+        {
+          "text": "State management includes logic to prune old events (time-based expiry)",
+          "weight": 2.0
+        },
+        {
+          "text": "PTF output includes boolean is_duplicate field",
+          "weight": 1.5
+        },
+        {
+          "text": "Uses @ArgumentHint(isSet = true) for table input parameter",
+          "weight": 1.5
+        }
+      ],
+      "files": []
+    },
+    {
+      "id": 5,
+      "prompt": "Build a UDTF that takes a JSON string and explodes it into multiple rows with column_name and column_value. Use it from Flink SQL (not Table API) on my local docker. Example: input '{\"a\":1,\"b\":2}' should output rows (\"a\",\"1\") and (\"b\",\"2\"). Infrastructure is ready.",
+      "expected_output": "Creates UDTF extending TableFunction<Row> with JSON parsing, uses @FunctionHint to define output schema with two STRING columns, provides docker deployment, shows SQL invocation with LATERAL TABLE syntax (not Table API joinLateral), and handles malformed JSON gracefully.",
+      "expectations": [
+        {
+          "text": "Detects local Docker deployment from prompt",
+          "weight": 1.0
+        },
+        {
+          "text": "Detects SQL usage (not Table API) from prompt",
+          "weight": 1.0
+        },
+        {
+          "text": "Reads udf-udtf-java-local.md reference",
+          "weight": 2.0
+        },
+        {
+          "text": "Uses @FunctionHint annotation to define output schema with two columns",
+          "weight": 2.0
+        },
+        {
+          "text": "Extends TableFunction<Row> (not ScalarFunction)",
+          "weight": 2.0
+        },
+        {
+          "text": "Uses collect(Row.of(...)) to emit multiple rows",
+          "weight": 2.0
+        },
+        {
+          "text": "Includes JSON parsing logic (using a library like Jackson or Gson)",
+          "weight": 2.0
+        },
+        {
+          "text": "Shows docker cp command to deploy JAR",
+          "weight": 1.5
+        },
+        {
+          "text": "Provides SQL example using LATERAL TABLE syntax (not joinLateral)",
+          "weight": 2.0
+        },
+        {
+          "text": "Handles malformed JSON with try-catch or validation",
+          "weight": 1.5
+        },
+        {
+          "text": "Build config includes JSON library dependency (not marked as provided)",
+          "weight": 1.5
+        }
+      ],
+      "files": []
+    },
+    {
+      "id": 6,
+      "prompt": "Create a scalar UDF that validates US phone numbers (returns true/false). I want to run it locally with docker but I don't have any infrastructure set up yet - need the full setup from scratch.",
+      "expected_output": "Detects need for infrastructure setup, reads local-docker-setup.md first, provides docker-compose configuration for Kafka + Flink, creates ScalarFunction for phone validation with regex, deploys via docker cp, and shows both SQL and Table API usage examples.",
+      "expectations": [
+        {
+          "text": "Detects that infrastructure setup is needed from prompt",
+          "weight": 2.0
+        },
+        {
+          "text": "Reads local-docker-setup.md reference file first",
+          "weight": 2.0
+        },
+        {
+          "text": "Provides docker-compose.yml or docker commands to set up Kafka and Flink",
+          "weight": 2.0
+        },
+        {
+          "text": "Reads udf-udtf-java-local.md for UDF implementation",
+          "weight": 2.0
+        },
+        {
+          "text": "Creates class extending ScalarFunction with eval() returning boolean",
+          "weight": 2.0
+        },
+        {
+          "text": "Includes phone number validation logic (regex or parsing)",
+          "weight": 1.5
+        },
+        {
+          "text": "Shows docker cp command to copy JAR to container",
+          "weight": 1.5
+        },
+        {
+          "text": "Provides ADD JAR and CREATE FUNCTION statements",
+          "weight": 2.0
+        },
+        {
+          "text": "Shows example SELECT query testing the validation UDF",
+          "weight": 1.0
+        }
+      ],
+      "files": []
+    },
+    {
+      "id": 7,
+      "prompt": "i need a ptf that does sessionization - group events into sessions where any gap > 30 minutes starts a new session. each user gets their own sessions. local flink docker setup. input: user_id (int), event_time (timestamp), event_type (string). output: user_id, session_id, event_type, session_start, session_end. my docker env is already running",
+      "expected_output": "Creates PTF with complex state management tracking current session per user, implements gap detection logic, handles session boundaries correctly, uses local Docker deployment with docker cp, and provides proper PTF invocation with PARTITION BY user_id.",
+      "expectations": [
+        {
+          "text": "Detects local Docker deployment and skips infrastructure setup",
+          "weight": 1.0
+        },
+        {
+          "text": "Reads ptf-java-local.md reference file",
+          "weight": 2.0
+        },
+        {
+          "text": "State POJO includes fields for session tracking (session_id, session_start, last_event_time)",
+          "weight": 2.0
+        },
+        {
+          "text": "Implements gap detection logic comparing event_time to last_event_time",
+          "weight": 2.0
+        },
+        {
+          "text": "Generates new session_id when gap exceeds 30 minutes",
+          "weight": 2.0
+        },
+        {
+          "text": "PTF output schema includes session_id, session_start, and session_end fields",
+          "weight": 2.0
+        },
+        {
+          "text": "Uses @ArgumentHint(isSet = true) for table input parameter",
+          "weight": 1.5
+        },
+        {
+          "text": "Shows docker cp command for JAR deployment",
+          "weight": 1.0
+        },
+        {
+          "text": "Provides PTF invocation with TABLE ... PARTITION BY user_id",
+          "weight": 2.0
+        },
+        {
+          "text": "Handles timestamp comparison and interval calculation correctly",
+          "weight": 1.5
+        }
+      ],
+      "files": []
+    },
+    {
+      "id": 8,
+      "prompt": "I want a UDTF in Java for Confluent Cloud that takes a pipe-delimited string like \"name|age|city\" and explodes it into rows with a position field. So \"alice|30|NYC\" becomes 3 rows: (1,\"alice\"), (2,\"30\"), (3,\"NYC\"). Need to call it from Table API in my Flink job.",
+      "expected_output": "Creates UDTF for Confluent Cloud with artifact upload, provides @FunctionHint with schema defining position (INT) and value (STRING) columns, shows Table API registration and joinLateral usage, and includes proper build configuration with dependencies.",
+      "expectations": [
+        {
+          "text": "Detects Confluent Cloud deployment from prompt",
+          "weight": 1.0
+        },
+        {
+          "text": "Detects Table API usage from prompt",
+          "weight": 1.0
+        },
+        {
+          "text": "Reads udf-udtf-java-confluent-cloud.md reference",
+          "weight": 2.0
+        },
+        {
+          "text": "Uses @FunctionHint annotation defining output with position INT and value STRING",
+          "weight": 2.0
+        },
+        {
+          "text": "Extends TableFunction<Row> with eval() method that loops and calls collect()",
+          "weight": 2.0
+        },
+        {
+          "text": "Emits rows with position index (1-based or 0-based) and value",
+          "weight": 2.0
+        },
+        {
+          "text": "Uses 'confluent flink artifact create' command to upload JAR",
+          "weight": 2.0
+        },
+        {
+          "text": "Provides Table API registration with createTemporarySystemFunction()",
+          "weight": 2.0
+        },
+        {
+          "text": "Shows joinLateral(call(...)) usage for Table API invocation",
+          "weight": 2.0
+        },
+        {
+          "text": "Handles null and empty input strings gracefully",
+          "weight": 1.0
+        }
+      ],
+      "files": []
+    }
+  ]
+}
