@@ -129,7 +129,15 @@ After emitting the `target_networking` recommendation above, derive Cluster Link
 
 ## Schema Migration Path Selection
 
-Schema Linking uses a Schema Exporter on the source Schema Registry cluster that pushes schemas to the destination CC Schema Registry. The exporter is one-directional (source → destination) per [schema-linking.html](https://docs.confluent.io/cloud/current/sr/schema-linking.html) — there is no destination-initiated mode equivalent to Cluster Linking's `link.mode=SOURCE`. Path depends on source SR type, the Schema Linking version floor, and whether the source SR has outbound network access to reach CC Schema Registry endpoints. Version cutoffs are product facts — verify against the live [Schema Registry / Schema Linking docs](https://docs.confluent.io/cloud/current/sr/schema-linking.html) before committing.
+Schema Linking uses a Schema Exporter on the source Schema Registry cluster that pushes schemas to the destination CC Schema Registry. The exporter is one-directional (source → destination) per [schema-linking.html](https://docs.confluent.io/cloud/current/sr/schema-linking.html) — there is no destination-initiated mode equivalent to Cluster Linking's `link.mode=SOURCE`. Path depends on source SR type, the Schema Linking version floor, and whether the source SR has outbound network access to reach CC Schema Registry endpoints.
+
+**Source SR version floor.** Schema Linking requires source SR on Confluent Platform 7.0 and later. Cite [schema-linking-cp.html](https://docs.confluent.io/platform/current/schema-registry/schema-linking-cp.html) Prerequisites section. State the floor explicitly in the Plan rather than punting to "verify live" — the floor is stable and publicly stated.
+
+**Edition requirement.** Schema Linking is an Enterprise feature. Confluent Platform Community edition does not support it even at 7.0 and later. The Plan must state this explicitly when the source is Confluent SR — a customer on CP 7.0+ Community is in a different bucket than CP 7.0+ Enterprise.
+
+**Non-Confluent SR.** If source SR is non-Confluent (Glue, Karapace, Apicurio), Schema Linking does not apply — see the path table below for the appropriate alternative.
+
+**Customer confirmation.** The customer's platform team confirms source SR meets the version floor AND is on Enterprise edition before SL is committed. Surface as an Open Question in the Plan.
 
 | Source SR | Path |
 |---|---|
@@ -153,6 +161,8 @@ Schema Linking uses a Schema Exporter on the source Schema Registry cluster that
 
 For each source connector enumerated in Assess (or detected via state file at `aws_client_information.connectors[]`), the Plan looks up the CC managed connector catalog and classifies the migration path per-connector. Classification is at the individual-connector level, not the source-type level — MSK Connect and self-managed Connect determine which `kcp create-asset migrate-connectors {msk|self-managed}` sub-command emits the asset, not whether the connector goes to CC managed.
 
+**Destination Connect architecture is a customer decision; do not default it from source observation.** When self-managed Connect or MSK Connect is detected on the source AND the customer intake has not stated a destination Connect intent, the Plan must use uniform working-assumption language: *"Destination Connect architecture is not committed. The skill flags this as an Open Question. Do not default to either keep-self-managed or move-to-CC-managed without customer signal."* Do not state a working assumption about destination Connect architecture unless the customer intake explicitly indicates a direction. The "differ" classification in the connector path table is the appropriate landing zone when intent is unknown. This rule pairs with the `cc_egress_required` default-false rule above — both prevent the Plan from making customer-side architectural commitments the skill cannot make from source-data observation alone.
+
 | Source Connector | CC Managed Equivalent | Path |
 |---|---|---|
 | `[name 1]` | [`cc-<name>.html`](https://docs.confluent.io/cloud/current/connectors/index.html) | CMU + `kcp create-asset migrate-connectors {msk|self-managed}` per source type. |
@@ -171,6 +181,7 @@ Operational concerns are not part of the Technical Plan. Connector-level operati
 - Kafka Streams apps → changelog topics should NOT be mirrored. Plan state-store rebuild time post-cutover.
 - Multi-region clusters → each region may need a separate CC environment and CL setup.
 - Cross-cloud target (source AWS, target Azure/GCP) → review networking and auth feature availability per cluster-types.html and mTLS overview doc live.
+- **MirrorMaker 2 internal topics detected on source** (per Assess Row 15 — `<alias>.heartbeats.internal`, `<alias>.checkpoints.internal`, `mm2-offset-syncs.<alias>.internal`) → source is already in an active replication relationship. Surface as a Risks row and as a switchover sequencing input — the Plan's Switchover Approach section must reference MM2 detection because the existing replication affects cutover ordering (e.g., whether to drain MM2-replicated topics before CL takes over, whether the upstream MM2 source needs separate cutover coordination).
 
 ## Historical Data Handling
 
@@ -178,12 +189,18 @@ Cluster Linking replicates all historical data from source by default. Per [migr
 
 | `consumer_history_requirement` | Path |
 |---|---|
-| `required` | CL backfills all history (default per migrate-cc.html). Plan estimates backfill time = source data volume ÷ sustained CL throughput; surface as a Risks row when source has tiered storage (see callout below). |
+| `required` | CL backfills all history (default per https://docs.confluent.io/cloud/current/multi-cloud/cluster-linking/migrate-cc.html). Plan estimates backfill time = source data volume ÷ sustained CL throughput; surface as a Risks row when source has tiered storage (see callout below). |
 | `not_required` | Connect with your Confluent account team — skipping history is not documented as a default CL flow and requires customer-side operational choices not addressable from public docs. |
 | `mixed` | CL backfills all by default. For specific topics where backfill is undesirable, connect with the Confluent account team for per-topic configuration. |
 | `unknown` | CL backfills (default); flag as Open Question to verify with downstream consumers before Migrate. |
 
-**Tiered storage cost callout.** When the source has MSK tiered storage (`storage_mode: TIERED` in the migration profile, or detected from the state file via `StorageMode: "TIERED"`), backfill time and cost are materially higher because the source has to re-fetch historical data from S3. Customers with real-time-only consumers may want to consider `consumer_history_requirement: not_required` to avoid this cost — verify with your Confluent account team.
+**Tiered storage cost callout.** When the source has MSK tiered storage (`storage_mode: TIERED` in the migration profile, or detected from the state file via `StorageMode: "TIERED"`), the callout must name **three distinct customer-facing dimensions** so the reader sees each cost factor explicitly — do NOT conflate them into a single phrase like "material cost and time":
+
+1. **S3 re-fetch (the mechanism):** the source has to pull historical data from S3, not from broker disk. Name "S3 re-fetch" (or "re-fetch from S3") explicitly so the reader understands where the cost comes from.
+2. **Backfill time (the duration dimension):** the re-fetch takes time at sustained CL throughput. Name "backfill time" (or "time to backfill") as its own dimension — distinct from cost.
+3. **Backfill cost (the dollar dimension):** the re-fetch incurs per-GB cost from S3. Name "backfill cost" (or "cost of backfill" / "re-fetch cost") as its own dimension — distinct from time.
+
+Customers with real-time-only consumers may want to consider `consumer_history_requirement: not_required` to avoid all three costs — verify with your Confluent account team.
 
 Read peak tiered volume per cluster from the state file metrics — not from EBS provisioned capacity (which is a different thing):
 
@@ -218,7 +235,7 @@ Every Technical Plan output uses the same prologue, section ordering, and table 
 
 **Output prologue — emit verbatim at the top of every Technical Plan output.**
 
-The skill renders the following block verbatim as the prologue (before Section 1 Header). The title "Technical Plan" honestly signals scope: this artifact covers technical architecture and migration approach, not the customer's full operational plan.
+The skill renders the following block verbatim as the prologue (before the Header section). The title "Technical Plan" honestly signals scope: this artifact covers technical architecture and migration approach, not the customer's full operational plan.
 
 ````markdown
 # Technical Plan
@@ -247,25 +264,40 @@ current docs.confluent.io before acting. Re-run as your source environment
 or requirements change.
 ````
 
-After the prologue, render the 13 required sections starting with Section 1 Header.
+After the prologue, render the required sections starting with the Header section.
 
-**Required sections — always present, in this order. Section numbers are FIXED — 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13 — and Pre-Migration Workstream is always 10, Risks always 11, Open Questions always 12, Next Step always 13. Do NOT skip a number, do NOT renumber to "make room" for conditional sections, and do NOT reorder Pre-Migration Workstream to follow Risks. Conditional sections (Schema Migration, Connector Migration, Historical Data Handling, Multi-VPC / Multi-Region, Cluster Linking — Special Considerations) are inserted unnumbered between section 9 (Switchover Approach) and section 10 (Pre-Migration Workstream) — they do NOT consume a number, and they do NOT displace section 10.**
+**Section structure — every section header uses `## Section Name` format with no leading numbers.** The Plan has a canonical ordered list of section names — base sections always present plus conditional sections when triggered. Conditional sections slot into the order at their canonical position when their trigger fires; they are skipped (no heading emitted) when the trigger does not fire. Total section count varies with how many conditional triggers fire on the given migration. Do not renumber, do not insert a numbered heading anywhere, and do not reorder.
 
-1. **Header.** Source, target, state file path, drafted date. One-liner each.
-2. **Inputs & Default Assumptions.** Parameters the Plan is built on. Surface them upfront so the user can challenge any default before reading recommendations that depend on them. Required rows: Sizing percentile, Headroom, SLA target, Target cloud/region, Schema posture. Add others as relevant. Format: 4-column table — Parameter | Value | Source | Implication of Change.
-3. **Summary.** BLUF. Max 5 bullets covering: cluster type recommendation, networking recommendation, switchover approach, the one workstream most likely to drive the timeline, anything else urgent. The "one-page if you only read this" version.
-4. **Source Environment.** Cluster table (standard columns below) + auth posture (server-side) + networking topology + VPC / region summary. When the Assess output included a Topic-Level Readiness section (KCP state file with `topics.details[]`), restate the per-cluster bucket counts (Skip / Manual / Needs Config / Moves Cleanly) as a subsection here. Manual-bucket entries are itemized; Needs-config entries are summarized by reason.
-5. **Sizing.** Per-cluster eCKU math with citations. Either committed numbers with visible formulas, or explicit "deferred because [scan gap | Dedicated escalation conversation needed]" — never silently missing.
-6. **Cluster Type Decision.** Enterprise vs Dedicated per cluster. If any cluster is Dedicated, cite which hard-limit row triggered the escalation.
-7. **Networking Decision.** Per-cluster networking choice (PrivateLink, PNI, VPC Peering, TGW, public) with justification. **When the source spans multiple clusters or multiple regions, name each cluster or region explicitly in the Networking Decision section** — either as table rows (one row per cluster with cluster name and region) or as inline references in the prose. The reader should see each source identifier (cluster name, region, or both) within §7 itself, not only in §4 Source Environment. Generic phrasing like "all three clusters" or "three target regions" is insufficient — the reader needs to know which cluster maps to which networking decision without chaining back to the cluster table. For single-cluster fixtures, the cluster name appears once in the prose.
-8. **Auth Approach.** Two-step: (a) source-side pre-migration requirements per source MSK auth type (IAM source requires pre-migration to SCRAM or mTLS before Zero-Cut per Invariant 8; other source auths have no pre-migration step). (b) Target CC auth method cascaded from `target_context.target_identity_model` per the SKILL.md target-options table — `oauth` → SASL/OAUTHBEARER, `api_keys` → SASL/PLAIN, `mtls` → SSL with client certs (verify live cluster-type × cloud support against cluster-types.html), `undecided` → default to API Keys + flag as Open Question, `other` → defer to Confluent account team. Emit derivation visible: customer's chosen `target_identity_model` and the resulting CC auth method. Keep the source-side pre-migration step clearly separated from the target-side identity choice in the output so readers don't conflate them.
-9. **Switchover Approach.** Pattern × mechanism (incremental + Gateway recommended; big-bang + Gateway when single window desired; big-bang + Manual CL fallback when Zero-Cut prereqs not met). Dual-write described for completeness only — no Confluent-specific tooling. Note that Incremental + Manual CL is not recommended (operationally heavy without the Gateway's atomic flip). Prerequisites fetched live at Switchover stage — don't cache them in Plan.
-10. **Pre-Migration Workstream.** What has to happen before migration proper. Commonly: IAM→SCRAM auth migration, Kafka version upgrade, client inventory reconstruction. **Do NOT include duration estimates, rough timelines, or sequencing predictions** ("1-2 days", "several weeks", "Plan for X days of rollout", "longest-pole step", "lead time", "sequence first"). Runbook timing is an operational planning decision the customer's IT team owns — it depends on org-specific constraints, change windows, and team availability the skill cannot see. Per the D1 scope rule, the Plan stays architectural: what work is required and what triggers it, not when or how long. Owner column is fine (naming who does the work); a Duration column or any duration prose is not. **Topic-Level Readiness rollforward:** if Assess produced a Topic-Level Readiness section with Manual-bucket entries, each entry rolls into Pre-Migration Workstream as a discrete item (e.g., "Recreate `internal-metrics` at RF=3 on target," "Redesign Deny ACLs as Allow-only RBAC for `dlq-*` topics") so the workstream surface matches the topic-level reality.
-11. **Risks.** Table format (standardized below).
-12. **Open Questions.** Numbered list with owner (User / Live fetch / etc.). These are the specific items that close before Provisioning.
-13. **Next Step.** Single next action. Usually "confirm X, then move to Provision."
+**Canonical section order (base + conditional, in render order):**
 
-**Self-check the section order before delivering the Plan.** Scan the rendered headings top-to-bottom: section 10 (Pre-Migration Workstream) MUST appear before section 11 (Risks). If conditional sections moved the numbered sections out of order, renumber and reorder before delivering. The canonical sequence is the reader's load-bearing structure — Pre-Migration Workstream after Risks is a reordering bug that breaks downstream comparability across migrations.
+- **Header.** Source, target, state file path, drafted date. One-liner each.
+- **Inputs & Default Assumptions.** Parameters the Plan is built on. Surface them upfront so the user can challenge any default before reading recommendations that depend on them. Required rows: Sizing percentile, Headroom, SLA target, Target cloud/region, Schema posture. Add others as relevant. Format: 4-column table — Parameter | Value | Source | Implication of Change.
+- **Summary.** BLUF. Max 5 bullets covering: cluster type recommendation, networking recommendation, switchover approach, the one workstream most likely to drive the timeline, anything else urgent. The "one-page if you only read this" version.
+- **Source Environment.** Cluster table (standard columns below) + auth posture (server-side) + networking topology + VPC / region summary. When the Assess output included a Topic-Level Readiness section (KCP state file with `topics.details[]`), restate the per-cluster bucket counts (Skip / Manual / Needs Config / Moves Cleanly) as a subsection here. Manual-bucket entries are itemized; Needs-config entries are summarized by reason.
+- **Sizing.** Per-cluster eCKU math with citations. Either committed numbers with visible formulas, or explicit "deferred because [scan gap | Dedicated escalation conversation needed]" — never silently missing.
+- **Cluster Type Decision.** Enterprise vs Dedicated per cluster, with audit format conditional on the verdict — see Cluster Type Decision audit rendering below.
+- **Networking Decision.** Per-cluster networking choice (PrivateLink, PNI, VPC Peering, TGW, public) with justification. **When the source spans multiple clusters or multiple regions, name each cluster or region explicitly in the Networking Decision section** — either as table rows (one row per cluster with cluster name and region) or as inline references in the prose. The reader should see each source identifier (cluster name, region, or both) within Networking Decision itself, not only in Source Environment. Generic phrasing like "all three clusters" or "three target regions" is insufficient — the reader needs to know which cluster maps to which networking decision without chaining back to the cluster table. For single-cluster fixtures, the cluster name appears once in the prose.
+- **Auth Approach.** Two-step: (a) source-side pre-migration requirements per source MSK auth type (IAM source requires pre-migration to SCRAM or mTLS before Zero-Cut per Invariant 8; other source auths have no pre-migration step). (b) Target CC auth method cascaded from `target_context.target_identity_model` per the SKILL.md target-options table — `oauth` → SASL/OAUTHBEARER, `api_keys` → SASL/PLAIN, `mtls` → SSL with client certs (verify live cluster-type × cloud support against cluster-types.html), `undecided` → default to API Keys + flag as Open Question, `other` → defer to Confluent account team. Emit derivation visible: customer's chosen `target_identity_model` and the resulting CC auth method. Keep the source-side pre-migration step clearly separated from the target-side identity choice in the output so readers don't conflate them. **The target-side block must render a compact 3-row summary table of all identity-model-to-mechanism mappings (OAuth → SASL/OAUTHBEARER, API Keys → SASL/PLAIN, mTLS → SSL with client certs) with the cascade-selected row highlighted as the recommendation.** The mTLS → "SSL with client certs" mapping is CC-specific terminology customers won't know without prompting; showing the full table once educates the reader about alternatives so they can revisit the choice space without round-tripping to docs. When the target cluster type doesn't support mTLS per the live-fetched matrix from cluster-types.html, name the specific matrix outcome (which cluster type fails the row) and cite the URL inline before proposing the SCRAM or API-keys fallback with a one-line rationale.
+- **Switchover Approach.** Pattern × mechanism (incremental + Gateway recommended; big-bang + Gateway when single window desired; big-bang + Manual CL fallback when Zero-Cut prereqs not met; consumers-after-producers + BIDIRECTIONAL CL when the customer intake explicitly states consumers will be migrated after producers with a non-trivial gap in time — opt-in third option, default remains DESTINATION). **The Pattern × Mechanism alternatives table must include an explicit `Incremental + Manual CL` row marked `Not recommended` with the rationale "operationally heavy without the Gateway's atomic flip." Do not silently omit the cell — the reader must see that the combination was evaluated and rejected.** **The Dual-write row prose must include all three anchors so the reader understands WHY Dual-write is avoided, not just THAT it's avoided:** (a) operational-complexity language ("operationally complex", "double maintenance burden", or equivalent that names the burden of running two write pipelines in parallel); (b) dual-cost language ("running both clusters in parallel", "double infrastructure cost", or equivalent that names the cost of paying for two clusters simultaneously); (c) "no Confluent-specific tooling" (or "generic CL only"). Single-anchor framings like "Avoid — no Confluent-specific tooling" do NOT satisfy because they tell the customer the conclusion without the reasoning. Prerequisites fetched live at Switchover stage — don't cache them in Plan.
+- **Historical Data Handling** (conditional — see triggers below).
+- **Schema Migration** (conditional — see triggers below).
+- **Connector Migration** (conditional — see triggers below).
+- **Multi-VPC / Multi-Region** (conditional — see triggers below).
+- **Cluster Linking — Special Considerations** (conditional — see triggers below).
+- **Pre-Migration Workstream.** What has to happen before migration proper. Commonly: IAM→SCRAM auth migration, Kafka version upgrade, client inventory reconstruction. **Do NOT include duration estimates, rough timelines, or sequencing predictions** ("1-2 days", "several weeks", "Plan for X days of rollout", "longest-pole step", "lead time", "sequence first"). Runbook timing is an operational planning decision the customer's IT team owns — it depends on org-specific constraints, change windows, and team availability the skill cannot see. Per the D1 scope rule, the Plan stays architectural: what work is required and what triggers it, not when or how long. Owner column is fine (naming who does the work); a Duration column or any duration prose is not. **Topic-Level Readiness rollforward:** if Assess produced a Topic-Level Readiness section with Manual-bucket entries, each entry rolls into Pre-Migration Workstream as a discrete item (e.g., "Recreate `internal-metrics` at RF=3 on target," "Redesign Deny ACLs as Allow-only RBAC for `dlq-*` topics") so the workstream surface matches the topic-level reality.
+- **Risks.** Table format (standardized below).
+- **Open Questions.** Numbered list with owner (User / Live fetch / etc.). These are the specific items that close before Provisioning.
+- **Next Step.** Single next action. Usually "confirm X, then move to Provision."
+
+**Self-check the section order before delivering the Plan.** Scan the rendered headings top-to-bottom: every base section must appear in the canonical order; every conditional section, if emitted, must appear in its canonical position. Pre-Migration Workstream must appear before Risks. The canonical sequence is the reader's load-bearing structure — out-of-order sections break downstream comparability across migrations.
+
+**Cluster Type Decision audit rendering — conditional on verdict.** For each cluster in the Plan:
+
+- **If the verdict is Dedicated:** render the full hard-limits row table with `Triggered` or `Not triggered` status on each of the 7 rows (eCKU cap / Kafka REST throughput, ACL count, networking topology, broker-side schema validation, mTLS x cluster type x cloud, REST throughput, single-zone SLA). At least one row is `Triggered`. Cite the live cap source on every `Triggered` row.
+- **If the verdict is Enterprise:** emit a one-line audit summary listing each of the 7 triggers with its evaluated value. Example: *"All 7 hard-limits triggers evaluated and clear: eCKU cap (projected 4, cap 32), ACL count (12, cap ~4,000), networking (PNI, no escalation), broker-side schema validation (none), mTLS (target type/cloud OK), REST throughput (n/a), single-zone SLA (multi-zone)."* Cite the live cap source for each.
+- **Multi-cluster fixtures:** emit a verdict and audit (table or one-liner per the verdict) for each cluster individually.
+
+The rendering rule is "show the work that mattered." For Dedicated escalations, the per-row table makes the trigger visible. For Enterprise verdicts, the one-liner confirms every trigger was evaluated without bloating the section with 7 rows of `Not triggered`.
 
 **Inputs & Default Assumptions — required rows and defaults:**
 
@@ -305,11 +337,13 @@ Forces the math to be visible. Uses **P95** values (from the CloudWatch time-ser
 
 **Each cell must carry inline parenthetical citations.** Citations in a pre-table header line or a post-table "Math, traceable" paragraph do NOT satisfy the inline-citation rule from "Technical Plan Conventions — cite every number" — those are useful supplements but the table cells themselves must be verifiable in place. The per-eCKU divisors (24, 72, 1000) cite cluster-types.html inline; the user-supplied dividends (P95 ingress/egress in MBps, partition count) cite their profile field path inline.
 
-Example cell — sized to fit, citations inline:
+**Cite with full URLs visible — never filename shorthand.** Per the SKILL.md "Full URLs in citation link text" rule, every doc citation must render the full URL in the visible text, not just behind a markdown href. **Do NOT abbreviate to `[cluster-types.html]` even when the row gets dense** — that pattern hides the URL from plaintext readers (Slack, print, non-rendering viewers). Acceptable in-cell citation forms: (1) inline with link text matching the href: `[https://docs.confluent.io/cloud/current/clusters/cluster-types.html](https://docs.confluent.io/cloud/current/clusters/cluster-types.html)`; (2) bare URL: `https://docs.confluent.io/cloud/current/clusters/cluster-types.html` (most renderers auto-link). Dense rows should drop the citation entirely from later cells (the row-anchor cell carries it) rather than abbreviate to filename shorthand.
 
-| `payments-prod` | 280 (`clusters[0].p95_ingress_mbps`) ÷ 24 ([cluster-types.html]) = 11.67 | 840 (`clusters[0].p95_egress_mbps`) ÷ 72 ([cluster-types.html]) = 11.67 | 3,568 (`clusters[0].user_partition_count`) ÷ 1,000 ([cluster-types.html]) = 3.57 | 11.67 | × 1.30 = 15.17 → CEIL = **16** | **16 eCKU Enterprise, PNI** |
+Example cell — sized to fit, citations inline (bare-URL form for compactness):
 
-Bracketed `[cluster-types.html]` is shorthand — render as a markdown link to `https://docs.confluent.io/cloud/current/clusters/cluster-types.html`. The first cell in a row may carry the link in full; subsequent cells in the same row may abbreviate to `[cluster-types.html]` if the row gets dense. The point is verifiability inline — the user must be able to trace each number from inside the table cell without scrolling to adjacent prose.
+| `payments-prod` | 280 (`clusters[0].p95_ingress_mbps`) ÷ 24 (https://docs.confluent.io/cloud/current/clusters/cluster-types.html) = 11.67 | 840 (`clusters[0].p95_egress_mbps`) ÷ 72 = 11.67 | 3,568 (`clusters[0].user_partition_count`) ÷ 1,000 = 3.57 | 11.67 | × 1.30 = 15.17 → CEIL = **16** | **16 eCKU Enterprise, PNI** |
+
+The first divisor cell carries the URL once for the row; later cells in the same row may omit the citation since the source is established. The point is verifiability inline — the user must be able to trace each number from inside the table cell, with the URL fully visible so plaintext readers can navigate to it.
 
 **Standardized risks table columns:**
 
@@ -335,7 +369,7 @@ Severity = High / Medium / Low / Unknown. Unknown is acceptable when the scan di
 **Every number in the Technical Plan must be traceable to its source.** The user should be able to open the state file or the cited doc and verify each number. Two annotation styles — pick one per Technical Plan and stay consistent:
 
 **Style A — Inline parenthetical citations.** Each number gets a short parenthetical source tag at first use.
-> Peak egress 1,594 MBps (`metrics.results[] | BytesOutPerSec | max`). Enterprise eCKU cap 32 ([cluster-types.html](https://docs.confluent.io/cloud/current/clusters/cluster-types.html), "eCKU/CKU comparison" table).
+> Peak egress 1,594 MBps (`metrics.results[] | BytesOutPerSec | max`). Enterprise eCKU cap 32 (https://docs.confluent.io/cloud/current/clusters/cluster-types.html, "eCKU/CKU comparison" table).
 
 **Style B — Data Sources appendix.** A section at the end of the Technical Plan listing each cited number with its state file path or doc URL. Numbers in the body reference the appendix by shorthand (e.g., a superscript or bracket reference).
 
@@ -361,11 +395,11 @@ The point of inline citation is verifiability — the user can open the profile 
 
 **Example — full citation discipline on a sizing row, KCP state file source:**
 
-> `dataplatformEvents`: peak egress 1,594 MBps (`metrics.results[] | BytesOutPerSec | max`) ÷ 180 MBps per eCKU ([cluster-types.html](https://docs.confluent.io/cloud/current/clusters/cluster-types.html), Enterprise column) = 8.9 eCKU minimum, +50% headroom = **14 eCKU**. Below Enterprise cap of 32 (same doc); above PrivateLink cap of 10 → **PNI networking required**.
+> `dataplatformEvents`: peak egress 1,594 MBps (`metrics.results[] | BytesOutPerSec | max`) ÷ 180 MBps per eCKU (https://docs.confluent.io/cloud/current/clusters/cluster-types.html, Enterprise column) = 8.9 eCKU minimum, +50% headroom = **14 eCKU**. Below Enterprise cap of 32 (same doc); above PrivateLink cap of 10 → **PNI networking required**.
 
 **Example — full citation discipline on a sizing row, manual `migration-profile.yaml` source:**
 
-> `payments-prod`: peak egress 960 MBps (`clusters[0].peak_egress_mbps`) ÷ 180 MBps per eCKU ([cluster-types.html](https://docs.confluent.io/cloud/current/clusters/cluster-types.html), Enterprise column) = 5.33 eCKU minimum, +30% headroom = **7 eCKU**. Below Enterprise cap of 32 (same doc); below PrivateLink cap of 10 → **PrivateLink**.
+> `payments-prod`: peak egress 960 MBps (`clusters[0].peak_egress_mbps`) ÷ 180 MBps per eCKU (https://docs.confluent.io/cloud/current/clusters/cluster-types.html, Enterprise column) = 5.33 eCKU minimum, +30% headroom = **7 eCKU**. Below Enterprise cap of 32 (same doc); below PrivateLink cap of 10 → **PrivateLink**.
 
 **Example — full citation discipline on a Source Environment cluster row, manual profile source:**
 
@@ -389,8 +423,8 @@ If a number can't be cited (fabricated, inferred without evidence, or from train
 
 ## Source of Truth
 
-- Cluster type specs, capacity caps, networking feature availability, SLA — [cluster-types.html](https://docs.confluent.io/cloud/current/clusters/cluster-types.html). Fetch live before recommending a cluster type or citing a cap.
-- Cluster Linking source requirements, auth compatibility — [cluster-linking docs](https://docs.confluent.io/cloud/current/multi-cloud/cluster-linking). Fetch live.
-- Schema Linking source matrix — [docs.confluent.io](https://docs.confluent.io) Schema Registry / Schema Linking pages. Fetch live before committing to Schema Linking as the path.
-- Connector catalog — [connectors docs](https://docs.confluent.io/cloud/current/connectors). Fetch live to check managed-connector availability.
-- Pricing and commercial quote are out of scope. Direct users to the public [cost estimator](https://www.confluent.io/pricing/cost-estimator/) as the Sales handoff.
+- Cluster type specs, capacity caps, networking feature availability, SLA — https://docs.confluent.io/cloud/current/clusters/cluster-types.html. Fetch live before recommending a cluster type or citing a cap.
+- Cluster Linking source requirements, auth compatibility — https://docs.confluent.io/cloud/current/multi-cloud/cluster-linking. Fetch live.
+- Schema Linking source matrix — https://docs.confluent.io Schema Registry / Schema Linking pages. Fetch live before committing to Schema Linking as the path.
+- Connector catalog — https://docs.confluent.io/cloud/current/connectors. Fetch live to check managed-connector availability.
+- Pricing and commercial quote are out of scope. Direct users to the public cost estimator at https://www.confluent.io/pricing/cost-estimator/ as the Sales handoff.

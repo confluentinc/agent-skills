@@ -51,7 +51,7 @@ Apply this scan to every Plan output (Evals 2, 6, 16, 19, 20, 21, 22, 23, 24, 25
 
 ## Eval 5 — manual-no-kcp
 
-- [ ] **Walks the 11 intake groups in order.** The skill proceeds through the intake groups (platform, cluster topology, scale, auth, networking, ACLs, Schema Registry, connectors, Kafka version, costs, migration drivers) in the documented order rather than jumping around based on what the user mentioned first.
+- [ ] **Walks the intake groups in a logical order without jumping around.** The skill proceeds through platform / cluster topology / scale / auth / networking / ACLs / Schema Registry / connectors / costs / migration drivers in a coherent sequence rather than jumping around based on what the user mentioned first. Kafka version may be asked alongside platform basics (Group 1) since it's platform-adjacent.
 
 ## Eval 8 — out-of-scope-baremetal
 
@@ -102,7 +102,7 @@ Apply this scan to every Plan output (Evals 2, 6, 16, 19, 20, 21, 22, 23, 24, 25
 
 ## Eval 20 — switchover-pattern-mechanism
 
-- [ ] **Three cells (Incremental + Gateway, Big-bang + Gateway, Big-bang + Manual CL) have distinct content in all four runbook columns.** Scan each column down: KCP-group, cutover-cadence, validation, and rollback columns each contain different text per row — no two rows share identical content in the same column.
+- [ ] **Pattern × Mechanism alternatives table renders all four required rows.** Incremental + Gateway, Big-bang + Gateway, Big-bang + Manual CL, and Dual-write each have their own row. Each row's rationale column contains substantively different content — no two rows share identical or near-identical rationale text.
 - [ ] **Incremental + Gateway row carries a RECOMMENDED tag on the row itself.** Tag is in column 1 or 2 (or appended to the pattern label), not a separate sentence elsewhere in the section.
 - [ ] **"Incremental + Manual CL not recommended" appears as its own paragraph, callout, or labeled row note.** Standalone block — not embedded inside another row's prose or hidden in a parenthetical.
 - [ ] **Dual-write row prose contains all three substrings: operational-complexity language, dual-cost language, "no Confluent-specific tooling" (or "generic CL only").** All three present in the Dual-write row.
@@ -124,7 +124,7 @@ Apply this scan to every Plan output (Evals 2, 6, 16, 19, 20, 21, 22, 23, 24, 25
 
 ## Eval 24 — schema-linking-no-outbound
 
-- [ ] **Schema Migration section opens with source-SR-type enumeration before the cascade.** First structural content of the section is the source SR type table or list (Confluent SR / Glue / other / clean-break / adopt / skip). Path selection and recommendations follow that enumeration, not precede it.
+- [ ] **Schema Migration section presents the selected path with cascade reasoning for the fixture's specific SR type.** EITHER (a) opens with the full 6-row source-SR-type enumeration (Confluent SR / Glue / Karapace / clean-break / adopt / skip) before the cascade, OR (b) presents the cascade-result for the fixture's specific source SR type with derivation prose that names the SR type AND names the selected path (Schema Linking via Schema Exporter, defer to account team, clean break, adopt, or skip). Per iter-19, the trimmed cascade form is acceptable when only one path applies to the fixture — showing 5 irrelevant rows is noise, not value.
 - [ ] **Plan names source-side outbound reachability as the SL gating constraint.** Substring anchor present in the cascade reasoning: "source-side outbound", "source SR can reach CC SR", "outbound reachability", or `source_sr_can_push_to_cc_sr`. Anchor appears in the cascade prose, not just a passing mention elsewhere.
 
 ## Eval 25 — auth-target-oauth
@@ -132,14 +132,14 @@ Apply this scan to every Plan output (Evals 2, 6, 16, 19, 20, 21, 22, 23, 24, 25
 - [ ] **Three target identity models each paired with their specific CC SASL/SSL mechanism.** OAuth row/bullet names SASL/OAUTHBEARER. API Keys row/bullet names SASL/PLAIN. mTLS row/bullet names SSL with client certs. Three distinct mechanism strings, one per identity model.
 - [ ] **Auth Approach has two visibly separate blocks: source-side pre-migration, then target-side identity choice.** Block 1 cites Invariant 8 and the IAM → SCRAM/mTLS source pre-migration path. Block 2 emits the OAUTHBEARER / PLAIN / SSL target cascade. Two blocks separated by a header, list boundary, or table boundary — not collapsed into a single paragraph.
 
-## Eval 26 — mtls-azure-no-dedicated-escalation
+## Eval 26 — mtls-azure-matrix-fork
 
-- [ ] **"Enterprise supports mTLS on all clouds" claim co-located with cluster-types.html citation.** Cluster Type Decision or Auth Approach section contains the mTLS-all-clouds claim AND the cluster-types.html URL within the same sentence or adjacent bullets. Citation is inline next to the claim, not in a reference list at the bottom.
-- [ ] **cluster-types.html URL appears within the section that contains the mTLS recommendation.** Co-located, not just cited once elsewhere in the Plan.
+- [ ] **Plan names the specific matrix-row outcome inline with cluster-types.html citation.** Cluster Type Decision or Auth Approach section contains all four anchors in the same paragraph, list item, or table row: cluster-types.html URL + mTLS substring + cluster-type-name (Enterprise / Freight / Dedicated) + Azure-or-all-clouds qualifier. The matrix-row outcome must be named (e.g., "Enterprise mTLS is AWS-only", "Dedicated supports mTLS on all clouds", or equivalent that identifies which cluster-type-and-cloud combination fails the row).
+- [ ] **Plan resolves the mTLS-on-Azure fork without recommending Enterprise + mTLS on Azure.** Either escalates Cluster Type Decision to Dedicated (with the mTLS row cited as the trigger) OR keeps Enterprise and routes target auth to SCRAM or API keys (with the matrix outcome named). Plan does NOT recommend the combination of Enterprise cluster type + mTLS auth + Azure target in a single recommendation block — that combination is a setup-time blocker.
 
 ## Eval 27 — historical-data-handling-not-required
 
-- [ ] **Tiered-storage callout names all three specifics: S3 re-fetch, backfill time, backfill cost.** Substring anchors all present: "S3 re-fetch" (or "re-fetch from S3"), "backfill time" (or "time to backfill"), and "backfill cost" (or "cost of backfill" / "re-fetch cost"). All three in the tiered-storage callout.
+- [ ] **Tiered-storage callout names all three specifics as distinct dimensions.** Within the callout: (a) "re-fetch" + "S3" co-occur (any phrasing — "re-fetch from S3", "S3 re-fetch", "re-fetch all of it from S3" all match the data-source-from-S3 anchor); (b) "backfill time" or "time to backfill" or equivalent dimension-named substring (must be distinct from cost); (c) "backfill cost" or "cost of backfill" or "re-fetch cost". Three distinct dimensions named — conflated phrases like "material cost and time" do not satisfy because they collapse two dimensions into one.
 - [ ] **not_required defer-to-account-team row contains a one-line rationale.** Row prose contains substring matching "not a documented default" or "customer-specific setup required" or equivalent rationale anchor — not just "defer to account team" with no reason given.
 - [ ] **Historical Data Handling and Invariant 5 / MSK-decommissioning timing appear in distinct headed blocks.** Consumer history decision and MSK decommissioning timing live in separate sections, sub-sections, or labeled paragraphs. Not collapsed into a single bullet.
 

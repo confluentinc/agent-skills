@@ -61,6 +61,8 @@ Citation path style depends on intake mode:
 
 When a field is missing, say so explicitly — don't fabricate. The same inline-citation rule applies in Plan (`references/plan.md` "Plan Doc Conventions — cite every number"); this paragraph applies the same discipline upstream in Assess so the Environment Summary the user sees is verifiable in place.
 
+**Full URLs in doc citations — strict.** Per the SKILL.md "Full URLs in citation link text" rule, every doc citation in Assess output must render the full URL visibly in the rendered text. Filename-shorthand link text like `[cluster-types.html](https://...)` or `[migrate-cc.html](https://...)` is forbidden — readers viewing the Assess output in plaintext (printed, Slack, non-rendering viewer) see only the filename with no way to navigate. Use bare URLs (`https://docs.confluent.io/cloud/current/clusters/cluster-types.html`), URL-as-link-text, or short descriptive label + bare URL in surrounding prose. Bare bracketed shorthand like `([cluster-types.html])` and bare filename mentions in prose ("per private-networking.html") are also forbidden. The href being correct is not sufficient — the URL itself must be visible.
+
 **CloudWatch metric labels — always use Cluster Aggregate, not Broker Aggregate.** The state file's `.metrics.results[]` array contains metrics with different labels including both `"Cluster Aggregate - *"` and `"Broker Aggregate - *"` variants. Cluster Aggregate gives the cluster-wide value (what you want for sizing and capacity decisions). Broker Aggregate gives per-broker values (which don't usefully sum to a cluster total). Always filter on `Cluster Aggregate` unless you have a specific reason to look at per-broker behavior.
 
 Canonical metric labels to use:
@@ -149,8 +151,11 @@ Output: `kcp-state.json` — the canonical environment artifact that feeds Plan,
 
 Use when KCP is not available (restricted AWS account, pre-engagement intake, customer doesn't have credentials to run KCP).
 
-- Copy `assets/migration-profile.yaml` to the user's working directory.
-- Walk the user through the 11 intake question groups below, filling the YAML as you go.
+**Write the YAML stub on the first turn — do not defer to a second turn after the user answers all 11 groups.** On turn 1, populate `migration-profile.yaml` with whatever facts the user has already provided in their opening message, leave every other field as `null` (and every per-cluster list as the user-stated count of clusters with all per-cluster fields null), and record any user-declared gaps in `known_gaps[]` with field path + reason. Then ask the intake questions in the same response. As the user answers across subsequent turns, update the existing YAML file in place — do not wait until intake is complete to write the file. The YAML is the artifact downstream stages consume; a missing file blocks every downstream check.
+
+- Copy `assets/migration-profile.yaml` to the user's working directory on turn 1. Populate top-level keys `source` (platform, cloud_provider, region from the user's message; other fields null) and `clusters` (one stub entry per cluster the user stated, with `name: null` and all per-cluster fields null pending intake group 2). Record `known_gaps[]` entries for any field the user explicitly flagged as unknown in their opening message (e.g., throughput, ACL count) so the gap survives the intake conversation.
+- Walk the user through the 11 intake question groups below in the same turn, framing the stub as the starting point and the questions as the path to fill it in.
+- As the user answers in later turns, update the stub in place. Use `Edit` to modify the existing YAML — do not rewrite from scratch.
 - Output: populated `migration-profile.yaml`. Functionally equivalent to a KCP state file for downstream stages, but less detailed.
 
 ## Conversational Intake Questions (11 groups)
@@ -386,7 +391,7 @@ Disambiguate per cluster using `.kafka_admin_client_information.topics.details` 
 - **Heartbeat topics.** Names containing `heartbeat` or `heartbeats` (with or without `__` prefix). Common signal of a source connector that emits heartbeats for lag monitoring.
 - **Kafka Connect framework triads.** The presence of topics named `connect-offsets`, `connect-status`, `connect-configs` (or any three-topic set with those suffixes under a common prefix) indicates a Kafka Connect cluster using this Kafka as its coordination backbone.
 - **Streams artifacts.** Topics ending in `-changelog`, `-repartition`, `-changelog-repartition`, or matching `<app-id>-<store>-changelog` patterns indicate Kafka Streams applications.
-- **MirrorMaker 2 artifacts.** Topics prefixed with `mm2-`, or with cluster-alias prefixes (`<alias>.<topic>`), or named `heartbeats`, `mm2-offset-syncs`, `mm2-status`, etc. indicate active replication.
+- **MirrorMaker 2 artifacts.** Topics prefixed with `mm2-`, or with cluster-alias suffixes (`<alias>.heartbeats.internal`, `<alias>.checkpoints.internal`), or named `mm2-offset-syncs.<alias>.internal` indicate active replication. MM2 internal topics are a load-bearing signal for switchover sequencing — the source environment is already in an active replication relationship, which affects cutover ordering.
 - **Tool-specific internal topics.** Anything obviously tooling-scoped — Cruise Control artifacts, observability/metric-collection tooling, custom pipeline framework internals. If the name looks like it belongs to infrastructure rather than an application, treat as tooling signal.
 - **Suspiciously symmetric topic sets.** Three topics sharing a prefix with different suffixes (e.g., `<prefix>-offsets`, `<prefix>-status`, `<prefix>-configs`) are usually framework output — Connect, MirrorMaker, custom pipeline tooling.
 
@@ -394,10 +399,13 @@ Disambiguate per cluster using `.kafka_admin_client_information.topics.details` 
 
 **Required regex patterns when scanning topic names.** Use these anchored patterns — loose matching produces false positives on domain names that happen to contain similar strings:
 
-- **MirrorMaker 2:** `\.checkpoints\.internal$`, `^mm2-`, `mm2-offset-syncs`, `mm2-status`, `mm2-heartbeats`. The `<alias>.checkpoints.internal` suffix is the clearest MM2 signature — it's produced by active replication and easy to miss if your MM2 regex is too narrow (e.g., only matching `^mm2-` misses `<alias>.checkpoints.internal`).
+- **MirrorMaker 2:** `\.checkpoints\.internal$`, `\.heartbeats\.internal$`, `^mm2-offset-syncs\..*\.internal$`, `^mm2-`. The `<alias>.checkpoints.internal` and `<alias>.heartbeats.internal` suffixes are the clearest MM2 signatures — produced by active replication and easy to miss if the regex is too narrow (e.g., matching only `^mm2-` misses both). The `mm2-offset-syncs.<alias>.internal` pattern carries the cluster alias inline.
 - **Kafka Streams (anchored suffixes only):** `-changelog$`, `-repartition$`, `-changelog-repartition$`. Use the end-of-name anchor. Loose matching like `contains("changelog")` produces false positives on domain names (e.g., `pubsub-blockstreamer-*` is a block-streaming domain name, not a Streams state store).
-- **Kafka Connect framework triad:** look for all three of `connect-offsets`, `connect-status`, `connect-configs` under a common prefix (naked or `<prefix>-offsets`/`<prefix>-status`/`<prefix>-configs`). The full triad together is the signal — a single `connect-offsets` topic alone is weaker evidence.
+- **Kafka Connect framework triad — Apache / Confluent Platform / MSK Connect default:** look for all three of `connect-offsets`, `connect-status`, `connect-configs` under a common prefix (naked or `<prefix>-offsets`/`<prefix>-status`/`<prefix>-configs`). The full triad together is the signal — a single `connect-offsets` topic alone is weaker evidence.
+- **Kafka Connect framework triad — Strimzi default:** Strimzi Kafka Connect uses the `connect-cluster-` infix in its default topic names. Pattern: `(^|/)connect-cluster-(offsets|configs|status)$` under common prefixes. Detect alongside the Apache/CP/MSK triad above — a Strimzi cluster will not show the bare `connect-offsets` topic but will show the three `connect-cluster-*` variants.
 - **Source connector heartbeats:** topics containing `heartbeat` or `heartbeats` (with or without `__` prefix) — `__debezium-heartbeat.*`, `__mongodb_heartbeats`, and similar patterns per source-connector convention.
+
+**Standalone Debezium Server is invisible to topic-based detection.** Debezium Server (the standalone process, not the Debezium connector running inside Kafka Connect) uses file-based offset storage by default (`FileOffsetBackingStore`) rather than Kafka topics, so it leaves no topic fingerprint. Debezium connectors running inside a Kafka Connect cluster are detected via the Connect triad above. If the customer reports Debezium activity but no Connect triad is detected, ask whether they're running standalone Debezium Server.
 
 Anchored suffix matching and full-triad matching reduce false positives. When in doubt, cite the specific topic names that match so the user can eyeball whether they're real framework output or coincidentally-named domain topics.
 

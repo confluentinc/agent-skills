@@ -1,27 +1,31 @@
-# Mock environment for B3 downstream-behavior eval — mTLS on non-AWS
-# target should NOT escalate to Dedicated.
+# Mock environment for the mTLS + Azure cluster-type-and-auth cascade.
 #
 # Source uses mTLS auth. Customer's stated target is Confluent Cloud on
-# Azure (plan.target_cloud: azure as the customer-confirmed target).
-# Customer's target identity model is mTLS (carries the source-side cert
-# infrastructure forward).
+# Azure (plan.target_cloud: azure). Customer's target identity model is
+# mTLS (carries the source-side cert infrastructure forward).
 #
-# Before B3's HARDCODED→ROUTE conversion on the mTLS hard-limits row, this
-# combination would have triggered a Dedicated escalation (the cached
-# assumption was that Enterprise mTLS was AWS-only). Per the verified
-# 2026-05-14 mTLS support matrix on cluster-types.html, Enterprise/Freight/
-# Dedicated support mTLS on all clouds — so Enterprise (the skill's
-# default) is the correct recommendation here. The hard-limits row is now
-# a ROUTE that fetches cluster-types.html live; the eval verifies the
-# downstream behavior change.
+# The mTLS hard-limits row routes to cluster-types.html. The skill
+# live-fetches the mTLS feature-comparison row to determine which target
+# cluster types support mTLS on Azure. Per the current cluster-types.html
+# matrix (verify live), Enterprise and Freight mTLS support is AWS only;
+# only Dedicated supports mTLS on Azure / GCP. The combination of mTLS
+# target on Azure therefore forces a fork:
+#   (a) escalate to Dedicated (the only cluster type that supports mTLS
+#       on Azure), OR
+#   (b) route to SCRAM or API keys per the IC4 Auth Approach rule
+#       (matrix-row citation + one-line rationale).
+#
+# Either resolution is valid; the eval accepts either path as long as the
+# matrix outcome is cited and the Plan does NOT recommend Enterprise +
+# mTLS on Azure (a setup-time blocker).
 #
 # Expected Plan behavior:
-#   - Cluster Type Decision recommends Enterprise (NOT Dedicated).
-#   - The mTLS-required-on-non-AWS hard-limit row is NOT cited as a
-#     Dedicated escalation trigger.
-#   - Plan cites cluster-types.html for the mTLS support verification.
-#   - Auth Approach recommends SSL with client certs (mTLS) as the CC
-#     target auth, per target_identity_model=mtls cascade.
+#   - Cluster Type Decision either escalates to Dedicated (citing the mTLS
+#     row) or stays Enterprise with the auth recommendation routed to
+#     SCRAM/API keys. Both paths cite cluster-types.html.
+#   - Plan does NOT recommend Enterprise + mTLS on Azure.
+#   - Auth Approach names the specific matrix outcome (which cluster type
+#     fails the row on Azure) and cites the live URL inline per IC4.
 
 source:
   platform: msk-provisioned
@@ -68,9 +72,8 @@ target_context:
   source_sr_can_push_to_cc_sr: null
   target_identity_model: mtls  # Customer wants to keep mTLS end-to-end on the target.
 
-# Plan-stage decisions (filled during Plan)
 plan:
-  target_cluster_type: null  # Plan should recommend enterprise per the default cluster-type rule
+  target_cluster_type: null
   target_cloud: azure  # Customer-stated target cloud — Azure. Exercises the mTLS-on-non-AWS path.
   target_region: null
   target_networking: null
