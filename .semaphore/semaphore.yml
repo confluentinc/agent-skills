@@ -37,7 +37,7 @@ global_job_config:
 blocks:
   - name: "Validate Skills"
     run:
-      when: "change_in('/skills/')"
+      when: "change_in('/skills/', {default_branch: 'main'})"
     task:
       jobs:
         - name: "Skill Validator"
