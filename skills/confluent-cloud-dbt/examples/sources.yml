@@ -1,0 +1,53 @@
+# Read-only references to existing Kafka topics. In Confluent Cloud, every
+# topic is automatically visible as a Flink table — no DDL or `streaming_source`
+# model is needed. Use a dbt `source` instead.
+#
+# Column declarations are OPTIONAL but recommended — they document the source
+# schema for downstream readers and enable `dbt source freshness` and column-
+# level lineage. Backtick column names for consistency with model SQL.
+
+version: 2
+
+sources:
+
+  - name: orders_raw
+    database: env-xxxxxx          # Confluent environment (dbt `database`)
+    schema: orders-cluster        # Kafka cluster (dbt `schema`)
+    tables:
+      - name: orders              # Kafka topic name
+        description: "Raw order events produced by the checkout service."
+        columns:
+          - name: order_id
+            data_type: bigint
+          - name: customer_id
+            data_type: bigint
+          - name: price
+            data_type: decimal(10, 2)
+          - name: order_time
+            data_type: timestamp(3)
+      - name: order_items
+        description: "Line items per order."
+        columns:
+          - name: order_id
+            data_type: bigint
+          - name: product_id
+            data_type: bigint
+          - name: quantity
+            data_type: int
+      - name: order_status_changes
+        description: "Order state transitions over time."
+
+  - name: users_raw
+    database: env-xxxxxx
+    schema: users-cluster
+    tables:
+      - name: users
+        description: "User profile records."
+        columns:
+          - name: user_id
+            data_type: bigint
+          - name: username
+            data_type: string
+          - name: email
+            data_type: string
+      - name: user_sessions
