@@ -1,0 +1,161 @@
+# Mock environment for SC3 (Connect framework regex extension: Strimzi + MM2).
+#
+# Customer environment that the existing Apache/CP/MSK Connect triad
+# (`connect-offsets` / `connect-status` / `connect-configs`) does not cover:
+#
+#   1. They run Strimzi Kafka Connect on Kubernetes alongside MSK. Strimzi's
+#      default topic names use the `connect-cluster-` infix
+#      (`connect-cluster-offsets` / `connect-cluster-configs` /
+#      `connect-cluster-status`) — distinct from the Apache/CP/MSK defaults.
+#
+#   2. The MSK cluster is the destination side of an active MirrorMaker 2
+#      replication relationship from an upstream Kafka cluster (used for
+#      DR mirroring). MM2 internal topics are present:
+#         - mm2-offset-syncs.<alias>.internal
+#         - <alias>.heartbeats.internal
+#         - <alias>.checkpoints.internal
+#
+# Standalone Debezium Server is mentioned in the migration_drivers narrative
+# as a known blind spot — file-based offset storage leaves no Kafka topic
+# fingerprint, so the skill cannot detect it via topic regex. The fixture
+# tests that the skill acknowledges this rather than silently missing it.
+#
+# Expected Plan / Assess behavior:
+#   - Row 15 buckets `connect-cluster-*` topics as framework-Connect (Skip).
+#   - Row 15 surfaces MM2 internal topics with the cluster-alias suffix
+#     anchors (`*.heartbeats.internal`, `*.checkpoints.internal`,
+#     `mm2-offset-syncs.*.internal`).
+#   - Row 7 (self-managed Connect) cross-references Row 15 and triggers
+#     based on the Strimzi triad evidence.
+#   - Plan's Risks section adds a row for MM2 detection ("existing
+#     replication in progress") tied to switchover sequencing.
+#   - Plan's Switchover Approach references MM2 as a sequencing input.
+#   - Standalone Debezium Server is acknowledged as a known blind spot.
+
+source:
+  platform: msk-provisioned
+  cloud_provider: aws
+  region: us-east-1
+  kafka_version: 3.6.0
+  migration_drivers: |
+    Moving off MSK to Confluent Cloud. Connect runs on a Strimzi-managed
+    Kubernetes cluster in the same VPC; MSK is also the destination side of
+    an active MM2 replication from an upstream legacy Kafka cluster used
+    for DR mirroring. Some CDC pipelines are running standalone Debezium
+    Server (file-based offset storage, not on Connect) for legacy reasons.
+  monthly_cost_usd: 56000
+
+clusters:
+  - name: acme-events-prod
+    broker_count: 6
+    broker_instance_type: kafka.m7g.xlarge
+    availability_zones: [us-east-1a, us-east-1b, us-east-1c]
+    topic_count: 92
+    user_topic_count: 80
+    internal_topic_count: 12
+    partition_count_pre_replication: 1860
+    user_partition_count: 1740
+    internal_partition_count: 120
+    replication_factor: 3
+    p95_ingress_mbps: 64
+    p95_egress_mbps: 188
+    peak_ingress_mbps: 118
+    peak_egress_mbps: 332
+    storage_mode: LOCAL
+    peak_tiered_storage_gb: null
+    auth_types:
+      - scram
+    network_accessibility: private
+    vpc_topology: single-vpc
+    acl_count: 36
+    acl_source: kafka-acls
+
+    # Sample of internal topic names observed on this cluster.
+    # Mix of Strimzi-managed Kafka Connect framework topics (the
+    # `connect-cluster-*` triad) and MirrorMaker 2 destination-side
+    # internal topics (cluster alias = `acme-dr-upstream`).
+    sample_internal_topics:
+      - connect-cluster-offsets
+      - connect-cluster-configs
+      - connect-cluster-status
+      - mm2-offset-syncs.acme-dr-upstream.internal
+      - acme-dr-upstream.heartbeats.internal
+      - acme-dr-upstream.checkpoints.internal
+      - __consumer_offsets
+      - __amazon_msk_canary
+
+  - name: acme-events-analytics
+    broker_count: 3
+    broker_instance_type: kafka.m7g.large
+    availability_zones: [us-east-1a, us-east-1b, us-east-1c]
+    topic_count: 34
+    user_topic_count: 30
+    internal_topic_count: 4
+    partition_count_pre_replication: 410
+    user_partition_count: 390
+    internal_partition_count: 20
+    replication_factor: 3
+    p95_ingress_mbps: 18
+    p95_egress_mbps: 54
+    peak_ingress_mbps: 34
+    peak_egress_mbps: 96
+    storage_mode: LOCAL
+    peak_tiered_storage_gb: null
+    auth_types:
+      - scram
+    network_accessibility: private
+    vpc_topology: single-vpc
+    acl_count: 14
+    acl_source: kafka-acls
+
+    sample_internal_topics:
+      - __consumer_offsets
+      - __amazon_msk_canary
+      - connect-cluster-offsets
+      - connect-cluster-configs
+      - connect-cluster-status
+
+schema_registry:
+  type: confluent-sr
+  subject_count: 64
+  migration_decision: null
+
+connectors:
+  # KCP self-managed Connect scanner returns null because Strimzi's Connect
+  # cluster uses non-default topic names (the `connect-cluster-` infix) that
+  # KCP's literal `connect-configs` match misses. Row 15 evidence is the
+  # only reliable signal here — Row 7 cross-references it.
+  msk_connect_count: 0
+  self_managed_connect_count: null
+  connector_types: null
+
+cost_line_items: []
+
+downstream:
+  tableflow_planned: false
+  flink_planned: false
+  lakehouse_planned: false
+
+target_context:
+  cc_reaches_source: true
+  cc_egress_required: false
+  source_sr_can_push_to_cc_sr: true
+  target_identity_model: api_keys
+  consumer_history_requirement: required
+
+plan:
+  target_cluster_type: null
+  target_cloud: aws
+  target_region: us-east-1
+  target_networking: null
+  sizing_ecku_or_cku: null
+  sizing_headroom_percent: null
+  auth_mapping: {}
+  switchover_approach: null
+  pre_migration_requirements: []
+  risks_acknowledged: []
+
+red_flags: []
+
+known_gaps:
+  - "Standalone Debezium Server pipelines use file-based offset storage and leave no Kafka topic fingerprint — the skill cannot detect them via Row 15 regex. Customer has confirmed Debezium Server is in use; treat as a known blind spot."
