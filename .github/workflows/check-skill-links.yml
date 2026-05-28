@@ -9,12 +9,8 @@ on:
   schedule:
     - cron: "0 13 * * *" # daily at 13:00 UTC
   workflow_dispatch: {}
-  # Also run on PRs that touch skill markdown, so breakage is caught before merge.
-  pull_request:
-    paths:
-      - "skills/**/*.md"
-      - "tools/check-links.sh"
-      - ".github/workflows/check-skill-links.yml"
+  # Run on every PR so link breakage is caught before merge.
+  pull_request: {}
 
 permissions:
   contents: read
@@ -31,7 +27,7 @@ jobs:
 
       - name: Install skill-validator
         run: |
-          go install github.com/agent-ecosystem/skill-validator/cmd/skill-validator@latest
+          go install github.com/agent-ecosystem/skill-validator/cmd/skill-validator@v1.3.0
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
 
       # skill-validator only inspects SKILL.md links and trusts HTTP status codes, so it
