@@ -137,7 +137,7 @@ Topic pattern: `<topic.prefix>.<schema>.<table>`
 Example: `postgres-cdc.public.users`
 
 **Documentation:**
-https://docs.confluent.io/cloud/current/connectors/cc-postgresql-cdc-source-v2-debezium/cc-postgresql-cdc-source-v2-debezium.html
+https://docs.confluent.io/cloud/current/connectors/cc-postgresql-cdc-source-v2-debezium/cc-postgresql-cdc-source-v2-debezium.md
 
 ---
 
@@ -194,7 +194,7 @@ Topic pattern: `<topic.prefix>.<database>.<table>`
 Example: `mysql-cdc.inventory.customers`
 
 **Documentation:**
-https://docs.confluent.io/cloud/current/connectors/cc-mysql-cdc-source-v2-debezium/cc-mysql-cdc-source-v2-debezium.html
+https://docs.confluent.io/cloud/current/connectors/cc-mysql-source-cdc-v2-debezium/cc-mysql-source-cdc-v2-debezium.md
 
 ---
 
@@ -246,7 +246,7 @@ Topic pattern: `<topic.prefix>.<schema>.<table>`
 Example: `sqlserver-cdc.dbo.orders`
 
 **Documentation:**
-https://docs.confluent.io/cloud/current/connectors/cc-microsoft-sql-server-cdc-source-v2-debezium/cc-microsoft-sql-server-cdc-source-v2-debezium.html
+https://docs.confluent.io/cloud/current/connectors/cc-microsoft-sql-server-source-cdc-v2-debezium/cc-microsoft-sql-server-source-cdc-v2-debezium.md
 
 ---
 
@@ -310,10 +310,10 @@ Example: `oracle-cdc.HR.EMPLOYEES`
 
 **Prerequisites:** Oracle XStream requires significant database-side setup before the connector can be deployed — GoldenGate replication must be enabled, ARCHIVELOG mode configured, supplemental logging set up, an XStream admin user created, and an XStream outbound server provisioned. See `references/database-prerequisites.md` "Oracle XStream CDC Prerequisites" for the complete step-by-step guide.
 
-**Prerequisites validation:** https://docs.confluent.io/cloud/current/connectors/cc-oracle-xstream-cdc-source/prereqs-validation.html
+**Prerequisites validation:** https://docs.confluent.io/cloud/current/connectors/cc-oracle-xstream-cdc-source/prereqs-validation.md
 
 **Documentation:**
-https://docs.confluent.io/cloud/current/connectors/cc-oracle-xstream-cdc-source/cc-oracle-xstream-cdc-source.html
+https://docs.confluent.io/cloud/current/connectors/cc-oracle-xstream-cdc-source/cc-oracle-xstream-cdc-source.md
 
 ---
 
@@ -365,7 +365,7 @@ Topic pattern: `<kafka.topic>` (configurable, unlike other connectors)
 Example: `cdc-pipeline-skill-dynamodb-users`
 
 **Documentation:**
-https://docs.confluent.io/cloud/current/connectors/cc-amazon-dynamodb-source.html
+https://docs.confluent.io/cloud/current/connectors/cc-amazon-dynamodb-cdc-source.html
 
 ---
 
@@ -445,7 +445,7 @@ Or use the Confluent Cloud UI: Schema Registry → Subjects → Create Subject �
 
 **Option 2: Infer a schema from existing messages**
 
-Confluent Cloud can [infer a schema from messages](https://docs.confluent.io/cloud/current/sr/schemas-manage.html#infer-a-schema-from-messages) already on the topic. This auto-generates a schema from sample payloads and registers it in SR. After inference, Flink auto-discovers the topic normally.
+Confluent Cloud can [infer a schema from messages](https://docs.confluent.io/cloud/current/sr/schemas-manage.md#infer-a-schema-from-messages) already on the topic. This auto-generates a schema from sample payloads and registers it in SR. After inference, Flink auto-discovers the topic normally.
 
 **Option 3: Use Flink's raw BYTES inference and parse with JSON functions**
 
