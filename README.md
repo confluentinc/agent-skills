@@ -41,11 +41,12 @@ Example prompts:
 
 This repository includes the following skills:
 
-| Skill                          | Description |
-|--------------------------------|-------------|
-| **kafka-schema-registry**  | Scan a project or repository to identify Kafka applications, extract schemas from data models, tag PII fields, generate Terraform for Confluent Schema Registry registration, and produce a migration report with rollout ordering. Automates the migration path from unmanaged schemas to Schema Registry with proper governance and compliance. |
-| **kafka-streams-programming**  | Architect, build, and debug Kafka Streams applications that run as a library inside your JVM with no separate cluster required. Handles topology design, pattern selection (joins, windows, aggregations), code generation for complete projects with proper Schema Registry integration, and troubleshooting production issues like rebalancing loops, state store problems, and performance tuning. |
-| **developing-kafka-python-client**  | Scaffold a Python Kafka producer/consumer project using confluent-kafka-python with Schema Registry serialization (Avro, JSON Schema, or Protobuf). Supports async (AIOProducer) and synchronous (Producer) modes, Confluent Cloud, and local Docker. |
+| Skill                             | Description |
+|-----------------------------------|------------|
+| **flink-udf**                     | Build and deploy custom Apache Flink user-defined functions (UDFs) in Java to extend Flink SQL and Table API capabilities with custom logic. Supports scalar UDFs for value transformations, user-defined table functions (UDTFs) for one-to-many operations, and process table functions (PTFs) for advanced stateful stream processing. |
+| **kafka-schema-registry**         | Scan a project or repository to identify Kafka applications, extract schemas from data models, tag PII fields, generate Terraform for Confluent Schema Registry registration, and produce a migration report with rollout ordering. Automates the migration path from unmanaged schemas to Schema Registry with proper governance and compliance. |
+| **kafka-streams-programming**     | Architect, build, and debug Kafka Streams applications that run as a library inside your JVM with no separate cluster required. Handles topology design, pattern selection (joins, windows, aggregations), code generation for complete projects with proper Schema Registry integration, and troubleshooting production issues like rebalancing loops, state store problems, and performance tuning. |
+| **developing-kafka-python-client** | Scaffold a Python Kafka producer/consumer project using confluent-kafka-python with Schema Registry serialization (Avro, JSON Schema, or Protobuf). Supports async (AIOProducer) and synchronous (Producer) modes, Confluent Cloud, and local Docker. |
 | **confluent-cloud-cdc-tableflow** | Set up end-to-end Change Data Capture (CDC) pipelines on Confluent Cloud using Debezium source connectors, Flink for transformation, and Tableflow for data lake integration. Supports SQL Server, MySQL, PostgreSQL, Oracle, and DynamoDB to Iceberg or Delta Lake tables. |
 
 ## Repository layout
