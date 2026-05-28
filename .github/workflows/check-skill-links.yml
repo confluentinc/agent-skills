@@ -1,0 +1,45 @@
+name: Check Skill Links
+
+# Daily link check for skills. Two complementary layers:
+#   1. skill-validator  — validates SKILL.md external links + spec/structure (informational).
+#   2. tools/check-links.sh — sweeps every Markdown file (incl. references/) for hard 404s
+#      AND docs.confluent.io soft-404s (HTTP 200 not-found pages); this step gates the job.
+
+on:
+  schedule:
+    - cron: "0 13 * * *" # daily at 13:00 UTC
+  workflow_dispatch: {}
+  # Run on every PR so link breakage is caught before merge.
+  pull_request: {}
+
+permissions:
+  contents: read
+
+jobs:
+  check-links:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - name: Install skill-validator
+        run: |
+          go install github.com/agent-ecosystem/skill-validator/cmd/skill-validator@v1.3.0
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      # skill-validator only inspects SKILL.md links and trusts HTTP status codes, so it
+      # cannot see references/ links or Confluent soft-404s. Kept as informational signal
+      # (annotations + job summary); the sweep below is the authoritative link gate.
+      - name: skill-validator (SKILL.md links + structure)
+        continue-on-error: true
+        run: skill-validator check --emit-annotations skills/
+
+      - name: skill-validator report
+        if: always()
+        run: skill-validator check -o markdown skills/ >> "$GITHUB_STEP_SUMMARY" || true
+
+      - name: Broken-link sweep (references/ + soft-404 detection)
+        run: ./tools/check-links.sh skills
