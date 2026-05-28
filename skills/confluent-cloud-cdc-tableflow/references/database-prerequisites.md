@@ -69,10 +69,10 @@ SELECT slot_name, active, pg_size_pretty(pg_wal_lsn_diff(pg_current_wal_lsn(), r
 
 ### Documentation
 
-- **Confluent PostgreSQL CDC Source V2 connector:** https://docs.confluent.io/cloud/current/connectors/cc-postgresql-cdc-source-v2-debezium/cc-postgresql-cdc-source-v2-debezium.html
-- **Confluent PostgreSQL CDC prerequisites:** https://docs.confluent.io/cloud/current/connectors/cc-postgresql-cdc-source-v2-debezium/prereqs-validation.html
-- **Debezium PostgreSQL connector:** https://debezium.io/documentation/reference/2.4/connectors/postgresql.html
-- **AWS RDS PostgreSQL:** https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/CHAP_PostgreSQL.html
+- **Confluent PostgreSQL CDC Source V2 connector:** https://docs.confluent.io/cloud/current/connectors/cc-postgresql-cdc-source-v2-debezium/cc-postgresql-cdc-source-v2-debezium.md
+- **Confluent PostgreSQL CDC prerequisites:** https://docs.confluent.io/cloud/current/connectors/cc-postgresql-cdc-source-v2-debezium/cc-postgresql-cdc-source-v2-debezium.md#prerequisites
+- **Debezium PostgreSQL connector:** https://debezium.io/documentation/reference/stable/connectors/postgresql.html
+- **AWS RDS PostgreSQL:** https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/CHAP_PostgreSQL.md
 
 ---
 
@@ -133,10 +133,10 @@ SHOW GRANTS FOR '<connector_user>'@'%';
 
 ### Documentation
 
-- **Confluent MySQL CDC Source V2 connector:** https://docs.confluent.io/cloud/current/connectors/cc-mysql-cdc-source-v2-debezium/cc-mysql-cdc-source-v2-debezium.html
-- **Confluent MySQL CDC prerequisites:** https://docs.confluent.io/cloud/current/connectors/cc-mysql-cdc-source-v2-debezium/prereqs-validation.html
-- **Debezium MySQL connector:** https://debezium.io/documentation/reference/2.4/connectors/mysql.html
-- **AWS RDS MySQL:** https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/CHAP_MySQL.html
+- **Confluent MySQL CDC Source V2 connector:** https://docs.confluent.io/cloud/current/connectors/cc-mysql-source-cdc-v2-debezium/cc-mysql-source-cdc-v2-debezium.md
+- **Confluent MySQL CDC prerequisites:** https://docs.confluent.io/cloud/current/connectors/cc-mysql-source-cdc-v2-debezium/cc-mysql-source-cdc-v2-debezium.md#prerequisites
+- **Debezium MySQL connector:** https://debezium.io/documentation/reference/stable/connectors/mysql.html
+- **AWS RDS MySQL:** https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/CHAP_MySQL.md
 
 ---
 
@@ -188,11 +188,11 @@ EXEC sys.sp_cdc_help_jobs;
 
 ### Documentation
 
-- **Confluent SQL Server CDC Source V2 connector:** https://docs.confluent.io/cloud/current/connectors/cc-sqlserver-cdc-source-v2-debezium/cc-sqlserver-cdc-source-v2-debezium.html
-- **Confluent SQL Server CDC prerequisites:** https://docs.confluent.io/cloud/current/connectors/cc-sqlserver-cdc-source-v2-debezium/prereqs-validation.html
-- **Debezium SQL Server connector:** https://debezium.io/documentation/reference/2.4/connectors/sqlserver.html
-- **AWS RDS SQL Server:** https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/CHAP_SQLServer.html
-- **RDS SQL Server CDC:** https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Appendix.SQLServer.CommonDBATasks.CDC.html
+- **Confluent SQL Server CDC Source V2 connector:** https://docs.confluent.io/cloud/current/connectors/cc-microsoft-sql-server-source-cdc-v2-debezium/cc-microsoft-sql-server-source-cdc-v2-debezium.md
+- **Confluent SQL Server CDC prerequisites:** https://docs.confluent.io/cloud/current/connectors/cc-microsoft-sql-server-source-cdc-v2-debezium/cc-microsoft-sql-server-source-cdc-v2-debezium.md#prerequisites
+- **Debezium SQL Server connector:** https://debezium.io/documentation/reference/stable/connectors/sqlserver.html
+- **AWS RDS SQL Server:** https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/CHAP_SQLServer.md
+- **RDS SQL Server CDC:** https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Appendix.SQLServer.CommonDBATasks.CDC.md
 
 ---
 
@@ -214,10 +214,10 @@ EXEC sys.sp_cdc_help_jobs;
 
 ### Documentation
 
-- **Confluent Oracle XStream CDC Source connector:** https://docs.confluent.io/cloud/current/connectors/cc-oracle-xstream-cdc-source/cc-oracle-xstream-cdc-source.html
-- **Confluent Oracle XStream CDC prerequisites:** https://docs.confluent.io/cloud/current/connectors/cc-oracle-xstream-cdc-source/prereqs-validation.html
-- **Working with Amazon RDS for Oracle:** https://docs.confluent.io/cloud/current/connectors/cc-oracle-xstream-cdc-source/prereqs-validation.html#working-with-amazon-rds-for-oracle
-- **AWS RDS Oracle:** https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/CHAP_Oracle.html
+- **Confluent Oracle XStream CDC Source connector:** https://docs.confluent.io/cloud/current/connectors/cc-oracle-xstream-cdc-source/cc-oracle-xstream-cdc-source.md
+- **Confluent Oracle XStream CDC prerequisites:** https://docs.confluent.io/cloud/current/connectors/cc-oracle-xstream-cdc-source/prereqs-validation.md
+- **Working with Amazon RDS for Oracle:** https://docs.confluent.io/cloud/current/connectors/cc-oracle-xstream-cdc-source/prereqs-validation.md#working-with-amazon-rds-for-oracle
+- **AWS RDS Oracle:** https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/CHAP_Oracle.md
 - **Oracle XStream concepts:** https://docs.oracle.com/en/database/oracle/oracle-database/19/xstrm/introduction-to-xstream.html
 
 ### Step 1: Enable GoldenGate Replication
@@ -491,5 +491,5 @@ aws dynamodb describe-table --table-name <table-name> | jq '.Table.StreamSpecifi
 ### Documentation
 
 - **Confluent DynamoDB CDC Source connector:** https://docs.confluent.io/cloud/current/connectors/cc-amazon-dynamodb-cdc-source.html
-- **DynamoDB Streams:** https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Streams.html
-- **DynamoDB Developer Guide:** https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Introduction.html
+- **DynamoDB Streams:** https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Streams.md
+- **DynamoDB Developer Guide:** https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Introduction.md
