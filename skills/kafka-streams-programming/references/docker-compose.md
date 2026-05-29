@@ -30,7 +30,7 @@ services:
       KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
       KAFKA_LOG_DIRS: '/tmp/kraft-combined-logs'
       # Replace CLUSTER_ID with a unique base64 UUID using "bin/kafka-storage.sh random-uuid"
-      # See https://docs.confluent.io/kafka/operations-tools/kafka-tools.html#kafka-storage-sh
+      # See https://docs.confluent.io/kafka/operations-tools/kafka-tools.md#kafka-storage-sh
       CLUSTER_ID: 'MkU3OEVBNTcwNTJENDM2Qk'
 
   schema-registry:

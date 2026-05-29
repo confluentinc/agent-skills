@@ -365,7 +365,7 @@ Topic pattern: `<kafka.topic>` (configurable, unlike other connectors)
 Example: `cdc-pipeline-skill-dynamodb-users`
 
 **Documentation:**
-https://docs.confluent.io/cloud/current/connectors/cc-amazon-dynamodb-cdc-source.html
+https://docs.confluent.io/cloud/current/connectors/cc-amazon-dynamodb-cdc-source/cc-amazon-dynamodb-cdc-source.md
 
 ---
 

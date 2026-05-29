@@ -490,6 +490,6 @@ aws dynamodb describe-table --table-name <table-name> | jq '.Table.StreamSpecifi
 
 ### Documentation
 
-- **Confluent DynamoDB CDC Source connector:** https://docs.confluent.io/cloud/current/connectors/cc-amazon-dynamodb-cdc-source.html
+- **Confluent DynamoDB CDC Source connector:** https://docs.confluent.io/cloud/current/connectors/cc-amazon-dynamodb-cdc-source/cc-amazon-dynamodb-cdc-source.md
 - **DynamoDB Streams:** https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Streams.md
 - **DynamoDB Developer Guide:** https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Introduction.md
