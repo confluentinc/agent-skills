@@ -4,7 +4,7 @@ WarpStream is Kafka-protocol-compatible but architecturally different from Apach
 
 Read this reference whenever the user's target environment is WarpStream. Apply these overrides on top of the standard config baseline for the relevant skill.
 
-**Reference docs:** [WarpStream configuration recommendations](https://docs.warpstream.com/warpstream/kafka/configure-kafka-client/tuning-for-performance)
+**Reference docs:** [WarpStream configuration recommendations](https://docs.warpstream.com/warpstream/kafka/configure-kafka-client/tuning-for-performance.md)
 
 ---
 
