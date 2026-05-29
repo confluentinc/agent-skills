@@ -260,6 +260,6 @@ Each INSERT runs as a separate continuous Flink job. The target topics each use 
 
 ## Resources
 
-- Confluent Cloud Flink SQL Reference: https://docs.confluent.io/cloud/current/flink/reference/overview.html
-- Confluent Cloud Flink CREATE TABLE: https://docs.confluent.io/cloud/current/flink/reference/statements/create-table.html
-- Debezium CDC Connectors: https://docs.confluent.io/cloud/current/connectors/cc-postgresql-cdc-source-debezium.html
+- Confluent Cloud Flink SQL Reference: https://docs.confluent.io/cloud/current/flink/reference/overview.md
+- Confluent Cloud Flink CREATE TABLE: https://docs.confluent.io/cloud/current/flink/reference/statements/create-table.md
+- Debezium CDC Connectors: https://docs.confluent.io/cloud/current/connectors/cc-postgresql-cdc-source-debezium.md

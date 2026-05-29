@@ -2,7 +2,7 @@
 
 Use-case driven guide. Start from what the user wants to accomplish, then map to the right KS primitives.
 
-**Docs:** [DSL API](https://docs.confluent.io/platform/current/streams/developer-guide/dsl-api.html) | [Tutorials](https://github.com/confluentinc/tutorials)
+**Docs:** [DSL API](https://docs.confluent.io/platform/current/streams/developer-guide/dsl-api.md) | [Tutorials](https://github.com/confluentinc/tutorials)
 
 ## Table of Contents
 - [Stateless Patterns](#stateless-patterns) — filter, map, route, split, merge
