@@ -76,7 +76,7 @@ variable "schema_registry_api_secret" {
 
 **MANDATORY IF ANY PII EXISTS.** Confluent Stream Governance requires tags to be created before schemas can use `confluent:tags`.
 
-See [Stream Governance tags](https://docs.confluent.io/cloud/current/stream-governance/stream-catalog-rest-apis.html).
+See [Stream Governance tags](https://docs.confluent.io/cloud/current/stream-governance/stream-catalog-rest-apis.md).
 
 ```hcl
 # ──────────────────────────────────────────────

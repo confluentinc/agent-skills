@@ -9,7 +9,7 @@ Explicit CLI commands for every operation. The agent should copy-paste from here
 ```bash
 # Install confluent CLI (macOS)
 brew install confluentinc/tap/cli
-# Other platforms: https://docs.confluent.io/confluent-cli/current/install.html
+# Other platforms: https://docs.confluent.io/confluent-cli/current/install.md
 
 # Log in (interactive — opens browser)
 confluent login

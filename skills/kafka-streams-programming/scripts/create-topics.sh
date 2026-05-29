@@ -55,7 +55,7 @@ detect_kafka_topics_cmd() {
         echo "  3. docker exec broker  (docker-compose setup)" >&2
         echo "" >&2
         echo "To fix, either:" >&2
-        echo "  - Install Confluent Platform: https://docs.confluent.io/platform/current/installation/" >&2
+        echo "  - Install Confluent Platform: https://docs.confluent.io/platform/current/installation/overview.md" >&2
         echo "  - Install Apache Kafka: https://kafka.apache.org/downloads" >&2
         echo "  - Start your docker-compose environment: docker-compose up -d" >&2
         exit 1

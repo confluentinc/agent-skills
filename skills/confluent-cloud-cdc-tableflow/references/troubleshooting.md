@@ -430,7 +430,7 @@ mcp__confluent__list-schemas(subjectPrefix: "<topic-prefix>")
 
 **Cause:** The topic was produced without a Schema Registry serializer (plain `JSON` / `StringSerializer`), so no schema is registered.
 
-**Solution:** Register a JSON schema in SR (partial schemas work for JSON), use [schema inference](https://docs.confluent.io/cloud/current/sr/schemas-manage.html#infer-a-schema-from-messages), or use Flink's raw BYTES approach. See `references/connector-configs.md` "Handling Topics Without Schema Registry" for all options and `references/flink-sql-patterns.md` Pattern 6 for Flink-specific code.
+**Solution:** Register a JSON schema in SR (partial schemas work for JSON), use [schema inference](https://docs.confluent.io/cloud/current/sr/schemas-manage.md#infer-a-schema-from-messages), or use Flink's raw BYTES approach. See `references/connector-configs.md` "Handling Topics Without Schema Registry" for all options and `references/flink-sql-patterns.md` Pattern 6 for Flink-specific code.
 
 ### Multi-Event Topic — Mixed Schemas on One Topic
 
@@ -526,8 +526,8 @@ Check latency at each stage:
 ## Getting Help
 
 - **Confluent Support:** https://support.confluent.io/
-- **Confluent Cloud Troubleshooting:** https://docs.confluent.io/cloud/current/troubleshooting/index.html
-- **Debezium Troubleshooting:** https://debezium.io/documentation/reference/stable/operations/index.html
-- **Flink SQL Debugging:** https://docs.confluent.io/cloud/current/flink/troubleshooting.html
+- **Confluent Cloud Connector Troubleshooting:** https://docs.confluent.io/cloud/current/connectors/connector-statuses.md
+- **Debezium Troubleshooting:** https://debezium.io/documentation/reference/stable/operations/logging.html
+- **Flink SQL Debugging:** https://docs.confluent.io/cloud/current/flink/how-to-guides/resolve-common-query-problems.md
 - **Community Forum:** https://forum.confluent.io/
 - **Community Slack:** https://confluentcommunity.slack.com/
