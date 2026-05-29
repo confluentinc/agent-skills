@@ -162,4 +162,4 @@ curl -s -u "<kafka-api-key>:<kafka-api-secret>" \
 
 - **Cloud API Key** for management (connectors, Flink, Tableflow, SR). **Kafka API Key** for data-plane (topics, produce, consume).
 - **Flink** requires org ID + principal ID (not needed for MCP/CLI). Base URL is region-specific with lowercase cloud provider.
-- Full API reference: https://docs.confluent.io/cloud/current/api.html
+- Full API reference: https://docs.confluent.io/cloud/current/api.md

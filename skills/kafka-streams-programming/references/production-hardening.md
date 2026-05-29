@@ -2,7 +2,7 @@
 
 Read this file when the user's target is production. These additions transform a working Streams app into one that's ready for container orchestration, structured observability, and operational resilience.
 
-**Reference docs:** [Kafka Streams operations guide](https://docs.confluent.io/platform/current/streams/developer-guide/running-app.html) | [Monitoring Streams apps](https://docs.confluent.io/platform/current/streams/monitoring.html)
+**Reference docs:** [Kafka Streams operations guide](https://docs.confluent.io/platform/current/streams/developer-guide/running-app.md) | [Monitoring Streams apps](https://docs.confluent.io/platform/current/streams/monitoring.md)
 
 ## Table of Contents
 - [Error Handling (Four-Tier Model)](#error-handling)
