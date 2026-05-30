@@ -19,6 +19,18 @@ The user gets a complete picture first, then decides which ambiguities to close.
 
 **Only two exceptions block Assess:** (1) the state file is malformed or unreadable, or (2) the user hasn't yet provided a state file or picked a path. In either case, ask — but every other ambiguity goes into the output and is resolved via Open Questions.
 
+### Foundational-Inputs gate — ask, don't fabricate
+
+Three inputs are load-bearing for the Plan's core recommendations. When one is missing from the source data, ask (route to a re-scan or manual intake) rather than fabricating a value or proceeding on an assumed one:
+
+- **Topics / partitions / scale.** Drives sizing and complexity.
+- **Auth posture.** Drives the auth migration path and the IAM pre-migration flag.
+- **Networking accessibility** (private/public plus VPC topology). Drives cluster type and networking selection.
+
+This gate does NOT change the never-hedge behavior for peripheral gaps. EOS/transactions, Kafka Streams, connector detail, costs, client inventory, SR version, and IBP stay assume-and-label with an Open Question — they do not block. The discriminator: if the missing input would force the skill to invent a load-bearing recommendation (cluster type, sizing, networking, auth), ask; if it fills a peripheral unknown, assume and label.
+
+The most common foundational gap is a silent KCP scan failure on a private cluster — see the silent-scan-failure fingerprint in the null-vs-empty rule below. A missing topics/scale layer is foundational; do not size or bucket against an assumed count.
+
 ### Profile Coverage section — manual-intake equivalent of Scan Coverage
 
 Manual `migration-profile.yaml` intakes use a **Profile Coverage** section header in place of Scan Coverage. The section serves the same role: surface gaps the user should close before Plan. Render as a section header `## Profile Coverage` and list the fields the profile populates vs. the fields it leaves null/absent. For each absent field, name what's missing and what Plan would have used it for. Treat the following as load-bearing fields to call out when absent:
@@ -44,7 +56,7 @@ Before producing any environment summary, run this scan-coverage audit. This for
 | Scan | jq path to test | If populated | If empty / missing |
 |---|---|---|---|
 | `kcp discover` | `.regions[].clusters[] \| .name` | Clusters enumerated — proceed | State file effectively empty; reject and request a re-scan starting at `kcp discover` |
-| `kcp scan clusters` | `.regions[].clusters[] \| .kafka_admin_client_information.topics.details \| length` | Topics, partitions, ACLs, auth, Kafka version captured per cluster | Gap — topic/ACL/auth data missing, needs re-scan before Plan |
+| `kcp scan clusters` | `.regions[].clusters[] \| .kafka_admin_client_information.topics.details \| length` | Topics, partitions, ACLs, auth, Kafka version captured per cluster | If topics empty WHILE `msk_cluster_config` is populated → the deep scan did not complete (NOT zero topics), almost always private-network unreachability. KCP reports success silently. Topics/scale is foundational — do not assume; route to re-scan-from-VPC or manual intake. |
 | `kcp scan schema-registry` | `.schema_registries \| length` | SR inventory captured | Either no SR exists in the environment OR scan wasn't run — clarify with the user. Don't assume schemaless. |
 | `kcp scan client-inventory` | `.regions[].clusters[] \| .discovered_clients \| length` | Producers/consumers discovered | Gap — needed for Switchover planning. Acknowledge the gap, recommend re-running with broker-log access (usually S3) before Switchover. |
 | `kcp report costs` | `.regions[] \| .costs.results \| length` | AWS cost breakdown available per region | Gap — business-case data missing. Optional for migration mechanics but surface to the user. |
@@ -150,6 +162,8 @@ Output: `kcp-state.json` — the canonical environment artifact that feeds Plan,
 ### Manual intake
 
 Use when KCP is not available (restricted AWS account, pre-engagement intake, customer doesn't have credentials to run KCP).
+
+**Hybrid fallback when the deep scan silently failed.** When `kcp discover` succeeded (`msk_cluster_config` populated) but `kcp scan clusters` silently skipped the cluster (topics empty — see the silent-scan-failure fingerprint above), do NOT re-ask for everything. Keep what discover already captured from the AWS APIs: networking, auth, instance type, Kafka version, throughput from metrics, connectors. Collect only the missing Kafka-protocol layer through manual intake — topics, partitions, ACLs, per-topic configs. Pre-fill the `migration-profile.yaml` from the discover data and walk the user only through the gap.
 
 **Write the YAML stub on the first turn — do not defer to a second turn after the user answers all 11 groups.** On turn 1, populate `migration-profile.yaml` with whatever facts the user has already provided in their opening message, leave every other field as `null` (and every per-cluster list as the user-stated count of clusters with all per-cluster fields null), and record any user-declared gaps in `known_gaps[]` with field path + reason. Then ask the intake questions in the same response. As the user answers across subsequent turns, update the existing YAML file in place — do not wait until intake is complete to write the file. The YAML is the artifact downstream stages consume; a missing file blocks every downstream check.
 
@@ -361,6 +375,7 @@ Disambiguate per cluster using `.kafka_admin_client_information.topics.details` 
   - **Row 7 (self-managed Connect):** `self_managed_connectors: null` is NOT decisive on its own. KCP's self-managed Connect scanner only matches the literal topic name `connect-configs`, so prefixed worker fleets (`connect-configs-cdc`, `connect-configs-events`, etc.) are invisible to it. Row 7's status is governed by the Row 15 cross-reference, not by this field. **If Row 15 identifies a Connect framework triad (naked `connect-offsets`/`connect-status`/`connect-configs` OR a prefixed triad), Row 7 = Triggered.** If Row 15 finds no triad, Row 7 = Not triggered. Do NOT report Row 7 as "Unknown (scan gap)" when topics are populated — the scan ran; the scanner is just blind to prefixed fleets.
 - **Topics populated AND cluster is SERVERLESS** → KCP intentionally skips ACL scanning on serverless. `acls: null` is expected. Note as a KCP limitation, not a scan gap. **Authz migration still applies when IAM is enabled.** Serverless authorization lives in IAM policies, not Kafka ACLs — but the IAM-policy → CC RBAC translation is the same migration step. When Row 3 is Triggered on a Serverless cluster, surface `kcp create-asset migrate-acls iam` as the authz migration path in the Row 9 evidence (or in the commands-the-skill-would-propose section), independent of Row 9 itself being N/A. Do not defer this to "Plan-stage decision" without naming the command.
 - **Topics null or empty** → the cluster admin scan didn't run successfully (cluster not in credentials file, or scan errored mid-flight). All downstream admin fields are scan gaps, not confirmed zeros. Rows 6, 7, 9 report **Unknown (scan gap)**.
+- **Silent-scan-failure fingerprint: topics empty + `msk_cluster_config` populated.** When `kafka_admin_client_information.topics.details` is empty across all clusters WHILE `aws_client_information.msk_cluster_config` is populated (networking, auth, instance type, Kafka version captured), the deep scan did NOT complete — this is not a zero-topic cluster. `kcp discover` populates `msk_cluster_config` via AWS control-plane APIs from anywhere; `kcp scan clusters` adds the Kafka-protocol layer (topics, partitions, ACLs) and needs broker line-of-sight. On a private cluster with no reachability, `kcp scan clusters` silently skips the cluster and still exits success. Do not trust the success exit — verify the state file actually contains topic data. Topics/scale is a foundational input; route to re-scan-from-inside-the-VPC or the hybrid manual-intake fallback (below). Hold the topic/partition/scale-dependent work rather than assuming a count.
 
 `discovered_clients` is a separate case — it's populated by `kcp scan client-inventory`, a different command. `null` there reliably means that scan didn't run (Row 10).
 

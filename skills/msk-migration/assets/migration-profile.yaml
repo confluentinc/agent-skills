@@ -114,7 +114,7 @@ downstream:
 # handling. Future B-tier items add to this section (target_identity_model,
 # source_sr_can_push_to_cc_sr, consumer_history_requirement).
 target_context:
-  cc_reaches_source: null  # true | false | unknown. Whether CC will have a network path to MSK bootstrap brokers. Populated by Plan-stage cascade from target_networking recommendation. Auto-derived for VPC peering / TGW / Public-with-MSK-public / Public-with-MSK-private cases; asked of the customer only when target_networking is PrivateLink or PNI. Drives CL direction: true → destination-initiated; false → source-initiated.
+  cc_reaches_source: null  # true | false | unknown. Whether CC has a DIRECT route to the private MSK source (existing peering / TGW between the CC networking VPC and the MSK VPC). Asked of the customer when target_networking is PNI; auto-derived for VPC peering / TGW / Public cases. This is a networking question, not a direction question: Cluster Linking is ALWAYS destination-initiated for an MSK source (open-source Apache Kafka cannot host a source-initiated or bidirectional link). true → CC reaches MSK directly, no extra resource. false → no direct route; add an additive Egress PrivateLink Endpoint (cluster stays PNI for ingress) so CC can reach back to the source.
   cc_egress_required: null  # true | false | unknown. Whether CC managed connectors or other CC workloads need to reach customer-side network resources (e.g., customer-hosted databases). Asked at Plan stage when target_cloud is AWS — drives PNI vs PrivateLink default. Affects PNI viability per aws-pni.html (PNI doesn't yet support egress).
   source_sr_can_push_to_cc_sr: null  # true | false | unknown. Whether the source Schema Registry has outbound network access to reach CC Schema Registry endpoints (e.g., schema-registry.*.confluent.cloud). Drives Schema Linking viability when source SR is Confluent SR (Cloud or CP Enterprise) meeting the SL version floor. If false, the skill defers to the Confluent account team rather than recommending an alternative path. Asked at Plan stage only when source SR type is confluent-sr or confluent-sr-cp and meets the SL floor.
   target_identity_model: null  # oauth | api_keys | mtls | undecided | other. Customer's preference for the CC target authentication identity model. Drives target CC auth method selection per the cascade in SKILL.md (oauth → SASL/OAUTHBEARER, api_keys → SASL/PLAIN, mtls → SSL with client certs, undecided → default API Keys + Open Question, other → defer to Confluent account team). Asked at Plan stage; independent of source-side auth pre-migration requirements.
@@ -129,7 +129,7 @@ plan:
   sizing_ecku_or_cku: null
   sizing_headroom_percent: null
   auth_mapping: {}  # map of source auth type → target CC auth
-  switchover_approach: null  # zero-cut | topic-by-topic | app-by-app | big-bang
+  switchover_approach: null  # Pattern x mechanism. incremental-gateway (recommended) | big-bang-gateway | big-bang-manual-cl (fallback when Zero-Cut prereqs not met) | dual-write (avoid). MSK uses destination-initiated Cluster Linking only; bidirectional is not available.
   pre_migration_requirements: []  # e.g., "migrate IAM auth to SCRAM before Zero-Cut"
   risks_acknowledged: []
 

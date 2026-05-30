@@ -55,7 +55,7 @@ If the user is missing credentials for a cluster, the admin scan returns empty f
 ## Key Things to Watch in KCP Output
 
 - `kcp discover`: 0 clusters → check AWS credentials and region selection.
-- `kcp scan clusters`: 0 topics → Kafka auth credentials may be wrong. Check `cluster-credentials.yaml`.
+- `kcp scan clusters`: 0 topics → two causes. (1) **Private-network unreachability** — on a private cluster with no broker line-of-sight, KCP silently skips the cluster and still reports success. If `msk_cluster_config` is populated (discover succeeded via AWS APIs) but `topics.details` is empty, this is the reachability case, NOT a zero-topic cluster: re-run `kcp scan clusters` from inside the VPC (VPN / Direct Connect / a host in the MSK VPC), or fall back to manual intake for the topic/partition/ACL layer. (2) **Wrong Kafka auth credentials** — check `cluster-credentials.yaml`. Either way, topics/scale is foundational — do not proceed to Plan on an assumed scale.
 - `kcp scan schema-registry --sr-type=glue`: requires Glue API permissions.
 - `kcp scan self-managed-connectors`: matches on the literal topic name `connect-configs`. Prefixed worker fleets (e.g., `connect-configs-cdc`) are invisible to it — cross-reference Row 15 (internal topic name patterns) for triads under common prefixes that indicate a Connect fleet the scanner missed.
 - `kcp report metrics`: MSK Serverless returns limited metrics (throughput only, no per-broker).
