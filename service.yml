@@ -8,8 +8,7 @@ github:
 codeowners:
   enable: true
 make:
-  enable: true
-  enable_updates: true
+  enable: false
 renovatebot:
   enable: false
 semaphore:
