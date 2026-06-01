@@ -5,7 +5,7 @@ Guide for setting up Confluent Cloud infrastructure to develop and deploy Flink 
 ## Prerequisites
 
 - Confluent Cloud account (sign up at https://confluent.cloud)
-- Confluent CLI installed (https://docs.confluent.io/confluent-cli/current/install.html)
+- Confluent CLI installed (https://docs.confluent.io/confluent-cli/current/install.md)
 - Credit card for billing (or free trial credits)
 
 ## Quick Setup with confluent-quickstart Plugin
@@ -275,7 +275,7 @@ Not all regions support Flink. Try:
 - us-west-2 (AWS)
 - eu-west-1 (AWS)
 
-Check current availability: https://docs.confluent.io/cloud/current/flink/
+Check current availability: https://docs.confluent.io/cloud/current/flink/reference/cloud-regions.md
 
 ### API Key Permission Errors
 
