@@ -1,0 +1,69 @@
+# Mock environment for the assess-partial-gap-proceeds eval.
+#
+# All FOUNDATIONAL inputs are present: topics/partitions/scale, auth posture,
+# and networking accessibility (private, single-VPC). Only a PERIPHERAL gap
+# exists — client inventory was not captured and connector detail is thin
+# (a connector count is known but the connector types were not enumerated).
+#
+# Expected behavior: the foundational-inputs gate does NOT fire. The skill
+# produces a full Assess (and, when asked, a full Plan) with a working
+# assumption + Open Question for the peripheral gaps. It must NOT block or
+# stop to ask, because no foundational input is missing. This guards the
+# never-hedge design against the foundational gate over-firing.
+
+source:
+  platform: msk-provisioned
+  cloud_provider: aws
+  region: us-east-1
+  kafka_version: 3.6.0
+  migration_drivers: "Consolidating streaming infra onto Confluent Cloud. No hard deadline."
+  monthly_cost_usd: 24000
+
+clusters:
+  - name: telemetry-prod
+    broker_count: 6
+    broker_instance_type: kafka.m5.xlarge
+    availability_zones: [us-east-1a, us-east-1b, us-east-1c]
+    topic_count: 96
+    user_topic_count: 90
+    internal_topic_count: 6
+    partition_count_pre_replication: 2100
+    user_partition_count: 2064
+    internal_partition_count: 36
+    replication_factor: 3
+    peak_ingress_mbps: 140
+    peak_egress_mbps: 360
+    auth_types:
+      - scram
+    network_accessibility: private
+    vpc_topology: single-vpc
+    acl_count: 34
+    acl_source: kafka-acls
+    # Client inventory was not captured — peripheral gap, not foundational.
+    sample_internal_topics: []
+
+schema_registry:
+  type: confluent-sr
+  subject_count: 51
+
+connectors:
+  msk_connect_count: 2
+  self_managed_connect_count: 0
+  connector_types: []   # Count known; types not enumerated. Peripheral gap — Plan carries a working assumption + Open Question.
+
+downstream:
+  tableflow_planned: false
+  flink_planned: false
+  lakehouse_planned: false
+
+target_context:
+  cc_reaches_source: true
+  cc_egress_required: false
+
+# Known gaps — peripheral only. Foundational inputs (scale, auth, networking)
+# are all present, so the foundational-inputs gate must not fire.
+known_gaps:
+  - field: "clusters[telemetry-prod].discovered_clients"
+    reason: "Client inventory not captured (kcp scan client-inventory not run / broker logs unavailable). Peripheral — needed for confident Switchover, not for Plan."
+  - field: "connectors.connector_types"
+    reason: "Connector count known (2 MSK Connect) but types not enumerated. Peripheral — Plan carries a working assumption and an Open Question."
