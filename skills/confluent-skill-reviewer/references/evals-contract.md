@@ -21,11 +21,15 @@ Each eval:
   "prompt": "<realistic user message>",
   "expected_output": "<one-line description of success>",
   "files": ["<optional fixture paths, relative to skill root>"],
-  "expectations": ["<string>", "<string>"]
+  "assertions": ["<string>", "<string>"]
 }
 ```
 
-OR (object form, used by `developing-kafka-python-client`):
+The checks live under either the `assertions` key (the default across this
+repo's skills) or the `expectations` key. Either key may hold:
+
+- a **list of strings** — `["Generates producer.py", "Does NOT use kafka-console-producer", ...]`, or
+- a **list of objects** — each with at least a `description`, optionally `id`/`type`/`path`/`pattern`:
 
 ```json
 {
@@ -45,7 +49,7 @@ OR (object form, used by `developing-kafka-python-client`):
 }
 ```
 
-**Both shapes are valid in this repo.** Mixing both within the same file is a **Warning** — pick one and stay consistent. For *new* skills, prefer the string-`expectations` shape; it is the default in this repo's authoring workflow. The object-`assertions` shape stays supported for skills that already use it (`developing-kafka-python-client`).
+**Both the string and object forms are valid.** Mixing the `expectations` and `assertions` keys within the same file is a **Warning** — pick one key and stay consistent. For *new* skills, prefer string entries under `assertions`; the object form stays supported for skills that encode machine-checkable assertions.
 
 ## Strong vs weak expectations
 
@@ -75,11 +79,14 @@ That one assertion encodes a real-world bug. That is the bar.
 
 Heuristic for the script: an expectation is *probably specific* if it contains at least one of: a path-like token (`/`, `.java`, `.properties`), an identifier in `CamelCase` or `dot.case`, the word `NOT`, or a quoted CLI flag.
 
-## Fixture sync
+## Fixtures
 
-If `evals/` contains `mock-repos/` or `mock-skills/`, every path referenced from `files: [...]` in `evals.json` must resolve on disk. Stale references are **Blocking** — graders silently skip them, masking regressions.
+`files: [...]` entries take one of two forms:
 
-`skills/kafka-schema-registry/evals/mock-repos/payment-service/` is the canonical example. When the schema for the fixture changes, the corresponding `expectations[]` must change in the same PR.
+- **On-disk fixture** — a path string relative to the **skill root** (e.g. `"evals/mock-repos/payment-service/"`). If `evals/` contains `mock-repos/` or `mock-skills/`, every such path must resolve on disk. Stale references are **Blocking** — graders silently skip them, masking regressions.
+- **Inline fixture** — an object `{"path": "<relative path>", "content": "<file body>"}` that carries the fixture content in the eval itself, for cases where the skill is asked to modify an existing file (`developing-kafka-python-client` eval #7 is the canonical example). The `path` must be a non-empty string; `content`, if present, must be a string. Inline fixtures are not resolved on disk.
+
+`skills/kafka-schema-registry/evals/mock-repos/payment-service/` is the canonical on-disk example. When the schema for the fixture changes, the corresponding `assertions[]` must change in the same PR.
 
 ## Prompts
 

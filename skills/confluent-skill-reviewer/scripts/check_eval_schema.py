@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """Validate evals.json against this repo's schema and flag weak expectations.
 
-Accepts both expectation shapes used in this repo:
-  - kafka-streams style: `expectations: ["...", ...]` (array of strings)
-  - python-client style: `assertions: [{id, type, description, path, pattern}]`
+Accepts both the `expectations` and `assertions` keys. Either key may hold:
+  - a list of strings, e.g. `["Generates producer.py", ...]`, or
+  - a list of objects, e.g. `[{id, type, description, path, pattern}, ...]`
+(string entries are checked as expectation text; object entries must carry at
+least a `description`).
 
 Findings reported as JSON, with severity blocking/warning/nit. Fixture sync
 is checked by resolving each `files: [path]` relative to the skill root.
@@ -57,6 +59,54 @@ def _check_assertion_object(obj: dict, where: str) -> list[dict]:
     if isinstance(desc, str) and desc:
         issues.extend(_check_expectation_string(desc, where + ".description"))
     return issues
+
+
+def _check_check_list(items: object, where: str) -> list[dict]:
+    """Validate an `expectations`/`assertions` list. Entries may be strings
+    (checked as expectation text) or objects (checked for a `description`)."""
+    issues = []
+    if not isinstance(items, list) or not items:
+        return [_finding("blocking", where, "must be a non-empty array")]
+    for i, item in enumerate(items):
+        if isinstance(item, str):
+            issues.extend(_check_expectation_string(item, f"{where}[{i}]"))
+        elif isinstance(item, dict):
+            issues.extend(_check_assertion_object(item, f"{where}[{i}]"))
+        else:
+            issues.append(_finding("blocking", f"{where}[{i}]", "must be a string or an object"))
+    return issues
+
+
+def _check_file_entry(entry: object, where: str, skill_root: Path, skill_root_resolved: Path) -> list[dict]:
+    """Validate one `files[i]` entry. Two forms are allowed:
+      - a string path to an on-disk fixture, relative to the skill root, or
+      - an inline fixture object `{"path": <str>, "content": <str>}`.
+    """
+    if isinstance(entry, dict):
+        issues = []
+        if not isinstance(entry.get("path"), str) or not entry.get("path"):
+            issues.append(_finding("blocking", where, "inline fixture must have a non-empty string `path`"))
+        if "content" in entry and not isinstance(entry["content"], str):
+            issues.append(_finding("blocking", where, "inline fixture `content` must be a string"))
+        return issues
+    if not isinstance(entry, str):
+        return [_finding("blocking", where, "fixture must be a path string or an inline {path, content} object")]
+    if Path(entry).is_absolute() or ".." in Path(entry).parts:
+        return [
+            _finding(
+                "blocking",
+                where,
+                f"fixture path must be relative to the skill root and stay inside it: {entry}",
+            )
+        ]
+    resolved = (skill_root / entry).resolve()
+    try:
+        resolved.relative_to(skill_root_resolved)
+    except ValueError:
+        return [_finding("blocking", where, f"fixture path escapes the skill root: {entry}")]
+    if not resolved.exists():
+        return [_finding("blocking", where, f"fixture path does not exist: {entry}")]
+    return []
 
 
 def _check_prompt(prompt: str, where: str) -> list[dict]:
@@ -124,45 +174,10 @@ def validate(evals_path: Path) -> dict:
         elif not isinstance(eval_obj["files"], list):
             findings.append(_finding("blocking", f"{where}.files", "files must be an array"))
         else:
-            for fi, fpath in enumerate(eval_obj["files"]):
-                if not isinstance(fpath, str):
-                    findings.append(
-                        _finding(
-                            "blocking",
-                            f"{where}.files[{fi}]",
-                            "fixture path must be a string",
-                        )
-                    )
-                    continue
-                if Path(fpath).is_absolute() or ".." in Path(fpath).parts:
-                    findings.append(
-                        _finding(
-                            "blocking",
-                            f"{where}.files[{fi}]",
-                            f"fixture path must be relative to the skill root and stay inside it: {fpath}",
-                        )
-                    )
-                    continue
-                resolved = (skill_root / fpath).resolve()
-                try:
-                    resolved.relative_to(skill_root_resolved)
-                except ValueError:
-                    findings.append(
-                        _finding(
-                            "blocking",
-                            f"{where}.files[{fi}]",
-                            f"fixture path escapes the skill root: {fpath}",
-                        )
-                    )
-                    continue
-                if not resolved.exists():
-                    findings.append(
-                        _finding(
-                            "blocking",
-                            f"{where}.files[{fi}]",
-                            f"fixture path does not exist: {fpath}",
-                        )
-                    )
+            for fi, entry in enumerate(eval_obj["files"]):
+                findings.extend(
+                    _check_file_entry(entry, f"{where}.files[{fi}]", skill_root, skill_root_resolved)
+                )
         prompt = eval_obj.get("prompt", "")
         if isinstance(prompt, str):
             findings.extend(_check_prompt(prompt, f"{where}.prompt"))
@@ -181,33 +196,17 @@ def validate(evals_path: Path) -> dict:
             findings.append(_finding("blocking", where, "eval has no `expectations` or `assertions`"))
         if has_exp:
             saw_expectations = True
-            exps = eval_obj["expectations"]
-            if not isinstance(exps, list) or not exps:
-                findings.append(_finding("blocking", f"{where}.expectations", "must be a non-empty array"))
-            else:
-                for ei, exp in enumerate(exps):
-                    if not isinstance(exp, str):
-                        findings.append(_finding("blocking", f"{where}.expectations[{ei}]", "must be a string"))
-                        continue
-                    findings.extend(_check_expectation_string(exp, f"{where}.expectations[{ei}]"))
+            findings.extend(_check_check_list(eval_obj["expectations"], f"{where}.expectations"))
         if has_assert:
             saw_assertions = True
-            asserts = eval_obj["assertions"]
-            if not isinstance(asserts, list) or not asserts:
-                findings.append(_finding("blocking", f"{where}.assertions", "must be a non-empty array"))
-            else:
-                for ai, a in enumerate(asserts):
-                    if not isinstance(a, dict):
-                        findings.append(_finding("blocking", f"{where}.assertions[{ai}]", "must be an object"))
-                        continue
-                    findings.extend(_check_assertion_object(a, f"{where}.assertions[{ai}]"))
+            findings.extend(_check_check_list(eval_obj["assertions"], f"{where}.assertions"))
 
     if saw_expectations and saw_assertions:
         findings.append(
             _finding(
                 "warning",
                 "<file>",
-                "this evals.json mixes string-expectation and object-assertion shapes across entries — pick one and stay consistent",
+                "this evals.json mixes the `expectations` and `assertions` keys across entries — pick one and stay consistent",
             )
         )
 

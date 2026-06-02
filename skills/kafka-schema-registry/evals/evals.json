@@ -6,7 +6,7 @@
       "prompt": "hey so i just inherited this java spring boot microservice (in ./mock-repos/payment-service) from a dev who left and my manager wants me to figure out if we're using schema registry properly. can you scan it and tell me what's going on? i think they're producing to some payment topics but i'm not sure if we have schemas registered anywhere. also if there's any pii in the data that would be good to know since we have a compliance audit coming up",
       "expected_output": "Full schema-report.md identifying producers, extracting schemas from Java data models, tagging PII fields (credit card, email, etc.), generating Terraform configs, and providing upgrade recommendations",
       "files": [
-        "./mock-repos/payment-service/"
+        "evals/mock-repos/payment-service/"
       ],
       "assertions": [
         "schema-report.md file was created",
@@ -26,7 +26,7 @@
       "prompt": "I need to analyze our order processing repo for Kafka usage. The path is ./mock-repos/order-processor and it's a Python app using confluent-kafka. We've been having issues where schema changes break consumers and I suspect someone enabled auto-registration. Can you scan the whole thing, extract any schemas you find, and generate terraform so we can manage schemas properly? We're using Confluent Cloud btw",
       "expected_output": "Report identifying auto.register.schemas=true risks, Python data models (Pydantic/dataclasses), extracted schemas in schemas/json/, Terraform with flagged-auto-register.tf commented out, rollout ordering guidance",
       "files": [
-        "./mock-repos/order-processor/"
+        "evals/mock-repos/order-processor/"
       ],
       "assertions": [
         "Report identifies auto.register.schemas=true as a risk",
@@ -44,7 +44,7 @@
       "prompt": "our main backend is at ./mock-repos/ecommerce-platform and it has kafka stuff in multiple languages - java for the order service, python for analytics, and some node.js microservices. I want to understand what topics we're producing to, what serializers we're using, and get everything into schema registry with terraform. also tag any customer data that might be PII since we need to be gdpr compliant",
       "expected_output": "Multi-language analysis covering Java/Python/Node producers, categorizing each by serializer type, extracting schemas from different data models across languages, consolidated Terraform configs, PII tagging summary table",
       "files": [
-        "./mock-repos/ecommerce-platform"
+        "evals/mock-repos/ecommerce-platform"
       ],
       "assertions": [
         "Report identifies 3 Kafka services (order, analytics, notification)",
@@ -62,7 +62,7 @@
       "prompt": "ok so this is embarrassing but we have a legacy service (./mock-repos/legacy-event-publisher) that's using a custom json serializer - basically just calling json.dumps in python and sending raw bytes. no schema registry at all. we want to migrate to using proper confluent serializers but i need to know what schemas to extract first and how to do the migration without breaking our 5 consumer apps. can you analyze it?",
       "expected_output": "Category E identification (custom serializer), schema extraction from inline dict structures, Terraform generation, detailed rollout ordering (consumers first with composite deserializer pattern), migration steps",
       "files": [
-        "./mock-repos/legacy-event-publisher/"
+        "evals/mock-repos/legacy-event-publisher/"
       ],
       "assertions": [
         "Application categorized as Category E (custom serializer)",
@@ -80,7 +80,7 @@
       "prompt": "We're already using schema registry for our kafka streams app in ./mock-repos/streams-processor but we want to move the schema IDs from the message payload to kafka headers to save bandwidth. Can you scan the repo and figure out what we need to change? I think we're on a recent version of confluent platform",
       "expected_output": "Category A→Header scenario, report showing current SR integration, recommendation to add HeaderSchemaIdSerializer to producers, verification that consumers are on supported versions (automatic dual-read), no schema extraction needed",
       "files": [
-        "./mock-repos/streams-processor/"
+        "evals/mock-repos/streams-processor/"
       ],
       "assertions": [
         "Report confirms Schema Registry is already configured",
@@ -97,7 +97,7 @@
       "prompt": "analyze the repo at ./mock-repos/notification-service - it's a .NET app using Confluent.Kafka and i know for sure it's sending user emails, phone numbers, and maybe ssns to kafka topics. i need to extract all the schemas, tag the pii fields properly for our data governance team, and get terraform set up. also check if we're using schema registry correctly",
       "expected_output": "C# data models analyzed, extensive PII tagging (email, phone, ssn with PRIVATE tag), JSON schemas generated with confluent:tags, terraform/tags.tf with confluent_tag resources, depends_on relationships in schemas.tf",
       "files": [
-        "./mock-repos/notification-service/"
+        "evals/mock-repos/notification-service/"
       ],
       "assertions": [
         "Email field tagged with PII",
@@ -116,7 +116,7 @@
       "prompt": "i have this monorepo at ./mock-repos/acme-services with like 12 different microservices and i think 4 or 5 of them use kafka. can you scan the whole thing, identify which services are producing/consuming, what topics they use, extract schemas for each one, and organize everything so i can see which services need to be upgraded to use schema registry? we're trying to get governance in place before our series B",
       "expected_output": "Monorepo analysis with app catalog showing all Kafka services, per-service categorization, deduplicated schemas where same model is used across services, organized Terraform with comments showing which service each schema comes from, prioritized upgrade plan",
       "files": [
-        "./mock-repos/acme-services/"
+        "evals/mock-repos/acme-services/"
       ],
       "assertions": [
         "Report identifies 3-4 Kafka services (user, billing, inventory, reporting)",
@@ -133,7 +133,7 @@
       "prompt": "check out ./mock-repos/go-kafka-producer - it's a golang service that's doing json.Marshal right before producing to kafka. no schema registry. i want to know what the schema looks like based on the structs being serialized, get terraform to register it, and understand what i need to change in the code to use confluent serializers. also we have some sensitive customer data in there",
       "expected_output": "Go struct analysis with json:\"field\" tags, schema inference from struct types, Category B/E classification, Terraform with Go-specific upgrade instructions, PII tagging based on field names, dependency addition guidance (confluent-kafka-go)",
       "files": [
-        "./mock-repos/go-kafka-producer/"
+        "evals/mock-repos/go-kafka-producer/"
       ],
       "assertions": [
         "Report identifies CustomerEvent and OrderEvent structs",
@@ -151,7 +151,7 @@
       "prompt": "so we have this weird situation where the same kafka topic (transaction-events) is getting two completely different event types from different services - OrderCreatedEvent from the order service and PaymentProcessedEvent from the payment service. can you scan ./mock-repos/transaction-system and figure out how to handle this with schema registry? i heard something about wrapper schemas",
       "expected_output": "Multi-schema topic detection, individual event schema extraction, wrapper schema generation using oneOf (JSON Schema) or union (Avro), Terraform with schema_reference blocks, cross-reference table in report showing which events go to which topics",
       "files": [
-        "./mock-repos/transaction-system/"
+        "evals/mock-repos/transaction-system/"
       ],
       "assertions": [
         "Report identifies transaction-events as multi-schema topic",
@@ -169,7 +169,7 @@
       "prompt": "please analyze the repo at ./mock-repos/api-gateway - i don't think it uses kafka at all but my manager asked me to check. just scan it and let me know if there are any kafka producers or consumers and if we need to do anything with schema registry",
       "expected_output": "Report showing no Kafka dependencies found in build files, no producer/consumer patterns detected, executive summary showing 0 applications/producers/consumers, recommendation that no Schema Registry action is needed",
       "files": [
-        "./mock-repos/api-gateway/"
+        "evals/mock-repos/api-gateway/"
       ],
       "assertions": [
         "Report states no Kafka dependencies found",
