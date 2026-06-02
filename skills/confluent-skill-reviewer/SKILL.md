@@ -86,7 +86,7 @@ Read `references/trigger-overlap.md` only when proposing the wording of an anti-
 Run `python3 skills/confluent-skill-reviewer/scripts/check_eval_schema.py <skill-path>/evals/evals.json` (from the repo root). The script validates:
 
 - Top-level `skill_name` (string) and `evals` (array) keys present.
-- Each eval has `id`, `prompt`, `expected_output`, `files`, and either `expectations` (array of strings, kafka-streams style) **or** `assertions` (array of objects, developing-kafka-python-client style). Mixing the two within the same file is a **Warning** — pick one shape.
+- Each eval has `id`, `prompt`, `expected_output`, `files`, and its checks under either the `assertions` key (the repo default) **or** the `expectations` key. Either key may hold a list of strings or a list of objects (objects need at least a `description`). Mixing the two keys within the same file is a **Warning** — pick one key.
 - `prompt` is realistic user phrasing, not abstract (heuristic: ≥40 chars, not just "Build me an X"). Short prompts are a **Warning**.
 - `expectations[]`/`assertions[]` are specific (heuristic: contain a verb, a noun, and at least one concrete identifier — file path, class name, config key, or "NOT" clause). Vague expectations are a **Warning**; cite `CLAUDE.md` § Evals are the contract: "expectations encode hard-won correctness — treat them as regression tests, not aspirations".
 
