@@ -25,31 +25,20 @@ Each eval:
 }
 ```
 
-The checks live under either the `assertions` key (the default across this
-repo's skills) or the `expectations` key. Either key may hold:
-
-- a **list of strings** — `["Generates producer.py", "Does NOT use kafka-console-producer", ...]`, or
-- a **list of objects** — each with at least a `description`, optionally `id`/`type`/`path`/`pattern`:
+The repo standardized on **one** shape: checks live under the `assertions` key as a **list of strings**:
 
 ```json
-{
-  "id": 0,
-  "prompt": "...",
-  "expected_output": "...",
-  "files": [],
-  "assertions": [
-    {
-      "id": "tests-pass",
-      "type": "file_exists",
-      "description": "pytest passes on generated project",
-      "path": "tests/",
-      "pattern": null
-    }
-  ]
-}
+"assertions": [
+  "Generates producer.py",
+  "Does NOT use kafka-console-producer — uses schema-aware producers",
+  "requirements.txt includes pytest-asyncio for async producer"
+]
 ```
 
-**Both the string and object forms are valid.** Mixing the `expectations` and `assertions` keys within the same file is a **Warning** — pick one key and stay consistent. For *new* skills, prefer string entries under `assertions`; the object form stays supported for skills that encode machine-checkable assertions.
+Every skill in this repo now uses this shape. Two older constructs are **Blocking** deviations from the standard:
+
+- **The `expectations` key** — flag Blocking and rename it to `assertions`. (`check_eval_schema.py` still parses its contents so weak-string warnings surface too, but the key itself is a hard finding.)
+- **Object-form entries** — `[{id, type, description, path, pattern}, ...]` is no longer supported. Flag Blocking and flatten each object into a single descriptive string (fold the `description` text, plus any `path`/`pattern` detail, into the string so the hard-won assertion is preserved).
 
 ## Strong vs weak expectations
 

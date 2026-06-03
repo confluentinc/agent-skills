@@ -66,11 +66,13 @@
     {
       "id": 4,
       "prompt": "Look at skills/confluent-skill-reviewer/evals/mock-skills/stale-expectations/ — I'm worried the evals aren't pulling their weight.",
-      "expected_output": "Phase D flags aspirational expectations, an abstract prompt, and a missing fixture path.",
+      "expected_output": "Phase D flags the non-standard `expectations` key as Blocking, plus aspirational expectations, an abstract prompt, and a missing fixture path.",
       "files": [
         "evals/mock-skills/stale-expectations"
       ],
       "assertions": [
+        "Flags use of the `expectations` key as Blocking — the repo standardized on the `assertions` key, so it must be renamed",
+        "Flags the object-form assertion in eval id 2 as Blocking — assertions must be plain strings, not `{id, type, description, ...}` objects",
         "Reports a Blocking finding for the missing fixture path `evals/fixtures/missing-fixture`",
         "Flags `Build me a thing.` as a Warning (abstract prompt, no domain detail)",
         "Flags expectations like `Generates a working app`, `Includes error handling`, `Asks the right questions`, `Is well written` as Warnings (aspirational, not verifiable)",

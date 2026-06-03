@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Validate evals.json against this repo's schema and flag weak expectations.
+"""Validate evals.json against this repo's standardized schema.
 
-Accepts both the `expectations` and `assertions` keys. Either key may hold:
-  - a list of strings, e.g. `["Generates producer.py", ...]`, or
-  - a list of objects, e.g. `[{id, type, description, path, pattern}, ...]`
-(string entries are checked as expectation text; object entries must carry at
-least a `description`).
+The repo standardized on a single shape: checks live under the `assertions`
+key as a **list of strings**, e.g. `["Generates producer.py", ...]`. Two
+constructs are now blocking deviations from that standard:
+  - the legacy `expectations` key (rename it to `assertions`), and
+  - object-form entries `[{id, type, description, ...}]` (flatten to strings).
 
 Findings reported as JSON, with severity blocking/warning/nit. Fixture sync
 is checked by resolving each `files: [path]` relative to the skill root.
@@ -49,21 +49,9 @@ def _check_expectation_string(text: str, where: str) -> list[dict]:
     return issues
 
 
-def _check_assertion_object(obj: dict, where: str) -> list[dict]:
-    issues = []
-    required = {"description"}
-    missing = required - set(obj)
-    if missing:
-        issues.append(_finding("blocking", where, f"assertion missing required keys: {sorted(missing)}"))
-    desc = obj.get("description", "")
-    if isinstance(desc, str) and desc:
-        issues.extend(_check_expectation_string(desc, where + ".description"))
-    return issues
-
-
 def _check_check_list(items: object, where: str) -> list[dict]:
-    """Validate an `expectations`/`assertions` list. Entries may be strings
-    (checked as expectation text) or objects (checked for a `description`)."""
+    """Validate an `assertions` list. The repo standardized on plain string
+    entries; object-form entries are blocking (flatten them to a string)."""
     issues = []
     if not isinstance(items, list) or not items:
         return [_finding("blocking", where, "must be a non-empty array")]
@@ -71,9 +59,20 @@ def _check_check_list(items: object, where: str) -> list[dict]:
         if isinstance(item, str):
             issues.extend(_check_expectation_string(item, f"{where}[{i}]"))
         elif isinstance(item, dict):
-            issues.extend(_check_assertion_object(item, f"{where}[{i}]"))
+            issues.append(
+                _finding(
+                    "blocking",
+                    f"{where}[{i}]",
+                    "object-form assertion is no longer supported — the repo standardized on "
+                    "plain string entries; flatten this into a single string",
+                )
+            )
+            # Still surface a weak-text warning on the description so the fix carries forward.
+            desc = item.get("description")
+            if isinstance(desc, str) and desc:
+                issues.extend(_check_expectation_string(desc, f"{where}[{i}].description"))
         else:
-            issues.append(_finding("blocking", f"{where}[{i}]", "must be a string or an object"))
+            issues.append(_finding("blocking", f"{where}[{i}]", "must be a string"))
     return issues
 
 
@@ -141,8 +140,6 @@ def validate(evals_path: Path) -> dict:
         return {"path": str(evals_path), "findings": findings}
 
     skill_root = evals_path.parent.parent  # evals/evals.json -> skill root
-    saw_expectations = False
-    saw_assertions = False
 
     skill_root_resolved = skill_root.resolve()
 
@@ -184,31 +181,19 @@ def validate(evals_path: Path) -> dict:
 
         has_exp = "expectations" in eval_obj
         has_assert = "assertions" in eval_obj
-        if has_exp and has_assert:
+        if has_exp:
             findings.append(
                 _finding(
-                    "warning",
-                    where,
-                    "eval has both `expectations` and `assertions` — pick one shape",
+                    "blocking",
+                    f"{where}.expectations",
+                    "repo standardized on the `assertions` key — rename `expectations` to `assertions`",
                 )
             )
-        if not has_exp and not has_assert:
-            findings.append(_finding("blocking", where, "eval has no `expectations` or `assertions`"))
-        if has_exp:
-            saw_expectations = True
             findings.extend(_check_check_list(eval_obj["expectations"], f"{where}.expectations"))
         if has_assert:
-            saw_assertions = True
             findings.extend(_check_check_list(eval_obj["assertions"], f"{where}.assertions"))
-
-    if saw_expectations and saw_assertions:
-        findings.append(
-            _finding(
-                "warning",
-                "<file>",
-                "this evals.json mixes the `expectations` and `assertions` keys across entries — pick one and stay consistent",
-            )
-        )
+        if not has_exp and not has_assert:
+            findings.append(_finding("blocking", where, "eval has no `assertions`"))
 
     return {"path": str(evals_path), "findings": findings}
 
