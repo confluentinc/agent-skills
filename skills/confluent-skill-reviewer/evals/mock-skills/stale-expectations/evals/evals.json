@@ -21,6 +21,21 @@
       "expectations": [
         "Produces output"
       ]
+    },
+    {
+      "id": 2,
+      "prompt": "Generate a producer.",
+      "expected_output": "A producer project",
+      "files": [],
+      "assertions": [
+        {
+          "id": "tests-pass",
+          "type": "file_exists",
+          "description": "pytest passes on the generated project",
+          "path": "tests/",
+          "pattern": null
+        }
+      ]
     }
   ]
 }
