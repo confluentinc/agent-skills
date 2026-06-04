@@ -34,7 +34,7 @@
 - **Confluent Cloud**: Topics must be pre-created; use Cloud API keys for resource management
 - **Confluent Platform**: Security config varies (SASL, mTLS, Kerberos); ask user's auth method
 - **Apache Kafka (OSS)**: No managed features (no Tableflow, no managed Flink); adjust scope accordingly
-- **WarpStream**: Disable idempotence, increase batch sizes, large fetch sizes; see [WarpStream client config docs](https://docs.warpstream.com/warpstream/reference/configuration/client-configuration-recommendations)
+- **WarpStream**: Disable idempotence, increase batch sizes, large fetch sizes; see [WarpStream client config docs](https://docs.warpstream.com/warpstream/kafka/configure-kafka-client/tuning-for-performance.md)
 
 ## Bundled scripts
 
