@@ -40,6 +40,9 @@ credentials.*
 *credentials.json
 *credentials.yaml
 *credentials.yml
+# Allow non-secret credential *templates* (same exception pattern as !.env.template / !*.properties.template above)
+!credentials.yaml.template
+!credentials.yml.template
 *.pem
 *.key
 *.p12
