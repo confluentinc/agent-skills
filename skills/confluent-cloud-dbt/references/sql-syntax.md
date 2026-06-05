@@ -2,7 +2,7 @@
 
 The high-level guardrails are in `SKILL.md` → "Top mistakes to avoid". This file has the worked examples and exact forms.
 
-> Flink SQL reference: https://docs.confluent.io/cloud/current/flink/reference/queries/overview.html · [`CREATE TABLE`](https://docs.confluent.io/cloud/current/flink/reference/statements/create-table.html)
+> Flink SQL reference: https://docs.confluent.io/cloud/current/flink/reference/queries/overview.md · [`CREATE TABLE`](https://docs.confluent.io/cloud/current/flink/reference/statements/create-table.md)
 
 ## Identifiers and config vs SQL
 
@@ -20,7 +20,7 @@ FROM TABLE(TUMBLE(TABLE <source>, DESCRIPTOR(<event_time_col>), INTERVAL '5' MIN
 GROUP BY window_start, window_end, ...
 ```
 
-Don't use the legacy `GROUP BY tumble(<col>, ...)` form. The TVF emits `window_start`/`window_end` columns directly. Use `` `$rowtime` `` as `<event_time_col>` when reading an existing topic (see `streaming-semantics.md`). Full TVF reference: https://docs.confluent.io/cloud/current/flink/reference/queries/window-tvf.html
+Don't use the legacy `GROUP BY tumble(<col>, ...)` form. The TVF emits `window_start`/`window_end` columns directly. Use `` `$rowtime` `` as `<event_time_col>` when reading an existing topic (see `streaming-semantics.md`). Full TVF reference: https://docs.confluent.io/cloud/current/flink/reference/queries/window-tvf.md
 
 ## `streaming_source` body is column DDL
 

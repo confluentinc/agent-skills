@@ -48,4 +48,4 @@ Two API key flavours matter:
 
 Bind the Flink API key to a **service account** (not a user account) for any environment where streaming statements are expected to outlive a person — i.e. any non-throwaway environment. User-bound keys are revoked when the user leaves the org and your INSERTs stop.
 
-Creating a service account API key may require elevated RBAC roles (e.g. OrganizationAdmin granting management rights to whoever administers the SA). The exact roles change over time — direct users to the current docs rather than naming a specific role: https://docs.confluent.io/cloud/current/security/authenticate/workload-identities/service-accounts/api-keys/overview.html
+Creating a service account API key may require elevated RBAC roles (e.g. OrganizationAdmin granting management rights to whoever administers the SA). The exact roles change over time — direct users to the current docs rather than naming a specific role: https://docs.confluent.io/cloud/current/security/authenticate/workload-identities/service-accounts/api-keys/overview.md
