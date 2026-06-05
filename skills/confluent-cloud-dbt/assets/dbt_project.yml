@@ -1,0 +1,40 @@
+# Minimal dbt_project.yml for a dbt-confluent project.
+#
+# Two things are non-standard versus a typical warehouse project:
+#   1. The project default materialization is `streaming_table` — this is a
+#      streaming adapter and `table` (CTAS) is the exception, not the rule.
+#      Per-model overrides via `{{ config(materialized='table') }}` are fine
+#      when batch semantics are explicitly wanted.
+#   2. `profile:` must match the top-level key in `profiles.yml`.
+
+name: my_project
+version: 1.0.0
+config-version: 2
+
+profile: my_project
+
+model-paths:    ["models"]
+seed-paths:     ["seeds"]
+test-paths:     ["tests"]
+analysis-paths: ["analyses"]
+macro-paths:    ["macros"]
+snapshot-paths: ["snapshots"]    # snapshots are NOT supported by dbt-confluent — keep this empty
+
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+models:
+  my_project:
+    # Project default — see note above.
+    +materialized: streaming_table
+    # `+schema:` is required for dbt-confluent. It is the Kafka cluster name
+    # the adapter writes to (dbt's `schema` = Confluent Kafka cluster, per the
+    # terminology mapping in SKILL.md). Override the schema from `profiles.yml`
+    # so the target is explicit and version-controlled.
+    +schema: my-kafka-cluster
+    # Example per-folder overrides:
+    # staging:
+    #   +materialized: streaming_table
+    # marts:
+    #   +materialized: table       # CTAS — runs to completion, continuously updated by Flink
