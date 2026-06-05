@@ -1,6 +1,29 @@
 # Materialization mechanics
 
-How each materialization behaves in the dbt-confluent adapter, plus execution modes.
+How to pick a materialization, how each behaves in the dbt-confluent adapter, plus execution modes.
+
+## Picking a materialization
+
+**Choose:**
+
+| User intent | Materialization | Note |
+|---|---|---|
+| Batch transformation that runs to completion | `table` | CTAS. Re-runs are no-ops (schema-drift gated). |
+| Continuous streaming pipeline (a topic of derived events) | `streaming_table` | Two statements: a quick `CREATE TABLE` + a long-running `INSERT INTO ... SELECT`. |
+| Connector-backed source table (e.g. Datagen for testing) | `streaming_source` | Model body is column DDL, not a SELECT. `connector` config required.[^connectors] |
+| Read-only reference to an existing Kafka topic | **dbt `source`**, not a model | Topics auto-appear as Flink tables. |
+| Lightweight virtual relation | `view` | Drop-and-recreate every run. |
+| Inline CTE-style helper | `ephemeral` | Standard dbt behaviour. |
+
+[^connectors]: Only the `faker` connector is exercised in the adapter's test suite today. Other connectors should work via `config(connector='...', with={...})` but aren't yet validated end-to-end against the adapter — verify before relying on them in production. Catalog: https://docs.confluent.io/cloud/current/connectors/index.html
+
+**Don't:**
+
+- **Don't reach for `incremental`** — compiler error. The user's mental model ("efficient updates without recompute") is the *default* in Flink streaming. Use `streaming_table`.
+- **Don't reach for `materialized_view`** — compiler error. In Confluent Flink, `table` *is* a continuously-updated CTAS. Use `table`.
+- **Don't reach for `snapshot`** — no `MERGE`/`UPDATE`. SCD2 needs Flink-native changelog/temporal-table patterns; out of scope for the adapter.
+- **Don't assume `table` means "batch table" in the warehouse sense** — it's a CTAS that Flink keeps fresh in the background. Re-running dbt won't recompute; it SKIPs unless schema drifted or `--full-refresh` is passed.
+- **Don't use `streaming_source` for read-only references to topics produced elsewhere.** Use a dbt `source` — every Kafka topic is automatically a Flink table.
 
 ## `table`
 Single CTAS. The materialization:

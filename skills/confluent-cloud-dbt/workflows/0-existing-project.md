@@ -12,7 +12,7 @@ Read the universal rules in `SKILL.md` first if you haven't already. They apply 
 
 ## Adding a new model
 
-For any new model, follow `SKILL.md` "Rules when generating model files and projects" — including the mandatory warning comment block at the top of every streaming model.
+For any new model, follow `references/authoring-rules.md` — including the mandatory warning comment block at the top of every streaming model.
 
 Reminder of the column-declaration rule:
 - `streaming_table` → also generate the matching `models.yml` entry (column types + constraints — REQUIRED, not optional)
