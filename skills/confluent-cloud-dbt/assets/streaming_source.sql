@@ -26,5 +26,5 @@
 `price` DECIMAL(10, 2),
 `order_time` TIMESTAMP(3),
 
-WATERMARK FOR order_time AS order_time - INTERVAL '5' SECOND,
+WATERMARK FOR `order_time` AS `order_time` - INTERVAL '5' SECOND,
 PRIMARY KEY (`order_id`) NOT ENFORCED

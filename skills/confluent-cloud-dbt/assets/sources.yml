@@ -3,8 +3,12 @@
 # model is needed. Use a dbt `source` instead.
 #
 # Column declarations are OPTIONAL but recommended — they document the source
-# schema for downstream readers and enable `dbt source freshness` and column-
-# level lineage. Backtick column names for consistency with model SQL.
+# schema for downstream readers and feed column-level lineage. Do NOT backtick
+# the `name:` entries here: these are plain dbt YAML identifiers and the adapter
+# quotes them itself when generating SQL (backticking them makes dbt look for a
+# literally backticked column in INFORMATION_SCHEMA). Backticking only applies to
+# identifiers in model SQL. (Source freshness is separate — it needs
+# `loaded_at_field`/`freshness`, not column docs.)
 
 version: 2
 
