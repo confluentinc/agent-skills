@@ -77,38 +77,9 @@ In rough order of how often they bite. Read this before writing anything.
 >
 > Whenever you suggest editing a streaming model's SQL, **proactively tell the user to run `dbt run --full-refresh --select <model>` to deploy the change.** Full mechanics in `references/schema-drift.md`.
 
-## Rules when generating model files and projects
+## Generating model files and projects
 
-These are not suggestions. Apply them as default behaviour without asking.
-
-1. **Every `streaming_table` and `streaming_source` model file must start with this comment block, verbatim:**
-
-   ```sql
-   -- After editing this query, you MUST run `dbt run --full-refresh` to deploy the change.
-   -- Schema-drift detection only checks columns, types, and WITH options — query logic
-   -- changes are not detected and will be silently skipped on a normal `dbt run`.
-   ```
-
-   This is the only mechanism that surfaces the silent-failure mode to the user. Don't omit it; don't paraphrase it; don't move it to the bottom.
-
-2. **Use the modern windowing TVF syntax** (`FROM TABLE(TUMBLE(TABLE <source>, DESCRIPTOR(<event_time_col>), INTERVAL '5' MINUTES))`), never the legacy `GROUP BY tumble(...)` form. The TVF emits `window_start`/`window_end` directly. Form + example in `references/sql-syntax.md`.
-
-3. **Use `` `$rowtime` `` as the event-time column** when reading from an existing Kafka topic — it's auto-attached to every Confluent Cloud Flink table with a watermark from the Kafka record timestamp, so the user needn't declare one. Quote with backticks (the `$`). See `references/streaming-semantics.md`.
-
-4. **Backtick every identifier in model SQL** (incl. TVF outputs like `` `window_start` ``). **Do not backtick `name:` entries in `sources.yml` / `models.yml`** — those are plain dbt YAML identifiers the adapter quotes itself. See `references/sql-syntax.md`.
-
-5. **`models.yml` column declarations:**
-   - **REQUIRED for `streaming_table` models.** The `CREATE TABLE` step needs the schema declared up front, before the INSERT runs. Without column declarations the DDL has no schema and the materialization fails. Always emit a `models.yml` entry alongside any `streaming_table` model.
-   - **Optional for `table` models** — types are inferred from the SELECT. Add an entry only if the user wants enforced contracts or schema documentation.
-   - **Not needed for `streaming_source` models** — the model body itself is the column DDL.
-   - Use the constraints list (`constraints: [{type: not_null}, {type: primary_key, expression: "not enforced"}]`) for `NOT NULL` and `PRIMARY KEY` — never put them in `data_type:` (the adapter raises a clear error if you do).
-
-6. **For new dbt projects** (full file-by-file steps in `workflows/1-scaffold.md`; copy-pasteable templates in `examples/`), apply these non-obvious defaults:
-   - `dbt_project.yml` sets `+materialized: streaming_table` as the project default (`table` is the exception, per-model via `{{ config(materialized='table') }}`) **and** `+schema: <kafka-cluster-name>` (the Kafka cluster the adapter writes to — use the cluster the user confirmed, don't invent one).
-   - `requirements.txt` pins `dbt-confluent` to the **current published version** — verify against PyPI (`https://pypi.org/pypi/dbt-confluent/json`), don't guess.
-   - Never commit a real `profiles.yml` — ship `profiles.yml.example` and `.gitignore` it (along with `target/`, `dbt_packages/`, `logs/`, `.env`). For production, recommend a **service-account-bound** Flink API key (user-bound keys are revoked when the user leaves and long-running INSERTs stop).
-
-7. **If the user hasn't specified the source topic name, schema, or aggregation logic, ask once before scaffolding** — don't invent topic schemas. A single `AskUserQuestion` covering topic + key columns + aggregation type is the right level of friction.
+**Before creating or editing any model file, or scaffolding a project, read `references/authoring-rules.md`** and apply it as default behaviour without asking. It carries the non-negotiables: the mandatory verbatim `--full-refresh` warning block on every streaming model (the silent-failure guard — see the ⚠️ callout above), `models.yml` column declarations (REQUIRED for `streaming_table`), identifier/SQL rules, and project-scaffolding defaults.
 
 ## Terminology mapping
 
@@ -124,26 +95,7 @@ Confluent docs, Flink docs, and dbt docs all use the same words to mean differen
 
 ## Materialization picker
 
-**Choose:**
-
-| User intent | Materialization | Note |
-|---|---|---|
-| Batch transformation that runs to completion | `table` | CTAS. Re-runs are no-ops (schema-drift gated). |
-| Continuous streaming pipeline (a topic of derived events) | `streaming_table` | Two statements: a quick `CREATE TABLE` + a long-running `INSERT INTO ... SELECT`. |
-| Connector-backed source table (e.g. Datagen for testing) | `streaming_source` | Model body is column DDL, not a SELECT. `connector` config required.[^connectors] |
-| Read-only reference to an existing Kafka topic | **dbt `source`**, not a model | Topics auto-appear as Flink tables. |
-| Lightweight virtual relation | `view` | Drop-and-recreate every run. |
-| Inline CTE-style helper | `ephemeral` | Standard dbt behaviour. |
-
-[^connectors]: Only the `faker` connector is exercised in the adapter's test suite today. Other connectors should work via `config(connector='...', with={...})` but aren't yet validated end-to-end against the adapter — verify before relying on them in production. Catalog: https://docs.confluent.io/cloud/current/connectors/index.html
-
-**Don't:**
-
-- **Don't reach for `incremental`** — compiler error. The user's mental model ("efficient updates without recompute") is the *default* in Flink streaming. Use `streaming_table`.
-- **Don't reach for `materialized_view`** — compiler error. In Confluent Flink, `table` *is* a continuously-updated CTAS. Use `table`.
-- **Don't reach for `snapshot`** — no `MERGE`/`UPDATE`. SCD2 needs Flink-native changelog/temporal-table patterns; out of scope for the adapter.
-- **Don't assume `table` means "batch table" in the warehouse sense** — it's a CTAS that Flink keeps fresh in the background. Re-running dbt won't recompute; it SKIPs unless schema drifted or `--full-refresh` is passed.
-- **Don't use `streaming_source` for read-only references to topics produced elsewhere.** Use a dbt `source` — every Kafka topic is automatically a Flink table.
+The default for a new model is `streaming_table`. **When choosing a materialization, read `references/materializations.md`** for the intent→materialization table, the unsupported list, and per-materialization mechanics. The high-frequency traps (`incremental`, `materialized_view`, `snapshot` all compile-error) are in "Top mistakes" above.
 
 ## SQL syntax
 
@@ -159,7 +111,8 @@ Use a dbt `source` (not `streaming_source`) for read-only references to topics t
   - `0-existing-project.md` — ongoing work on an existing dbt-confluent project
   - `1-scaffold.md` — greenfield project setup
 - `references/` — read the file matching the question:
-  - `materializations.md` — per-materialization mechanics (`table`/`view`/`streaming_table`/`streaming_source`/`ephemeral`/`test`/`unit`/`seed`) + execution modes.
+  - `authoring-rules.md` — non-negotiable rules for generating/editing model files and projects. Read before writing any model.
+  - `materializations.md` — the materialization picker (intent→materialization + unsupported list) and per-materialization mechanics (`table`/`view`/`streaming_table`/`streaming_source`/`ephemeral`/`test`/`unit`/`seed`) + execution modes.
   - `schema-drift.md` — drift-detection rules and the silent-failure mode.
   - `sql-syntax.md` — exact Flink SQL forms: windowing TVF, `streaming_source` DDL body, constraints, identifier quoting.
   - `statement-lifecycle.md` — statement naming/lifecycle, custom statement names, hidden statements, streaming-cursor fetch behaviour.

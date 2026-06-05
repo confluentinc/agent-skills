@@ -60,7 +60,7 @@ After phase 0: **STOP**. Wait for the user's choices before generating files.
 
 ## Phase 1: scaffold
 
-Generate the project files per `SKILL.md` "Rules when generating model files and projects". Default project layout:
+Generate the project files per `references/authoring-rules.md`. Default project layout:
 
 ```
 <project-name>/
