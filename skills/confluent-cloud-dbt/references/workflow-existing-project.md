@@ -2,7 +2,7 @@
 
 You're in a project that already has a working dbt-confluent setup. The user is doing ongoing work — adding or modifying models, checking the health of running statements, debugging failures, or asking about adapter behaviour.
 
-Read the universal rules in `SKILL.md` first if you haven't already. They apply here as everywhere — including the **universal safety rule** (no autonomous state-changing commands).
+Read the universal rules in `../SKILL.md` first if you haven't already. They apply here as everywhere — including the **universal safety rule** (no autonomous state-changing commands).
 
 ## What's different from scaffolding
 
@@ -12,7 +12,7 @@ Read the universal rules in `SKILL.md` first if you haven't already. They apply 
 
 ## Adding a new model
 
-For any new model, follow `references/authoring-rules.md` — including the mandatory warning comment block at the top of every streaming model.
+For any new model, follow `authoring-rules.md` — including the mandatory warning comment block at the top of every streaming model.
 
 Reminder of the column-declaration rule:
 - `streaming_table` → also generate the matching `models.yml` entry (column types + constraints — REQUIRED, not optional)
@@ -85,6 +85,8 @@ Common failure modes:
 - **Compute pool exhausted** → suggest scaling the compute pool in the UI; not a code fix.
 - **Connection error / 401 / 403** → likely API key expired or doesn't have RBAC for the cluster. Suggest verifying with `dbt debug` (read-only).
 
+If the symptom looks version-specific (cold-lookup `read operation timed out`, a `403` during statement cleanup, or a `409` name-conflict on CREATE), check `adapter-behaviours.md` — these are known 0.2.x bugfixes where the fix is usually upgrading the adapter pin.
+
 ## Porting requests
 
-If the user asks for help porting from another dbt backend (Snowflake/BigQuery/Postgres/etc.) or from a Terraform + shift-left-utils Flink setup, tell them those workflows aren't shipped yet and offer to step through it manually using the rules in `SKILL.md` plus the files in `references/`. Stay in workflow 0 for the rest of the session.
+If the user asks for help porting from another dbt backend (Snowflake/BigQuery/Postgres/etc.) or from a Terraform + shift-left-utils Flink setup, tell them those workflows aren't shipped yet and offer to step through it manually using the rules in `../SKILL.md` plus the other files in `references/`. Stay in workflow 0 for the rest of the session.

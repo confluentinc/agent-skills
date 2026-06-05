@@ -24,7 +24,7 @@ Read this before creating or editing any model file or scaffolding a project. Th
    - **Not needed for `streaming_source` models** — the model body itself is the column DDL.
    - Use the constraints list (`constraints: [{type: not_null}, {type: primary_key, expression: "not enforced"}]`) for `NOT NULL` and `PRIMARY KEY` — never put them in `data_type:` (the adapter raises a clear error if you do).
 
-6. **For new dbt projects** (full file-by-file steps in `../workflows/1-scaffold.md`; copy-pasteable templates in `../examples/`), apply these non-obvious defaults:
+6. **For new dbt projects** (full file-by-file steps in `workflow-scaffold.md`; copy-pasteable templates in `../assets/`), apply these non-obvious defaults:
    - `dbt_project.yml` sets `+materialized: streaming_table` as the project default (`table` is the exception, per-model via `{{ config(materialized='table') }}`) **and** `+schema: <kafka-cluster-name>` (the Kafka cluster the adapter writes to — use the cluster the user confirmed, don't invent one).
    - `requirements.txt` pins `dbt-confluent` to the **current published version** — verify against PyPI (`https://pypi.org/pypi/dbt-confluent/json`), don't guess.
    - Never commit a real `profiles.yml` — ship `profiles.yml.example` and `.gitignore` it (along with `target/`, `dbt_packages/`, `logs/`, `.env`). For production, recommend a **service-account-bound** Flink API key (user-bound keys are revoked when the user leaves and long-running INSERTs stop).
