@@ -15,7 +15,7 @@ How to pick a materialization, how each behaves in the dbt-confluent adapter, pl
 | Lightweight virtual relation | `view` | Drop-and-recreate every run. |
 | Inline CTE-style helper | `ephemeral` | Standard dbt behaviour. |
 
-[^connectors]: Only the `faker` connector is exercised in the adapter's test suite today. Other connectors should work via `config(connector='...', with={...})` but aren't yet validated end-to-end against the adapter — verify before relying on them in production. Catalog: https://docs.confluent.io/cloud/current/connectors/index.html
+[^connectors]: Only the `faker` connector is exercised in the adapter's test suite today. Other connectors should work via `config(connector='...', with={...})` but aren't yet validated end-to-end against the adapter — verify before relying on them in production. Catalog: https://docs.confluent.io/cloud/current/connectors/index.md
 
 **Don't:**
 

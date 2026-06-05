@@ -44,7 +44,7 @@ my_project:
       # PROD MUST use a service-account-bound API key. Long-running streaming
       # statements outlive employees; a user-bound key gets revoked when the
       # user leaves the org and the INSERT will fail.
-      # https://docs.confluent.io/cloud/current/security/authenticate/workload-identities/service-accounts/api-keys/overview.html
+      # https://docs.confluent.io/cloud/current/security/authenticate/workload-identities/service-accounts/api-keys/overview.md
       flink_api_key:    "{{ env_var('DBT_CONFLUENT_PROD_FLINK_API_KEY') }}"
       flink_api_secret: "{{ env_var('DBT_CONFLUENT_PROD_FLINK_API_SECRET') }}"
 
