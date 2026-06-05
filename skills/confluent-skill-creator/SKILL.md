@@ -169,7 +169,7 @@ Follow the base skill-creator process for capturing intent and writing the skill
 5. **What's the expected output?** (working pipeline, sample data, SQL statements, etc.)
 
 When writing the skill:
-- Include links to relevant Confluent documentation (https://docs.confluent.io/)
+- Include links to relevant Confluent documentation (docs.confluent.io)
 - Reference specific API endpoints, CLI commands, or MCP tool names
 - Specify the execution order of tool/CLI/API calls clearly (step-by-step)
 - Use bundled scripts for common operations (see `scripts/` directory)
