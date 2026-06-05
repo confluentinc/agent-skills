@@ -22,11 +22,11 @@ Detect from the working directory:
 
 | Signal | Workflow |
 |---|---|
-| `dbt_project.yml` exists with profile pointing at `confluent` (existing dbt-confluent project) | **0** — ongoing work → read `references/workflow-existing-project.md` |
+| Repo-local dbt-confluent markers: `dbt-confluent` in `requirements.txt`/`pyproject.toml`, and/or a `dbt_project.yml` alongside a checked-in `profiles.yml`(`.example`) with `type: confluent` (existing dbt-confluent project) | **0** — ongoing work → read `references/workflow-existing-project.md` |
 | Empty directory or only `.claude/` present | **1** — scaffold from scratch → read `references/workflow-scaffold.md` |
 | User is asking a one-off question with no scaffolding intent (e.g. "what does `changelog.mode='upsert'` mean?") | **none** — answer using SKILL.md and the relevant `references/` file, skip the workflow files |
 
-**Always confirm with the user via `AskUserQuestion`** even when detection is confident — pre-populate the detected option as the recommendation. Don't skip the confirmation; the user knows their context better than the heuristics, and a misroute wastes a lot of work.
+**For workflows 0 and 1, confirm the detected workflow with the user via `AskUserQuestion`** before proceeding — pre-populate the detected option as the recommendation. Don't skip the confirmation; the user knows their context better than the heuristics, and a misroute wastes a lot of work. **Skip the confirmation for one-off questions (the `none` path)** — answer directly; making someone confirm a "workflow" just to get a definition is needless friction.
 
 Once a workflow is chosen, **read the corresponding `references/workflow-*.md` file via the Read tool and follow its instructions.** Each workflow has its own phases and stop-and-confirm gates that are not duplicated here.
 
