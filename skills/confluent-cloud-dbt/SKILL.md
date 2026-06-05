@@ -91,18 +91,11 @@ These are not suggestions. Apply them as default behaviour without asking.
 
    This is the only mechanism that surfaces the silent-failure mode to the user. Don't omit it; don't paraphrase it; don't move it to the bottom.
 
-2. **Use the modern windowing TVF syntax** for tumbling, hopping, and cumulative windows:
+2. **Use the modern windowing TVF syntax** (`FROM TABLE(TUMBLE(TABLE <source>, DESCRIPTOR(<event_time_col>), INTERVAL '5' MINUTES))`), never the legacy `GROUP BY tumble(...)` form. The TVF emits `window_start`/`window_end` directly. Form + example in `references/sql-syntax.md`.
 
-   ```sql
-   FROM TABLE(TUMBLE(TABLE <source>, DESCRIPTOR(<event_time_col>), INTERVAL '5' MINUTES))
-   GROUP BY window_start, window_end, ...
-   ```
+3. **Use `` `$rowtime` `` as the event-time column** when reading from an existing Kafka topic — it's auto-attached to every Confluent Cloud Flink table with a watermark from the Kafka record timestamp, so the user needn't declare one. Quote with backticks (the `$`). See `references/streaming-semantics.md`.
 
-   Don't use the legacy `GROUP BY tumble(<col>, ...)` form. The TVF emits `window_start`/`window_end` columns directly. Full TVF reference: https://docs.confluent.io/cloud/current/flink/reference/queries/window-tvf.html
-
-3. **Use `` `$rowtime` `` as the event-time column** when reading from an existing Kafka topic. It's auto-attached to every Confluent Cloud Flink table with a watermark from the Kafka record timestamp — no need for the user to declare one. Quote with backticks because of the `$`. See `references/streaming-semantics.md` for full details.
-
-4. **Backtick every identifier in model SQL** — column names in `SELECT`, `GROUP BY`, `ORDER BY`, `WHERE`, etc. — including columns emitted by TVFs (`` `window_start` ``, `` `window_end` ``). Don't rely on Flink's reserved-word list to stay stable across versions; consistent quoting is cheap and future-proofs the SQL. **Do not backtick `name:` entries in `sources.yml` / `models.yml`** — those are plain dbt YAML identifiers; the adapter quotes them itself when generating SQL. Backticking them there would cause dbt to look for a literally backticked column name in `INFORMATION_SCHEMA`.
+4. **Backtick every identifier in model SQL** (incl. TVF outputs like `` `window_start` ``). **Do not backtick `name:` entries in `sources.yml` / `models.yml`** — those are plain dbt YAML identifiers the adapter quotes itself. See `references/sql-syntax.md`.
 
 5. **`models.yml` column declarations:**
    - **REQUIRED for `streaming_table` models.** The `CREATE TABLE` step needs the schema declared up front, before the INSERT runs. Without column declarations the DDL has no schema and the materialization fails. Always emit a `models.yml` entry alongside any `streaming_table` model.
@@ -110,13 +103,10 @@ These are not suggestions. Apply them as default behaviour without asking.
    - **Not needed for `streaming_source` models** — the model body itself is the column DDL.
    - Use the constraints list (`constraints: [{type: not_null}, {type: primary_key, expression: "not enforced"}]`) for `NOT NULL` and `PRIMARY KEY` — never put them in `data_type:` (the adapter raises a clear error if you do).
 
-6. **For new dbt projects, scaffold these files alongside `dbt_project.yml`:**
-   - `dbt_project.yml` should set `+materialized: streaming_table` as the project default. This is a streaming adapter; `table` (CTAS) is the exception, not the rule. Per-model overrides via `{{ config(materialized='table') }}` are fine when batch semantics are explicitly wanted.
-   - `dbt_project.yml` **must** also set `+schema: <kafka-cluster-name>` under the project's `models:` block. The schema is the Kafka cluster the adapter writes to; declaring it at project level keeps the target explicit and version-controlled rather than relying on `profiles.yml`'s `dbname`. Use the cluster the user has confirmed; don't invent a name.
-   - `.gitignore` — at minimum: `target/`, `dbt_packages/`, `logs/`, `profiles.yml`, `.env`.
-   - `requirements.txt` (or `pyproject.toml` dependency) — pin `dbt-confluent` to the **current published version**. Verify the version against PyPI (`pip index versions dbt-confluent` or fetch `https://pypi.org/pypi/dbt-confluent/json`) or the adapter repo's `pyproject.toml` before pinning. Don't guess.
-   - `profiles.yml.example` — never commit a real `profiles.yml`. The `.gitignore` above excludes it; the `.example` file is the version-controlled template. Full template in `references/profiles-and-auth.md`.
-   - For production targets, recommend a **service-account-bound** Flink API key (user-bound keys are revoked when the user leaves and long-running INSERTs stop). https://docs.confluent.io/cloud/current/security/authenticate/workload-identities/service-accounts/api-keys/overview.html
+6. **For new dbt projects** (full file-by-file steps in `workflows/1-scaffold.md`; copy-pasteable templates in `examples/`), apply these non-obvious defaults:
+   - `dbt_project.yml` sets `+materialized: streaming_table` as the project default (`table` is the exception, per-model via `{{ config(materialized='table') }}`) **and** `+schema: <kafka-cluster-name>` (the Kafka cluster the adapter writes to — use the cluster the user confirmed, don't invent one).
+   - `requirements.txt` pins `dbt-confluent` to the **current published version** — verify against PyPI (`https://pypi.org/pypi/dbt-confluent/json`), don't guess.
+   - Never commit a real `profiles.yml` — ship `profiles.yml.example` and `.gitignore` it (along with `target/`, `dbt_packages/`, `logs/`, `.env`). For production, recommend a **service-account-bound** Flink API key (user-bound keys are revoked when the user leaves and long-running INSERTs stop).
 
 7. **If the user hasn't specified the source topic name, schema, or aggregation logic, ask once before scaffolding** — don't invent topic schemas. A single `AskUserQuestion` covering topic + key columns + aggregation type is the right level of friction.
 
@@ -155,37 +145,9 @@ Confluent docs, Flink docs, and dbt docs all use the same words to mean differen
 - **Don't assume `table` means "batch table" in the warehouse sense** — it's a CTAS that Flink keeps fresh in the background. Re-running dbt won't recompute; it SKIPs unless schema drifted or `--full-refresh` is passed.
 - **Don't use `streaming_source` for read-only references to topics produced elsewhere.** Use a dbt `source` — every Kafka topic is automatically a Flink table.
 
-## SQL syntax (the things Claude gets mechanically wrong)
+## SQL syntax
 
-> Flink SQL reference: https://docs.confluent.io/cloud/current/flink/reference/queries/overview.html · [`CREATE TABLE`](https://docs.confluent.io/cloud/current/flink/reference/statements/create-table.html)
-
-- **Backticks for identifiers**, never double quotes: `` `order_id` ``, `` `my-cluster` ``.
-- **`WITH` table options come from config, not SQL.** Write `config(with={'changelog.mode': 'append'})`, not a literal `WITH (...)` clause in the model body.
-- **`connector` is a config key**, not SQL: `config(connector='faker')`.
-- **`streaming_source` body is column DDL** (no `CREATE TABLE` wrapper, no comma after the last entry):
-
-  ```sql
-  {{ config(materialized='streaming_source', connector='faker',
-            with={'rows-per-second': '1'}) }}
-  `order_id` BIGINT,
-  `price` DECIMAL(10, 2),
-  `order_time` TIMESTAMP(3),
-  WATERMARK FOR order_time AS order_time - INTERVAL '5' SECOND,
-  PRIMARY KEY (`order_id`) NOT ENFORCED
-  ```
-
-- **`PRIMARY KEY` constraint syntax in Flink is `PRIMARY KEY (cols) NOT ENFORCED`** — column list *before* `NOT ENFORCED`. The adapter renders model-level constraints in the right order; column-level PKs in `models.yml` use `expression: "not enforced"`.
-- **`NOT NULL` is a column constraint**, not part of `data_type`. In `models.yml`:
-
-  ```yaml
-  columns:
-    - name: order_id
-      data_type: bigint
-      constraints:
-        - type: not_null
-  ```
-
-  Putting `data_type: bigint NOT NULL` raises a clear compile-time error from the adapter.
+The mechanical-error guardrails are in "Top mistakes to avoid" above (backticks not double quotes, `WITH`/`connector` go in `config()` not SQL, `streaming_source` body is column DDL). **For the exact forms and worked examples** — windowing TVF syntax, the `streaming_source` DDL body, `PRIMARY KEY ... NOT ENFORCED`, `NOT NULL` constraints in `models.yml`, and the don't-backtick-YAML caveat — read `references/sql-syntax.md` before writing model SQL.
 
 ## Sources from existing Kafka topics
 
@@ -199,6 +161,7 @@ Use a dbt `source` (not `streaming_source`) for read-only references to topics t
 - `references/` — read the file matching the question:
   - `materializations.md` — per-materialization mechanics (`table`/`view`/`streaming_table`/`streaming_source`/`ephemeral`/`test`/`unit`/`seed`) + execution modes.
   - `schema-drift.md` — drift-detection rules and the silent-failure mode.
+  - `sql-syntax.md` — exact Flink SQL forms: windowing TVF, `streaming_source` DDL body, constraints, identifier quoting.
   - `statement-lifecycle.md` — statement naming/lifecycle, custom statement names, hidden statements, streaming-cursor fetch behaviour.
   - `profiles-and-auth.md` — `profiles.yml` essentials, SET-statement caveats, service accounts / API keys.
   - `streaming-semantics.md` — `$rowtime`/changelog/watermark/PK/joins.
