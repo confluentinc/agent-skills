@@ -1,14 +1,11 @@
 ---
 name: confluent-cloud-dbt
-description: Authoring, scaffolding, or modifying dbt projects for the dbt-confluent adapter — Confluent Cloud's managed Apache Flink SQL service ONLY (not self-managed Flink, not other Flink runtimes). Triggers on existing dbt-confluent projects (`profile.type: confluent`, `dbt-confluent` in `pyproject.toml`/`requirements.txt`) and when the user wants to scaffold a new dbt-confluent project. Do NOT trigger for non-Confluent dbt adapters, plain Flink SQL outside dbt, or self-managed Flink clusters.
+description: "Authoring, scaffolding, or modifying dbt projects for the dbt-confluent adapter — Confluent Cloud's managed Apache Flink SQL service ONLY (not self-managed Flink, not other Flink runtimes). Triggers on existing dbt-confluent projects (`profile.type: confluent`, `dbt-confluent` in `pyproject.toml`/`requirements.txt`) and when the user wants to scaffold a new dbt-confluent project. Do NOT trigger for non-Confluent dbt adapters, plain Flink SQL outside dbt, or self-managed Flink clusters."
 metadata:
   author: confluent
   version: 0.1.0
-  last_updated: "2026-05-26"
-compatibility:
-  - dbt-confluent >= 0.2.0
-  - Python >= 3.10 (adapter supports 3.10, 3.11, 3.12)
-  - Confluent Cloud account with a Flink-enabled environment
+  last_updated: "2026-06-05"
+compatibility: "Requires dbt-confluent >= 0.2.0 and Python >= 3.10 (adapter supports 3.10, 3.11, 3.12). Needs a Confluent Cloud account with a Flink-enabled environment."
 ---
 
 # confluent-cloud-dbt
@@ -25,13 +22,13 @@ Detect from the working directory:
 
 | Signal | Workflow |
 |---|---|
-| `dbt_project.yml` exists with profile pointing at `confluent` (existing dbt-confluent project) | **0** — ongoing work → read `workflows/0-existing-project.md` |
-| Empty directory or only `.claude/` present | **1** — scaffold from scratch → read `workflows/1-scaffold.md` |
+| `dbt_project.yml` exists with profile pointing at `confluent` (existing dbt-confluent project) | **0** — ongoing work → read `references/workflow-existing-project.md` |
+| Empty directory or only `.claude/` present | **1** — scaffold from scratch → read `references/workflow-scaffold.md` |
 | User is asking a one-off question with no scaffolding intent (e.g. "what does `changelog.mode='upsert'` mean?") | **none** — answer using SKILL.md and the relevant `references/` file, skip the workflow files |
 
 **Always confirm with the user via `AskUserQuestion`** even when detection is confident — pre-populate the detected option as the recommendation. Don't skip the confirmation; the user knows their context better than the heuristics, and a misroute wastes a lot of work.
 
-Once a workflow is chosen, **read the corresponding `workflows/<name>.md` file via the Read tool and follow its instructions.** Each workflow has its own phases and stop-and-confirm gates that are not duplicated here.
+Once a workflow is chosen, **read the corresponding `references/workflow-*.md` file via the Read tool and follow its instructions.** Each workflow has its own phases and stop-and-confirm gates that are not duplicated here.
 
 If the user explicitly asks for help porting from another dbt backend or from a Terraform + shift-left-utils setup, tell them that workflow isn't shipped yet and offer to step through it manually using the rules in this file plus the files in `references/`.
 
@@ -107,19 +104,18 @@ Use a dbt `source` (not `streaming_source`) for read-only references to topics t
 
 ## Pointers
 
-- `workflows/` — multi-phase workflows for specific user intents (read the one selected by the workflow router):
-  - `0-existing-project.md` — ongoing work on an existing dbt-confluent project
-  - `1-scaffold.md` — greenfield project setup
-- `references/` — read the file matching the question:
-  - `authoring-rules.md` — non-negotiable rules for generating/editing model files and projects. Read before writing any model.
-  - `materializations.md` — the materialization picker (intent→materialization + unsupported list) and per-materialization mechanics (`table`/`view`/`streaming_table`/`streaming_source`/`ephemeral`/`test`/`unit`/`seed`) + execution modes.
-  - `schema-drift.md` — drift-detection rules and the silent-failure mode.
-  - `sql-syntax.md` — exact Flink SQL forms: windowing TVF, `streaming_source` DDL body, constraints, identifier quoting.
-  - `statement-lifecycle.md` — statement naming/lifecycle, custom statement names, hidden statements, streaming-cursor fetch behaviour.
-  - `profiles-and-auth.md` — `profiles.yml` essentials, SET-statement caveats, service accounts / API keys.
-  - `streaming-semantics.md` — `$rowtime`/changelog/watermark/PK/joins.
-  - `sources.md` — sources-vs-`streaming_source` decision rules.
-  - `testing.md` — testing dbt models on streams.
-  - `adapter-behaviours.md` — 0.2.x bugfix notes worth surfacing.
-  - `upstream-links.md` — upstream Confluent/Flink doc links.
-- `examples/` — copy-pasteable starting points: `dbt_project.yml`, `profiles.yml.example`, `sources.yml`, `models.yml`, `streaming_source.sql`, `streaming_table.sql`, `table.sql`, `.gitignore`, `requirements.txt`.
+- `references/` — read the file matching the task or question:
+  - `references/workflow-existing-project.md` — multi-phase workflow for ongoing work on an existing dbt-confluent project (selected by the workflow router).
+  - `references/workflow-scaffold.md` — multi-phase workflow for greenfield project setup (selected by the workflow router).
+  - `references/authoring-rules.md` — non-negotiable rules for generating/editing model files and projects. Read before writing any model.
+  - `references/materializations.md` — the materialization picker (intent→materialization + unsupported list) and per-materialization mechanics (`table`/`view`/`streaming_table`/`streaming_source`/`ephemeral`/`test`/`unit`/`seed`) + execution modes.
+  - `references/schema-drift.md` — drift-detection rules and the silent-failure mode.
+  - `references/sql-syntax.md` — exact Flink SQL forms: windowing TVF, `streaming_source` DDL body, constraints, identifier quoting.
+  - `references/statement-lifecycle.md` — statement naming/lifecycle, custom statement names, hidden statements, streaming-cursor fetch behaviour.
+  - `references/profiles-and-auth.md` — `profiles.yml` essentials, SET-statement caveats, service accounts / API keys.
+  - `references/streaming-semantics.md` — `$rowtime`/changelog/watermark/PK/joins.
+  - `references/sources.md` — sources-vs-`streaming_source` decision rules.
+  - `references/testing.md` — testing dbt models on streams.
+  - `references/adapter-behaviours.md` — 0.2.x bugfix notes worth surfacing.
+  - `references/upstream-links.md` — upstream Confluent/Flink doc links.
+- `assets/` — copy-pasteable starting points: `assets/dbt_project.yml`, `assets/profiles.yml.example`, `assets/sources.yml`, `assets/models.yml`, `assets/streaming_source.sql`, `assets/streaming_table.sql`, `assets/table.sql`, `assets/.gitignore`, `assets/requirements.txt`.

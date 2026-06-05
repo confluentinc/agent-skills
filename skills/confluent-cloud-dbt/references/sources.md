@@ -5,4 +5,4 @@
 
 If the user is doing both (production reads from a real topic, dev reads from synthetic data), the cleanest pattern is a dbt `source` for production targets and a `streaming_source` model for dev, selected by target.
 
-See `../examples/sources.yml` for a copy-pasteable `source` declaration and `../examples/streaming_source.sql` for a connector-backed model.
+See `../assets/sources.yml` for a copy-pasteable `source` declaration and `../assets/streaming_source.sql` for a connector-backed model.

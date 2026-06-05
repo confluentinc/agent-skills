@@ -9,7 +9,7 @@
 -- Backticks are required for all identifiers.
 --
 -- For READ-ONLY references to topics that already exist in your cluster, do NOT use
--- this materialization — declare a dbt `source` instead (see examples/sources.yml).
+-- this materialization — declare a dbt `source` instead (see the sources.yml example).
 
 {{ config(
     materialized='streaming_source',
