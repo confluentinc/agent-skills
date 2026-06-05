@@ -1,6 +1,6 @@
 # Workflow 1: scaffold a new dbt-confluent project
 
-You're creating a new dbt-confluent project from scratch. Per the **universal safety rule** in `SKILL.md`, you stop after file creation — you do **not** run `dbt run` or any other state-changing command. You suggest those commands and let the user run them.
+You're creating a new dbt-confluent project from scratch. Per the **universal safety rule** in `../SKILL.md`, you stop after file creation — you do **not** run `dbt run` or any other state-changing command. You suggest those commands and let the user run them.
 
 The workflow has explicit phases with stop-and-confirm gates. **After each phase that ends with a question, do not proceed to the next phase until the user replies.**
 
@@ -60,7 +60,7 @@ After phase 0: **STOP**. Wait for the user's choices before generating files.
 
 ## Phase 1: scaffold
 
-Generate the project files per `references/authoring-rules.md`. Default project layout:
+Generate the project files per `authoring-rules.md`. Default project layout:
 
 ```
 <project-name>/
@@ -128,7 +128,7 @@ If the user reports a failure at any step, switch to debugging mode (universal r
 
 ## Done
 
-The scaffold is complete. Future sessions in this directory will detect workflow 0 (existing dbt-confluent project) and continue from there. If the user wants more help right now (add another model, debug, etc.), drop the workflow 1 context and switch to `workflows/0-existing-project.md`.
+The scaffold is complete. Future sessions in this directory will detect workflow 0 (existing dbt-confluent project) and continue from there. If the user wants more help right now (add another model, debug, etc.), drop the workflow 1 context and switch to `workflow-existing-project.md`.
 
 ## What if the user wants you to actually run things?
 
