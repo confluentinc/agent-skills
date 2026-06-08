@@ -20,20 +20,37 @@ Developers use the skills in this repo for developing data streaming application
    cd agent-skills
    ```
 
-2. **Install dependencies**
+2. **Install the repo's authoring skills locally**
+
+   This repo ships two skills to help you author and review skills:
+   `confluent-skill-creator` and `confluent-skill-reviewer`. Install them
+   locally by copying them into your coding agent's local skills directory, e.g., for Claude:
+
    ```bash
-   # Install skill validator
-   go install github.com/agent-ecosystem/skill-validator/cmd/skill-validator@latest
+   mkdir -p ~/.claude/skills
+   cp -r skills/confluent-skill-creator ~/.claude/skills/
+   cp -r skills/confluent-skill-reviewer ~/.claude/skills/
    ```
+
+   Restart your coding agent so the skills are picked up (or, if using Claude, run `/reload-plugins`).
 
 ## Adding a New Skill
 
-**Guiding principles for skills in this repository:**
+Bear in mind the following guiding principles for skills in this repository:
+
 - Each skill should promote developer best practices, including proper Schema Registry usage (if applicable), security configuration, and error handling
 - Keep skills scoped to a particular use case or technological focus area. Refer to the existing skills in this repo for examples of skill scope. If you are unsure about skill scope, open a [GitHub Issue](https://github.com/confluentinc/agent-skills/issues) to discuss.
 - Skills are nondeterministic by nature (LLM-based), so all outputs should be carefully reviewed
 - Skills should include built-in feedback loops and structural guardrails to enable agent iteration
 - Eval test cases should pass at 90%+ threshold
+
+Once you've installed the authoring skills (see [Getting Started](#getting-started)), the easiest way to create a new skill is to trigger `confluent-skill-creator` in your coding agent. It walks you through gathering requirements, scaffolding the directory structure, writing the `SKILL.md`, adding reference files, optimizing the description, and writing evals. For example, just ask:
+
+```
+Create a new skill for <your use case>
+```
+
+The manual steps below document what the skill does for you, and are useful as a reference or if you prefer to author by hand or validate what the skill creator generated.
 
 ### Step 1: Create the skill directory structure
 
@@ -44,7 +61,7 @@ touch skills/your-skill-name/SKILL.md
 
 ### Step 2: Write the SKILL.md File
 
-The `SKILL.md` file contains the skill's instructions, logic, and guardrails. This is what the AI agent will read when executing the skill.
+The `SKILL.md` file contains the skill's instructions, logic, and guardrails. A coding agent will first load the skill's name and description into its context in order to decide whether to trigger a skill. Once triggered, SKILL.md is loaded into context. From there, SKILL.md may contain branching logic to further load reference files. The progressive loading based on prompts and skill instructions is called "progressive disclosure." It's critical in preventing unnecessary token usage and context bloat, which cost money and reduce model efficacy.
 
 **Template:**
 
@@ -105,14 +122,6 @@ Bad: "Helps with Kafka Python development"
 ```
 
 See [optimizing descriptions](https://agentskills.io/skill-creation/optimizing-descriptions) for more guidance.
-
-### Step 5: Validate the Skill
-
-```bash
-skill-validator check skills/your-skill-name
-```
-
-Fix any validation errors before proceeding. False positive warnings are acceptable, but fix any warnings that aren't false positive. Note that `skill-validator` returns exit code 2 if there are any warnings.
 
 ## Writing Evals
 
@@ -210,18 +219,12 @@ The easiest way to run evals is using the `skill-creator` skill in Claude Code:
 
 1. **Install skill-creator** (if not already installed):
    ```bash
-   /plugin marketplace add agent-ecosystem/plugin-dev
-   /plugin install plugin-dev
+   /plugin install skill-creator@claude-plugins-official
    ```
 
 2. **Run evals for your skill**:
    ```
    Run evals for the <skill name> skill
-   ```
-
-   Or for all skills:
-   ```
-   Run evals for all skills in this repo
    ```
 
 3. **Review results**: The skill will provide a detailed report showing:
@@ -247,6 +250,28 @@ When you submit a PR, Semaphore CI automatically:
 - Validates all skills with `skill-validator`
 - Checks for structural issues
 - Ensures no breaking changes to skill definitions
+
+## Validate and review the skill
+
+### Validate the skill
+
+```bash
+skill-validator check skills/your-skill-name
+```
+
+Fix any validation errors before proceeding. False positive warnings are acceptable, but fix any warnings that aren't false positive. Note that `skill-validator` returns exit code 2 if there are any warnings.
+
+### Review the skill with `confluent-skill-reviewer`
+
+Where `skill-validator` checks structural and spec conformance, the `confluent-skill-reviewer` skill reviews your skill against Confluent-specific skill patterns and best practices — including the conventions in `CLAUDE.md`, lazy-loading of references, trigger/anti-trigger overlap with neighboring skills, the PR template gates, and the evals-as-contract rule.
+
+Once you've installed the authoring skills (see [Getting Started](#getting-started)), trigger it in your coding agent, for example:
+
+```
+Review the skills/your-skill-name skill
+```
+
+Address the findings before opening a pull request.
 
 ## Testing Locally
 
