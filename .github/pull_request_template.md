@@ -16,6 +16,7 @@
 
 ## Review
 
+- [ ] `/confluent-skill-reviewer` has been run
 - [ ] SME reviewer identified if adding a new skill: <!-- @mention here -->
 - [ ] DTX/DevRel reviewer assigned
 
