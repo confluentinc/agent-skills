@@ -1,0 +1,109 @@
+# Mock environment for Row 16 (cost-to-inventory reconciliation).
+#
+# Three clusters enumerated by `kcp discover`, each with a specific broker
+# instance type. Cost Explorer line items include an additional instance
+# type (`Express.m7g.4xlarge`) that does not correspond to any discovered
+# cluster AND is observed across all 12 months of the cost window at
+# material spend.
+#
+# Expected behavior: Row 16 Triggered with evidence naming the specific
+# unmatched instance type and its annual spend, plus a recommendation to
+# re-run `kcp discover` across broader scope (other regions / AWS accounts).
+# The skill must NOT fabricate specs for the hidden cluster.
+
+source:
+  platform: msk-provisioned
+  cloud_provider: aws
+  region: us-east-1
+  kafka_version: 3.8.x
+  migration_drivers: "Consolidating streaming infra onto a managed platform."
+  monthly_cost_usd: 58000
+
+clusters:
+  - name: orders-events
+    broker_count: 15
+    broker_instance_type: kafka.m7g.12xlarge
+    availability_zones: [us-east-1a, us-east-1b, us-east-1c]
+    topic_count: 220
+    partition_count_pre_replication: 1400
+    replication_factor: 3
+    peak_ingress_mbps: 80
+    peak_egress_mbps: 640
+    auth_types:
+      - scram
+      - iam
+    network_accessibility: private
+    vpc_topology: single-vpc
+    acl_count: null
+    acl_source: iam-policies
+
+  - name: cdc-pipeline
+    broker_count: 3
+    broker_instance_type: kafka.m7g.2xlarge
+    availability_zones: [us-east-1a, us-east-1b, us-east-1c]
+    topic_count: 180
+    partition_count_pre_replication: 540
+    replication_factor: 3
+    peak_ingress_mbps: 22
+    peak_egress_mbps: 20
+    auth_types:
+      - scram
+    network_accessibility: private
+    vpc_topology: single-vpc
+    acl_count: null
+    acl_source: iam-policies
+
+  - name: observability-tier
+    broker_count: 3
+    broker_instance_type: express.m7g.large
+    availability_zones: [us-east-1a, us-east-1b, us-east-1c]
+    topic_count: 8
+    partition_count_pre_replication: 900
+    replication_factor: 3
+    peak_ingress_mbps: 210
+    peak_egress_mbps: 95
+    auth_types:
+      - scram
+    network_accessibility: private
+    vpc_topology: single-vpc
+    acl_count: null
+    acl_source: iam-policies
+
+schema_registry:
+  type: confluent-sr
+  subject_count: 45
+
+connectors:
+  msk_connect_count: null
+  self_managed_connect_count: null
+  connector_types: null
+
+downstream:
+  tableflow_planned: null
+  flink_planned: null
+  lakehouse_planned: null
+
+# AWS Cost Explorer line items observed in the state file, keyed by broker
+# instance-type usage string. The skill's Row 16 check must compare these
+# against the `broker_instance_type` values on the discovered clusters above.
+#
+# `Express.m7g.4xlarge` appears in cost data but does NOT match any discovered
+# cluster. Sustained across all 12 months of the cost window at $146,935/year —
+# material relative to the observability-tier cluster ($540/year on
+# Express.m7g.large). Row 16 should Trigger with this evidence.
+cost_line_items:
+  - usage_type: "USE1-Kafka.m7g.12xlarge"
+    annual_spend_usd: 402000
+    months_observed: 12
+  - usage_type: "USE1-Kafka.m7g.2xlarge"
+    annual_spend_usd: 13400
+    months_observed: 12
+  - usage_type: "USE1-Express.m7g.large"
+    annual_spend_usd: 540
+    months_observed: 12
+  - usage_type: "USE1-Express.m7g.4xlarge"
+    annual_spend_usd: 146935
+    months_observed: 12
+
+known_gaps:
+  - "connector scan did not run — fields are null"

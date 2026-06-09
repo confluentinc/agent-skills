@@ -1,0 +1,51 @@
+# Mock environment for B6 PNI-default cascade eval.
+#
+# Tests that the Plan recommends PNI (not PrivateLink) for AWS-to-AWS
+# private migrations, with the cost reasoning text (cross-AZ traffic only
+# vs PrivateLink data processing + hourly endpoint fees) emitted as
+# standard hardcoded reasoning without citing a marketing source. The
+# fixture's low projected eCKU + cc_egress_required: false means no
+# PrivateLink exception applies — PNI default lands cleanly.
+
+source:
+  platform: msk-provisioned
+  cloud_provider: aws
+  region: us-east-1
+  kafka_version: 3.5.1
+  migration_drivers: "Moving off MSK; AWS-to-AWS migration with low projected throughput."
+  monthly_cost_usd: 15000
+
+clusters:
+  - name: events-prod
+    broker_count: 3
+    broker_instance_type: kafka.m5.large
+    availability_zones: [us-east-1a, us-east-1b, us-east-1c]
+    topic_count: 42
+    partition_count_pre_replication: 800
+    replication_factor: 3
+    peak_ingress_mbps: 80
+    peak_egress_mbps: 200
+    auth_types:
+      - scram
+    network_accessibility: private
+    vpc_topology: single-vpc
+    acl_count: 18
+    acl_source: kafka-acls
+
+schema_registry:
+  type: confluent-sr
+  subject_count: 30
+
+connectors:
+  msk_connect_count: 0
+  self_managed_connect_count: 0
+  connector_types: []
+
+downstream:
+  tableflow_planned: false
+  flink_planned: false
+  lakehouse_planned: false
+
+target_context:
+  cc_reaches_source: null  # Not exercised in this fixture — focus is PNI-default cascade. Plan may still ask the customer if it reaches the CL direction cascade; default-destination working assumption is acceptable.
+  cc_egress_required: false  # No CC managed connectors needing customer-side egress. PNI default lands cleanly — no PrivateLink exception triggered.
