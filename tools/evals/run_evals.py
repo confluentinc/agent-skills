@@ -127,7 +127,7 @@ def build_skill_agent(skill_dir: Path, model: str) -> Agent[None, str]:
     def read_skill_file(relative_path: str) -> str:
         """Read a file inside the skill directory (e.g. 'references/foo.md')."""
         target = (skill_root / relative_path).resolve()
-        if not str(target).startswith(str(skill_root)):
+        if not target.is_relative_to(skill_root):
             return "Error: path escapes the skill directory."
         if not target.is_file():
             return f"Error: '{relative_path}' not found in this skill."
@@ -188,7 +188,7 @@ def read_fixture_context(skill_dir: Path, files: list[str]) -> str:
     chunks: list[str] = []
     for rel in files:
         target = (skill_dir / rel).resolve()
-        if not str(target).startswith(str(skill_dir.resolve())) or not target.is_file():
+        if not target.is_relative_to(skill_dir.resolve()) or not target.is_file():
             chunks.append(f"# {rel}\n(could not read fixture)\n")
             continue
         chunks.append(f"# {rel}\n```\n{target.read_text()}\n```\n")
