@@ -1,0 +1,33 @@
+version: v1.0
+name: weekly-skill-evals
+# Standalone pipeline run on a weekly schedule (a Semaphore Task / Schedule)
+# to score every skill's evals with pydantic-evals + a Claude judge.
+# This file is NOT managed by ServiceBot — edit freely. See
+# tools/evals/README.md for how to register the weekly schedule.
+agent:
+  machine:
+    type: s1-prod-ubuntu24-04-amd64-1
+
+execution_time_limit:
+  hours: 1
+
+blocks:
+  - name: "Run skill evals"
+    task:
+      # Create this secret in the project and expose ANTHROPIC_API_KEY.
+      # See tools/evals/README.md.
+      secrets:
+        - name: anthropic-api-key
+      prologue:
+        commands:
+          - checkout
+          - sem-version python 3.11
+          - python -m venv .venv
+          - source .venv/bin/activate
+          - pip install --upgrade pip
+          - pip install -r tools/evals/requirements.txt
+      jobs:
+        - name: "pydantic-evals (all skills, 90% threshold)"
+          commands:
+            - source .venv/bin/activate
+            - python tools/evals/run_evals.py --threshold 0.9
