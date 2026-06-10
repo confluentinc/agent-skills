@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>io.confluent.examples</groupId>
+  <artifactId>kafka-java-client-docker</artifactId>
+  <version>1.0.0</version>
+  <packaging>jar</packaging>
+
+  <properties>
+    <maven.compiler.release>17</maven.compiler.release>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <kafka.version>3.7.0</kafka.version>
+    <!-- Confluent serializers are released on the Confluent version line. -->
+    <confluent.version>7.7.0</confluent.version>
+  </properties>
+
+  <!-- The Confluent serializers (kafka-json-schema-serializer) are published
+       to Confluent's Maven repository, not Maven Central. Without this repo the
+       build fails with "Could not find io.confluent:kafka-json-schema-serializer". -->
+  <repositories>
+    <repository>
+      <id>confluent</id>
+      <url>https://packages.confluent.io/maven/</url>
+    </repository>
+  </repositories>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.apache.kafka</groupId>
+      <artifactId>kafka-clients</artifactId>
+      <version>${kafka.version}</version>
+    </dependency>
+    <!-- Brings in the JSON_SR serializer/deserializer plus the Schema Registry
+         client and Jackson. This single dependency is what enables JSON Schema
+         serialization end to end. -->
+    <dependency>
+      <groupId>io.confluent</groupId>
+      <artifactId>kafka-json-schema-serializer</artifactId>
+      <version>${confluent.version}</version>
+    </dependency>
+    <!-- Concrete SLF4J binding so Kafka client logs print instead of emitting
+         "Failed to load class StaticLoggerBinder" warnings. -->
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-simple</artifactId>
+      <version>2.0.13</version>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <!-- Produces target/app.jar so the Dockerfile can COPY a stable path. -->
+    <finalName>app</finalName>
+    <plugins>
+      <!-- Shade builds a single runnable fat jar. ServicesResourceTransformer
+           merges META-INF/services entries from Kafka and the serializers —
+           a plain assembly would clobber them and break serializer lookup. -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <version>3.5.1</version>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+            <configuration>
+              <transformers>
+                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+              </transformers>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>

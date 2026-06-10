@@ -1,0 +1,84 @@
+# Fully self-contained Kafka + Schema Registry + Java producer/consumer stack.
+# Everything runs in Docker: `docker compose up --build` (or ./run.sh) is the
+# only command needed — no local JDK, Maven, or Kafka install.
+services:
+  # confluentinc/confluent-local is a single-node KRaft broker (no ZooKeeper)
+  # with listener names already wired up. Only override the advertised/listener
+  # values using its built-in names (PLAINTEXT, PLAINTEXT_HOST, CONTROLLER) —
+  # inventing new listener names causes boot loops.
+  kafka:
+    image: confluentinc/confluent-local:latest
+    hostname: kafka
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092"
+      KAFKA_LISTENERS: "PLAINTEXT://0.0.0.0:29092,CONTROLLER://0.0.0.0:29093,PLAINTEXT_HOST://0.0.0.0:9092"
+    healthcheck:
+      test: ["CMD", "bash", "-c", "kafka-topics --bootstrap-server localhost:29092 --list"]
+      interval: 5s
+      timeout: 10s
+      retries: 12
+
+  schema-registry:
+    image: confluentinc/cp-schema-registry:latest
+    hostname: schema-registry
+    depends_on:
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8081:8081"
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      # Reach the broker on its in-network listener, not localhost.
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: PLAINTEXT://kafka:29092
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+    healthcheck:
+      test: ["CMD", "bash", "-c", "curl -fsS http://localhost:8081/subjects || exit 1"]
+      interval: 5s
+      timeout: 10s
+      retries: 12
+
+  # One-shot container that creates the topic, then exits. Other services wait
+  # for it to complete so they never race against topic creation.
+  init-topics:
+    image: confluentinc/confluent-local:latest
+    depends_on:
+      kafka:
+        condition: service_healthy
+    command: >
+      bash -c "
+      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists
+      --topic orders --partitions 1 --replication-factor 1 &&
+      echo 'Topic orders is ready.'"
+
+  producer:
+    build:
+      context: ./app
+    image: kafka-java-client-docker:latest
+    depends_on:
+      schema-registry:
+        condition: service_healthy
+      init-topics:
+        condition: service_completed_successfully
+    environment:
+      BOOTSTRAP_SERVERS: kafka:29092
+      SCHEMA_REGISTRY_URL: http://schema-registry:8081
+      TOPIC: orders
+      MESSAGE_COUNT: "10"
+      MAIN_CLASS: io.confluent.examples.ProducerApp
+
+  consumer:
+    # Reuses the image built by the producer service — no second build.
+    image: kafka-java-client-docker:latest
+    depends_on:
+      producer:
+        condition: service_completed_successfully
+    environment:
+      BOOTSTRAP_SERVERS: kafka:29092
+      SCHEMA_REGISTRY_URL: http://schema-registry:8081
+      TOPIC: orders
+      GROUP_ID: java-consumer-group
+      EXPECTED_COUNT: "10"
+      POLL_TIMEOUT_SECONDS: "60"
+      MAIN_CLASS: io.confluent.examples.ConsumerApp
