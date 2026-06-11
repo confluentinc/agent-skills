@@ -37,6 +37,10 @@ Example prompts:
 - "Build a Flink Table API application in Python to filter streaming data"
 - "Set up a streaming pipeline with Schema Registry"
 
+## Contributing
+
+We welcome external contributions! Read [CONTRIBUTING.md](./CONTRIBUTING.md) for more, and please note that the confluent-skill-creator and confluent-skill-reviewer skills are available to help with development.
+
 ## Skills
 
 This repository includes the following skills:
