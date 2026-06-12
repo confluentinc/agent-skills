@@ -232,19 +232,19 @@ Before finalizing the description, check for unintended overlap with existing sk
         "prompt": "realistic user prompt (≥40 chars, specific context, not abstract)",
         "expected_output": "description of success",
         "files": [],
-        "expectations": [
+        "assertions": [
           "Specific, verifiable check with a path, identifier, or NOT clause",
-          "Another expectation encoding hard-won correctness"
+          "Another assertion encoding hard-won correctness"
         ]
       }
     ]
   }
   ```
   **Eval quality rules** (enforced by the `confluent-skill-reviewer`):
-  - Use `expectations` (array of strings), NOT `assertions` (reserved for object-form evals)
+  - Use `assertions` (array of strings) — this is the repo standard. Do NOT use `expectations`, and do NOT use object-form entries (`[{id, type, description, …}]`); `check_eval_schema.py` flags both as blocking
   - Every eval must include a `files` field (empty array `[]` if no fixtures)
   - Prompts must be ≥40 chars and read like a real user message (specific data shapes, named environments, not just "Build me an X")
-  - Expectations must be specific — include file paths, class names, config keys, `NOT` clauses, or quoted CLI flags. Vague expectations like "The code is well written" will be flagged
+  - Assertions must be specific — include file paths, class names, config keys, `NOT` clauses, or quoted CLI flags. Vague assertions like "The code is well written" will be flagged
 - `.env.template` or `credentials.yaml.template` if the skill requires credentials
 - `references/<platform>.md` files if cross-platform (one per supported platform)
 
