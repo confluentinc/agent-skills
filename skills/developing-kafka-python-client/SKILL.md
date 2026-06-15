@@ -1,6 +1,6 @@
 ---
 name: developing-kafka-python-client
-description: "Use when the user wants to build a Python Kafka producer or consumer, add Schema Registry to existing Python code, migrate from raw JSON to schema-backed serialization, or scaffold a confluent-kafka-python project for Confluent Cloud, local Docker, or WarpStream. Also use when user wants to optimize Python Kafka client configuration for WarpStream."
+description: "Use when the user wants to build a Python Kafka producer or consumer, add Schema Registry to existing Python code, migrate from raw JSON to schema-backed serialization, or scaffold a confluent-kafka-python project for Confluent Cloud, local Docker, or WarpStream. Also use when user wants to optimize Python Kafka client configuration for WarpStream. Do NOT trigger for the Java client (use developing-kafka-java-client), Kafka Streams, Flink, connectors, or CDC."
 ---
 
 <HARD-GATE>
