@@ -9,10 +9,8 @@ Migrate Node.js Kafka applications from the unmaintained [KafkaJS](https://kafka
 
 ## Context Documents
 
-Read the files in the `references/` folder for background and reference material:
-
-- **`docs-migration.md`** — Official Confluent migration guide (the authoritative API reference for all config and method changes)
-- **`performance-guidance.md`** — Production-tested performance tuning for producer batching, consumer configuration, memory management, Kubernetes auto-scaling, and observability
+- **[migration.md](https://docs.confluent.io/kafka-clients/javascript/current/migration.md)** — Official migration guide (the authoritative API reference for all config and method changes). Fetch this URL and use it as the primary reference.
+- **`references/performance-guidance.md`** — Production-tested performance tuning for producer batching, consumer configuration, memory management, Kubernetes auto-scaling, and observability
 
 ## When to Use
 
@@ -42,7 +40,7 @@ Invoke with `/kafkajs-migration [path]` when:
 
 ### Phase 2: Migration
 
-Read `references/docs-migration.md` before starting any migrations. Use it as a checklist — validate every line of Kafka-related code against the documented changes. Specifically check for:
+Fetch the [migration guide](https://docs.confluent.io/kafka-clients/javascript/current/migration.md) before starting any migrations. Use it as a checklist — validate every line of Kafka-related code against the documented changes. Specifically check for:
 
 - **Config wrapping**: all KafkaJS config objects (client, producer, consumer, admin) must be nested inside a `kafkaJS` property.
 - **Moved properties**: properties that changed location (e.g., `acks`/`compression`/`timeout` from `send()` to producer init, `fromBeginning` from `subscribe()` to consumer init, `autoCommit`/`autoCommitInterval` from `run()` to consumer init).
@@ -82,7 +80,7 @@ Verify the install succeeded — check that `@confluentinc/kafka-javascript` app
 
 ## Quick Reference
 
-The three most common migration patterns. For the full API reference (config tables, error types, admin client, transactions, auth), read `references/docs-migration.md`.
+The three most common migration patterns. For the full API reference (config tables, error types, admin client, transactions, auth), see the [migration guide](https://docs.confluent.io/kafka-clients/javascript/current/migration.md).
 
 ### 1. Import + Config Wrapping
 
@@ -136,7 +134,7 @@ All KafkaJS config nests inside a `kafkaJS` property. librdkafka properties (e.g
  });
 ```
 
-### Other Breaking Changes (see `docs-migration.md` for details)
+### Other Breaking Changes (see [migration.md](https://docs.confluent.io/kafka-clients/javascript/current/migration.md) for details)
 
 - **SSL certs**: `ssl` is boolean-only in `kafkaJS` block; use librdkafka props (`ssl.ca.location`, etc.) for cert paths
 - **OAUTHBEARER**: provider must return `lifetime` and `principal` in addition to `value`
@@ -158,8 +156,7 @@ For high-throughput applications, read `references/performance-guidance.md` befo
 
 ## Key Sources
 
-- [Official migration guide](https://docs.confluent.io/kafka-clients/javascript/current/migration.html)
-- [MIGRATION.md in repo](https://github.com/confluentinc/confluent-kafka-javascript/blob/master/MIGRATION.md)
+- [Migration guide (migration.md)](https://docs.confluent.io/kafka-clients/javascript/current/migration.md)
 - [GitHub repo](https://github.com/confluentinc/confluent-kafka-javascript)
 - [npm package](https://www.npmjs.com/package/@confluentinc/kafka-javascript)
 - [librdkafka configuration reference](https://github.com/confluentinc/librdkafka/blob/master/CONFIGURATION.md)
