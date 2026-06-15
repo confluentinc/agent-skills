@@ -1,0 +1,33 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Transaction",
+  "description": "A financial transaction event produced to Kafka. Example JSON Schema — replace with the user's domain.",
+  "type": "object",
+  "properties": {
+    "transaction_id": {
+      "type": "string",
+      "description": "Unique identifier for this transaction. Used as the Kafka message key."
+    },
+    "amount": {
+      "type": "number",
+      "description": "Transaction amount in the specified currency.",
+      "default": 0
+    },
+    "currency": {
+      "type": "string",
+      "description": "ISO 4217 currency code.",
+      "default": ""
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Time the transaction occurred, in ISO 8601 format."
+    },
+    "status": {
+      "description": "Current state of the transaction.",
+      "enum": ["pending", "completed", "failed", "refunded"],
+      "default": "pending"
+    }
+  },
+  "required": ["transaction_id", "amount", "currency", "timestamp", "status"]
+}
