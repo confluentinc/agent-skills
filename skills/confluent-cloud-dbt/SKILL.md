@@ -1,11 +1,6 @@
 ---
 name: confluent-cloud-dbt
-description: "Authoring, scaffolding, or modifying dbt projects for the dbt-confluent adapter — Confluent Cloud's managed Apache Flink SQL service ONLY (not self-managed Flink, not other Flink runtimes). Triggers on existing dbt-confluent projects (`profile.type: confluent`, `dbt-confluent` in `pyproject.toml`/`requirements.txt`) and when the user wants to scaffold a new dbt-confluent project. Do NOT trigger for non-Confluent dbt adapters, plain Flink SQL outside dbt, or self-managed Flink clusters."
-metadata:
-  author: confluent
-  version: 0.1.0
-  last_updated: "2026-06-05"
-compatibility: "Requires dbt-confluent >= 0.2.0 and Python >= 3.10 (adapter supports 3.10, 3.11, 3.12). Needs a Confluent Cloud account with a Flink-enabled environment."
+description: "Authoring, scaffolding, or modifying dbt projects for the dbt-confluent adapter — Confluent Cloud's managed Apache Flink SQL service ONLY (not self-managed Flink, not other Flink runtimes). Triggers on existing dbt-confluent projects (`profile.type: confluent`, `dbt-confluent` in `pyproject.toml`/`requirements.txt`) and when the user wants to scaffold a new dbt-confluent project. Do NOT trigger for non-Confluent dbt adapters, plain Flink SQL outside dbt, self-managed Flink clusters, or CDC/Tableflow pipelines (database → Iceberg/Delta) — that's the confluent-cloud-cdc-tableflow skill."
 ---
 
 # confluent-cloud-dbt
@@ -116,6 +111,6 @@ Use a dbt `source` (not `streaming_source`) for read-only references to topics t
   - `references/streaming-semantics.md` — `$rowtime`/changelog/watermark/PK/joins.
   - `references/sources.md` — sources-vs-`streaming_source` decision rules.
   - `references/testing.md` — testing dbt models on streams.
-  - `references/adapter-behaviours.md` — 0.2.x bugfix notes worth surfacing.
+  - `references/adapter-behaviours.md` — version-aware quirks/fixes. Read when debugging a possibly-version-specific symptom: it carries a currency check (find the user's version → compare to latest → only surface quirks fixed in a *later* version) before suggesting an upgrade.
   - `references/upstream-links.md` — upstream Confluent/Flink doc links.
 - `assets/` — copy-pasteable starting points: `assets/dbt_project.yml`, `assets/profiles.yml.example`, `assets/sources.yml`, `assets/models.yml`, `assets/streaming_source.sql`, `assets/streaming_table.sql`, `assets/table.sql`, `assets/.gitignore`, `assets/requirements.txt`.

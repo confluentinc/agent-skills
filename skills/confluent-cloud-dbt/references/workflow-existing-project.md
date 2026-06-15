@@ -85,7 +85,7 @@ Common failure modes:
 - **Compute pool exhausted** → suggest scaling the compute pool in the UI; not a code fix.
 - **Connection error / 401 / 403** → likely API key expired or doesn't have RBAC for the cluster. Suggest verifying with `dbt debug` (read-only).
 
-If the symptom looks version-specific (cold-lookup `read operation timed out`, a `403` during statement cleanup, or a `409` name-conflict on CREATE), check `adapter-behaviours.md` — these are known 0.2.x bugfixes where the fix is usually upgrading the adapter pin.
+If the symptom looks version-specific (cold-lookup `read operation timed out`, a `403` during statement cleanup, or a `409` name-conflict on CREATE), read `adapter-behaviours.md` and run its currency check: establish the user's pinned/installed version, compare it to the latest release, and only then surface quirks fixed in a *later* version — those are the ones an upgrade would resolve.
 
 ## Porting requests
 
