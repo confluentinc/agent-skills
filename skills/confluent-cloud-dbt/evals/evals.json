@@ -92,6 +92,33 @@
         "Notes that PRIMARY KEY in Flink is NOT ENFORCED (metadata for downstream operators, not a unique constraint at write time)",
         "Does NOT scaffold files or run commands"
       ]
+    },
+    {
+      "id": 6,
+      "prompt": "My `dbt run` keeps failing on the first run after the cluster's been idle — I get `read operation timed out`. After it warms up, reruns are fine. My requirements.txt pins `dbt-confluent==0.2.0`. What's going on?",
+      "expected_output": "Identifies the cold-`INFORMATION_SCHEMA`-lookup HTTP read timeout (old 5s default) as the known cause, fixed in 0.2.1 (default raised to 60s). Runs the currency check first: notes the pin is 0.2.0, checks the latest published version (PyPI / the in-repo marker), and because the fix landed in a LATER version than the user's, recommends the minimal upgrade (>= 0.2.1) rather than 'upgrade to latest'. Does not autonomously run state-changing commands.",
+      "files": [],
+      "expectations": [
+        "Reads references/adapter-behaviours.md and runs the currency check: identifies the user's version (0.2.0 from the requirements.txt pin) before recommending anything",
+        "Determines the latest published version — via WebFetch on https://pypi.org/pypi/dbt-confluent/json (.info.version), falling back to the in-repo 'latest known' marker if WebFetch is unavailable",
+        "Identifies the cold-lookup `read operation timed out` as the known quirk caused by the old 5s confluent-sql HTTP timeout on the drift-catalog UNION ALL query",
+        "States the quirk was fixed in 0.2.1 (default timeout raised to 60s) — a version LATER than the user's 0.2.0, so it still applies to them",
+        "Recommends the minimal upgrade target (>= 0.2.1), not merely 'upgrade to the latest'",
+        "Does NOT autonomously run `pip install`, `dbt run`, or any state-changing command — suggests them for the user to run"
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "I just upgraded to the newest dbt-confluent release and pinned it. Before I build my first streaming_table, are there any known adapter bugs or quirks I should watch out for?",
+      "expected_output": "Runs the currency check and finds the user is already on the latest published version, so there are no later fixes that would apply. Does NOT dump the historical bugfix list as if those quirks were live for this user. Confirms they're current (verifying latest via PyPI / the marker) and points them at the live changelog for anything newer, rather than reciting stale 0.2.x notes.",
+      "files": [],
+      "expectations": [
+        "Runs the currency check: establishes the user is on the latest published version (verifying latest via PyPI's JSON API or the in-repo marker, noting the marker may be stale)",
+        "Because the user is on the latest release, does NOT preemptively dump the historical quirk table as live issues for them",
+        "Frames the past fixes (timeout / 403 / 409) as already-resolved in their version, if mentioned at all — not as things to watch out for",
+        "Points the user at the live changelog (GitHub releases) and/or PyPI for anything newer than the skill's marker",
+        "Does NOT autonomously run state-changing commands"
+      ]
     }
   ]
 }
