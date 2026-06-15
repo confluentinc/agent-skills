@@ -1,0 +1,170 @@
+{
+  "skill_name": "developing-kafka-java-client",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "I need a Java Kafka producer for Confluent Cloud that sends user signup events with fields: userId, email, planType, signedUpAt. Use Maven and async callback-style sends.",
+      "expected_output": "A Maven Java project with an async AvroProducer (send with Callback), KafkaConfig, src/main/avro/value.avsc, AppTest, .properties.example, pom.xml. Producer reuses one KafkaProducer, registers the Avro schema explicitly with auto.register.schemas=false, targets Confluent Cloud with SASL_SSL. Tests pass with mvn test.",
+      "files": [],
+      "assertions": [
+        "AvroProducer.java is generated under src/main/java/com/example/kafka/",
+        "KafkaConfig.java is generated",
+        "pom.xml is generated and declares the Confluent Maven repository https://packages.confluent.io/maven/",
+        "pom.xml includes the avro-maven-plugin for code generation from src/main/avro",
+        "An Avro schema is generated at src/main/avro/value.avsc with a userId field and a doc on every field",
+        "Producer uses KafkaAvroSerializer for the value serializer",
+        "Producer sends with a Callback (producer.send(record, callback)) \u2014 NOT producer.send(record).get()",
+        "Serializer config sets auto.register.schemas=false",
+        "Schema is registered explicitly via CachedSchemaRegistryClient.register before producing",
+        "produce() accepts a Producer parameter and does NOT construct a KafkaProducer",
+        "Exactly one 'new KafkaProducer' appears in the producer source",
+        "Producer calls `flush()` and the KafkaProducer is closed on shutdown — either `close()` in a finally block or via try-with-resources",
+        "KafkaConfig builds SASL_SSL with sasl.jaas.config for KAFKA_ENV=cloud",
+        ".properties.example sets KAFKA_ENV=cloud",
+        "AppTest.java is generated and all tests pass with mvn test"
+      ]
+    },
+    {
+      "id": 1,
+      "prompt": "Create a Java consumer that reads order events from my Confluent Cloud topic and deserializes them with Schema Registry.",
+      "expected_output": "A Maven Java project with AvroConsumer, KafkaConfig, src/main/avro/value.avsc, AppTest, .properties.example, pom.xml. Consumer uses KafkaAvroDeserializer with specific.avro.reader=true, targets Confluent Cloud, and uses the wakeup() + close() shutdown pattern.",
+      "files": [],
+      "assertions": [
+        "AvroConsumer.java is generated",
+        "KafkaConfig.java is generated",
+        "Consumer uses KafkaAvroDeserializer (NOT a raw StringDeserializer for the value)",
+        "Consumer sets specific.avro.reader=true",
+        "Consumer registers a shutdown hook calling consumer.wakeup()",
+        "Consumer catches WakeupException and calls close() in a finally block",
+        "Skill asks whether to use the regular Consumer API or the Share Consumer API before generating, and defaults to the regular Consumer API (generates AvroConsumer with KafkaConsumer, not KafkaShareConsumer)",
+        "AppTest.java is generated and all tests pass with mvn test"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Scaffold a Java project with both a producer and consumer for IoT sensor readings (deviceId, temperature, humidity, readingTime) on Confluent Cloud. Use Gradle.",
+      "expected_output": "A Gradle Java project with AvroProducer, AvroConsumer, KafkaConfig, src/main/avro/value.avsc, AppTest, .properties.example, build.gradle. Avro codegen via the davidmc24 Gradle plugin. Both use Schema Registry and Confluent Cloud config.",
+      "files": [],
+      "assertions": [
+        "AvroProducer.java is generated",
+        "AvroConsumer.java is generated",
+        "build.gradle is generated (NOT pom.xml) and applies the com.github.davidmc24.gradle.plugin.avro plugin",
+        "build.gradle adds the Confluent maven repository https://packages.confluent.io/maven/",
+        "Avro schema at src/main/avro/value.avsc includes a deviceId field and a temperature field with a doc on every field",
+        "Producer uses KafkaAvroSerializer and registers the schema with auto.register.schemas=false",
+        "Consumer uses KafkaAvroDeserializer with specific.avro.reader=true",
+        "All tests pass with ./gradlew test"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "I want to try Kafka locally with Docker. Set up a Java producer and consumer for order events (orderId, customerId, product, quantity, price) using Maven. This is a batch script so synchronous sends are fine.",
+      "expected_output": "A Maven Java project with a synchronous AvroProducerSync (send().get()), AvroConsumer, KafkaConfig, docker-compose.yml, src/main/avro/value.avsc, AppTest, .properties.example, pom.xml. Uses PLAINTEXT for local Docker.",
+      "files": [],
+      "assertions": [
+        "AvroProducerSync.java is generated and uses producer.send(record).get() (synchronous)",
+        "AvroConsumer.java is generated",
+        "docker-compose.yml is generated using confluentinc/confluent-local and cp-schema-registry",
+        "docker-compose.yml does NOT invent custom listener names (uses PLAINTEXT, PLAINTEXT_HOST, CONTROLLER)",
+        ".properties.example sets KAFKA_ENV=local and SCHEMA_REGISTRY_URL=http://localhost:8081",
+        "KafkaConfig uses PLAINTEXT (no sasl.jaas.config) when KAFKA_ENV=local",
+        "Avro schema at src/main/avro/value.avsc includes an orderId field",
+        "Producer registers the schema explicitly with auto.register.schemas=false",
+        "All tests pass with `mvn test`"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "I need a Kafka producer app in Java. Can you set it up for me?",
+      "expected_output": "The skill should NOT generate code immediately. It must ask about the target environment (Confluent Cloud / local Docker / WarpStream), producer-or-consumer scope, send pattern (async callback vs synchronous), and build tool before generating, then confirm via a recap.",
+      "files": [],
+      "assertions": [
+        "Skill asks which target environment to use (Confluent Cloud, local Docker, or WarpStream) before generating",
+        "Skill asks whether the user wants a `producer`, `consumer`, or `both` before generating",
+        "Skill presents a recap and waits for confirmation, and does NOT write any files in the first turn",
+        "Skill does NOT scaffold files in the first turn before requirements are confirmed"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "I need a synchronous Java Kafka producer for a batch ETL job on Confluent Cloud. It ingests CSV rows with fields: employeeId, department, salary, hireDate. Maven is fine.",
+      "expected_output": "A Maven Java project with AvroProducerSync (send().get()), KafkaConfig, src/main/avro/value.avsc, AppTest, .properties.example, pom.xml. Producer blocks per record, registers the schema explicitly, targets Confluent Cloud.",
+      "files": [],
+      "assertions": [
+        "AvroProducerSync.java is generated and calls producer.send(record).get()",
+        "Producer uses KafkaAvroSerializer",
+        "produce() accepts a Producer parameter and does NOT construct a KafkaProducer",
+        "Producer calls `flush()` after sending and the KafkaProducer is closed via try-with-resources (or `close()` in a finally block)",
+        "Avro schema at src/main/avro/value.avsc includes an employeeId field with a doc on every field",
+        "Serializer sets auto.register.schemas=false and schema is registered via CachedSchemaRegistryClient",
+        "All tests pass with `mvn test`"
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "I have an order-events topic that carries three event types: OrderCreated, OrderUpdated, and OrderCancelled. I need an async Java producer on Confluent Cloud that can produce all three event types to the same topic using Avro.",
+      "expected_output": "A Maven Java project with an async producer that produces multiple event types to one topic. The Avro schema is a top-level union of records (one per event type), each with an eventType discriminator, registered under order-events-value with TopicNameStrategy (no RecordNameStrategy).",
+      "files": [],
+      "assertions": [
+        "AvroProducer.java is generated",
+        "value.avsc defines a top-level Avro union of records (OrderCreated, OrderUpdated, OrderCancelled)",
+        "Each union branch record includes an `eventType` discriminator field",
+        "Each union branch has a `doc` on the record and on every field",
+        "Producer keeps the default TopicNameStrategy \u2014 it does NOT use RecordNameStrategy or TopicRecordNameStrategy",
+        "The union schema is registered explicitly under order-events-value with auto.register.schemas=false",
+        "All tests pass with `mvn test`"
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "I have an existing Spring Boot app that produces JSON to Kafka without Schema Registry. Here is my current code:\n\n```java\n@Service\npublic class EventPublisher {\n    private final KafkaProducer<String, String> producer;\n    public EventPublisher() {\n        Properties p = new Properties();\n        p.put(\"bootstrap.servers\", System.getenv(\"BOOTSTRAP_SERVER\"));\n        p.put(\"key.serializer\", StringSerializer.class.getName());\n        p.put(\"value.serializer\", StringSerializer.class.getName());\n        this.producer = new KafkaProducer<>(p);\n    }\n    public void publish(String topic, Map<String,Object> event) {\n        producer.send(new ProducerRecord<>(topic, new ObjectMapper().writeValueAsString(event)));\n    }\n}\n```\n\nI want to add Schema Registry. I'm on Confluent Cloud. Events look like: {\"userId\":\"abc\",\"action\":\"page_view\",\"url\":\"/home\",\"occurredAt\":\"2026-04-13T10:00:00Z\"}",
+      "expected_output": "The skill should NOT scaffold a brand new project. It modifies the existing EventPublisher to use a Confluent Schema Registry serializer instead of raw JSON String serialization, generates a schema from the existing message structure, adds the Confluent serializer dependency + repository to the existing build file, and registers the schema with auto.register.schemas=false.",
+      "files": [
+        {
+          "path": "src/main/java/com/example/app/EventPublisher.java",
+          "content": "package com.example.app;\n\nimport com.fasterxml.jackson.databind.ObjectMapper;\nimport org.apache.kafka.clients.producer.KafkaProducer;\nimport org.apache.kafka.clients.producer.ProducerRecord;\nimport org.apache.kafka.common.serialization.StringSerializer;\n\nimport java.util.Map;\nimport java.util.Properties;\n\npublic class EventPublisher {\n    private final KafkaProducer<String, String> producer;\n    public EventPublisher() {\n        Properties p = new Properties();\n        p.put(\"bootstrap.servers\", System.getenv(\"BOOTSTRAP_SERVER\"));\n        p.put(\"key.serializer\", StringSerializer.class.getName());\n        p.put(\"value.serializer\", StringSerializer.class.getName());\n        this.producer = new KafkaProducer<>(p);\n    }\n    public void publish(String topic, Map<String,Object> event) throws Exception {\n        producer.send(new ProducerRecord<>(topic, new ObjectMapper().writeValueAsString(event)));\n    }\n}\n"
+        }
+      ],
+      "assertions": [
+        "The existing EventPublisher.java is modified in place \u2014 the skill does NOT scaffold a new top-level AvroProducer.java",
+        "The value serializer is changed from StringSerializer to a Confluent Schema Registry serializer (KafkaAvroSerializer or KafkaJsonSchemaSerializer)",
+        "The existing code no longer serializes the value with ObjectMapper.writeValueAsString",
+        "A schema is generated from the existing message structure including a `userId` field and an `action` field",
+        "The Confluent Maven repository (`https://packages.confluent.io/maven/`) and serializer dependency are added to the existing build file",
+        "Serializer is configured with auto.register.schemas=false"
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "I need a Java Kafka producer and consumer for WarpStream. Synchronous producer with Maven. Sending device telemetry events with fields: deviceId, temperature, humidity, batteryLevel, recordedAt.",
+      "expected_output": "A Maven Java project targeting WarpStream with AvroProducerSync, AvroConsumer, KafkaConfig, src/main/avro/value.avsc, AppTest, .properties.example, pom.xml. Producer uses WarpStream-optimized config (idempotence disabled, large batches, high in-flight requests); consumer uses large fetch sizes. .properties.example has KAFKA_ENV=warpstream and client.id with ws_az=.",
+      "files": [],
+      "assertions": [
+        "AvroProducerSync.java is generated and uses producer.send(record).get()",
+        "AvroConsumer.java is generated",
+        ".properties.example sets KAFKA_ENV=warpstream",
+        ".properties.example CLIENT_ID includes ws_az= for zone-aware routing",
+        "Producer config sets enable.idempotence=false",
+        "Producer config raises max.in.flight.requests.per.connection and batch.size for WarpStream",
+        "Consumer config sets large fetch.max.bytes and max.partition.fetch.bytes and does NOT set fetch.min.bytes",
+        "Avro schema at src/main/avro/value.avsc includes a deviceId field and a temperature field",
+        "All tests pass with `mvn test`"
+      ]
+    },
+    {
+      "id": 9,
+      "prompt": "I want a Java consumer on Confluent Cloud for a work queue: I need many consumers to cooperatively process messages off the same topic concurrently and scale beyond the partition count, so use the Share Consumer API. Events have fields jobId, payload, submittedAt. Maven is fine.",
+      "expected_output": "A Maven Java project with a ShareConsumer that uses KafkaShareConsumer (share group / Queues for Kafka), deserializes via Schema Registry into a generated SpecificRecord, acknowledges records explicitly, and uses the wakeup + close() shutdown pattern. The build file is bumped to Kafka 4.x clients. The skill explains the Consumer vs Share Consumer distinction and notes that Queues for Kafka must be enabled on the Confluent Cloud cluster.",
+      "files": [],
+      "assertions": [
+        "A share consumer is generated using KafkaShareConsumer (NOT KafkaConsumer)",
+        "The consumer acknowledges records using AcknowledgeType (e.g. consumer.acknowledge(record, AcknowledgeType.ACCEPT))",
+        "The build file pins Kafka 4.x clients (kafka.version 4.2.1, confluent.version 8.2.1) so KafkaShareConsumer is available",
+        "Consumer uses KafkaAvroDeserializer with specific.avro.reader=true (Schema Registry, not raw StringDeserializer for the value)",
+        "Consumer registers a shutdown hook calling wakeup() and calls close() in a finally block",
+        "Avro schema at src/main/avro/value.avsc includes a jobId field with a doc on every field",
+        "The skill explains the key distinction (multiple share consumers can consume from the same partition, giving queue-like semantics) and notes that Queues for Kafka must be enabled on the Confluent Cloud cluster"
+      ]
+    }
+  ]
+}
