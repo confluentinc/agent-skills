@@ -1,0 +1,50 @@
+# Mock environment for R1 — KCP Gateway (Zero-Cut) recommended.
+#
+# Named for the TRIGGER (downtime axis), not scale. The customer cannot take
+# a cutover window or restart clients (downtime_tolerance: minimal_or_zero),
+# which is the Gateway's defining use case. The Plan recommends the Gateway
+# and states the trigger that fired. Client coordination is manageable, so
+# the downtime axis is the isolated trigger under test.
+
+source:
+  platform: msk-provisioned
+  cloud_provider: aws
+  region: us-east-1
+  kafka_version: 3.5.1
+  migration_drivers: "24x7 trading workload — clients cannot restart and there is no acceptable cutover window."
+  monthly_cost_usd: 28000
+
+clusters:
+  - name: trading-prod
+    broker_count: 6
+    broker_instance_type: kafka.m5.xlarge
+    availability_zones: [us-east-1a, us-east-1b, us-east-1c]
+    topic_count: 150
+    partition_count_pre_replication: 3600
+    replication_factor: 3
+    p95_ingress_mbps: 120
+    p95_egress_mbps: 360
+    auth_types:
+      - scram
+    network_accessibility: private
+    vpc_topology: single-vpc
+    acl_count: 64
+    acl_source: kafka-acls
+
+schema_registry:
+  type: confluent-sr
+  subject_count: 110
+
+connectors:
+  msk_connect_count: 0
+  self_managed_connect_count: 0
+  connector_types: []
+
+downstream:
+  tableflow_planned: false
+  flink_planned: false
+  lakehouse_planned: false
+
+target_context:
+  downtime_tolerance: minimal_or_zero  # PRIMARY Gateway trigger — no cutover window, no client restart
+  client_coordination_burden: manageable  # Isolate the downtime axis as the trigger under test

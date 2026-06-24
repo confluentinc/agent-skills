@@ -1,0 +1,119 @@
+{
+  "kcp_build_info": {
+    "version": "0.9.1",
+    "commit": "drifted000000000000000000000000000000000",
+    "date": "2026-06-10T09:00:00Z"
+  },
+  "regions": [
+    {
+      "name": "us-east-1",
+      "configurations": [],
+      "costs": { "results": [] },
+      "clusters": [
+        {
+          "name": "events-prod",
+          "arn": "arn:aws:kafka:us-east-1:123456789012:cluster/events-prod/00000000-0000-0000-0000-driftedlbl01-1",
+          "region": "us-east-1",
+          "metrics": {
+            "metadata": {
+              "cluster_type": "PROVISIONED",
+              "kafka_version": "3.5.1",
+              "broker_az_distribution": "DEFAULT",
+              "enhanced_monitoring": "DEFAULT",
+              "start_date": "2026-05-10T00:00:00Z",
+              "end_date": "2026-06-10T00:00:00Z",
+              "period": 86400,
+              "follower_fetching": false,
+              "instance_type": "kafka.m5.xlarge",
+              "tiered_storage": false
+            },
+            "results": [
+              {
+                "Id": "e1",
+                "Label": "BytesInPerSec",
+                "StatusCode": "Complete",
+                "Timestamps": ["2026-06-09T00:00:00Z", "2026-06-08T00:00:00Z", "2026-06-07T00:00:00Z", "2026-06-06T00:00:00Z", "2026-06-05T00:00:00Z"],
+                "Values": [83886080.0, 81000000.0, 86000000.0, 79000000.0, 88080384.0]
+              },
+              {
+                "Id": "e2",
+                "Label": "BytesOutPerSec",
+                "StatusCode": "Complete",
+                "Timestamps": ["2026-06-09T00:00:00Z", "2026-06-08T00:00:00Z", "2026-06-07T00:00:00Z", "2026-06-06T00:00:00Z", "2026-06-05T00:00:00Z"],
+                "Values": [251658240.0, 244000000.0, 258000000.0, 240000000.0, 264241152.0]
+              },
+              {
+                "Id": "e3",
+                "Label": "PartitionCount",
+                "StatusCode": "Complete",
+                "Timestamps": ["2026-06-09T00:00:00Z", "2026-06-08T00:00:00Z"],
+                "Values": [600.0, 600.0]
+              }
+            ]
+          },
+          "aws_client_information": {
+            "msk_cluster_config": {
+              "ClusterArn": "arn:aws:kafka:us-east-1:123456789012:cluster/events-prod/00000000-0000-0000-0000-driftedlbl01-1",
+              "ClusterName": "events-prod",
+              "ClusterType": "PROVISIONED",
+              "CurrentVersion": "K2EUQ1WTGCTBG2",
+              "Provisioned": {
+                "BrokerNodeGroupInfo": {
+                  "InstanceType": "kafka.m5.xlarge",
+                  "ClientSubnets": ["subnet-aaa1", "subnet-aaa2", "subnet-aaa3"],
+                  "SecurityGroups": ["sg-aaa1"]
+                },
+                "NumberOfBrokerNodes": 6,
+                "CurrentBrokerSoftwareInfo": { "KafkaVersion": "3.5.1" },
+                "StorageMode": "LOCAL",
+                "ClientAuthentication": {
+                  "Sasl": { "Scram": { "Enabled": true } },
+                  "Tls": null,
+                  "Unauthenticated": { "Enabled": false }
+                }
+              },
+              "Serverless": null,
+              "State": "ACTIVE"
+            },
+            "bootstrap_brokers": {
+              "BootstrapBrokerStringSaslScram": "b-1.events-prod.kafka.us-east-1.amazonaws.com:9096",
+              "BootstrapBrokerStringPublicSaslScram": null
+            },
+            "cluster_networking": {
+              "vpc_id": "vpc-aaa",
+              "subnet_ids": ["subnet-aaa1", "subnet-aaa2", "subnet-aaa3"],
+              "security_groups": ["sg-aaa1"]
+            },
+            "connectors": []
+          },
+          "kafka_admin_client_information": {
+            "cluster_id": "Kafka-Cluster-drifted-01",
+            "topics": {
+              "summary": {
+                "topics": 40,
+                "internal_topics": 0,
+                "total_partitions": 600,
+                "total_internal_partitions": 0,
+                "compact_topics": 0,
+                "compact_partitions": 0,
+                "remote_storage_topics": 0
+              },
+              "details": [
+                { "name": "events-orders", "partitions": 24, "replication_factor": 3, "configurations": { "cleanup.policy": "delete", "compression.type": "producer", "min.insync.replicas": "2", "retention.ms": "604800000", "segment.bytes": "1073741824" } },
+                { "name": "events-payments", "partitions": 24, "replication_factor": 3, "configurations": { "cleanup.policy": "delete", "compression.type": "producer", "min.insync.replicas": "2", "retention.ms": "604800000", "segment.bytes": "1073741824" } },
+                { "name": "events-shipments", "partitions": 12, "replication_factor": 3, "configurations": { "cleanup.policy": "delete", "compression.type": "producer", "min.insync.replicas": "2", "retention.ms": "604800000", "segment.bytes": "1073741824" } },
+                { "name": "events-inventory", "partitions": 12, "replication_factor": 3, "configurations": { "cleanup.policy": "delete", "compression.type": "producer", "min.insync.replicas": "2", "retention.ms": "604800000", "segment.bytes": "1073741824" } },
+                { "name": "events-audit", "partitions": 6, "replication_factor": 3, "configurations": { "cleanup.policy": "delete", "compression.type": "producer", "min.insync.replicas": "2", "retention.ms": "2592000000", "segment.bytes": "1073741824" } }
+              ]
+            },
+            "acls": null,
+            "self_managed_connectors": null
+          },
+          "discovered_clients": []
+        }
+      ]
+    }
+  ],
+  "schema_registries": [],
+  "timestamp": "2026-06-10T09:00:00Z"
+}
