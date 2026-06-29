@@ -4,7 +4,7 @@ description: Create Confluent-specific skills for external users. Use this skill
 compatibility: Requires Python 3.9+, confluent-kafka, fastavro, requests. Needs access to a Confluent environment (Cloud, Platform, local Docker, or WarpStream) for E2E testing.
 metadata:
   author: confluent
-  version: "1.0"
+  version: "1.0.0"
   last_updated: "2026-05-12"
 ---
 
