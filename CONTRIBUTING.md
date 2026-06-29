@@ -314,6 +314,20 @@ Verify your skill triggers correctly:
    - Configurations are valid
    - Best practices are followed
 
+## Versioning
+
+Every skill carries a `metadata.version` field in its `SKILL.md` frontmatter. Bump it in the same PR as the change that warrants it.
+
+| Bump | When |
+|------|------|
+| PATCH (`x.y.Z`) | Non-behavioral: typos, wording clarifications, reference content corrections that don't change what the skill does |
+| MINOR (`x.Y.0`) | Additive: new modes, new reference files, new behavior branches, new eval cases for newly supported scenarios |
+| MAJOR (`X.0.0`) | Breaking: trigger `description` overhaul that changes which prompts the skill handles, removed modes or features, significant behavioral shifts |
+
+If your change bumps any skill to a MINOR or MAJOR version, also bump the `version` field in **both** `.claude-plugin/plugin.json` and `.cursor-plugin/plugin.json` — these two files must always match. A PATCH-only change does not require a plugin-level bump.
+
+New skills start at `1.0.0`.
+
 ## Submitting a Pull Request
 
 Ensure the following before opening a pull request:
