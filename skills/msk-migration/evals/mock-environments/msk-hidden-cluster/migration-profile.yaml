@@ -88,7 +88,7 @@ downstream:
 # against the `broker_instance_type` values on the discovered clusters above.
 #
 # `Express.m7g.4xlarge` appears in cost data but does NOT match any discovered
-# cluster. Sustained across all 12 months of the cost window at $146,935/year —
+# cluster. Sustained across all 12 months of the cost window at $120,000/year —
 # material relative to the observability-tier cluster ($540/year on
 # Express.m7g.large). Row 16 should Trigger with this evidence.
 cost_line_items:
@@ -102,7 +102,7 @@ cost_line_items:
     annual_spend_usd: 540
     months_observed: 12
   - usage_type: "USE1-Express.m7g.4xlarge"
-    annual_spend_usd: 146935
+    annual_spend_usd: 120000
     months_observed: 12
 
 known_gaps:
