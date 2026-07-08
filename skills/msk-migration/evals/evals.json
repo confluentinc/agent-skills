@@ -26,7 +26,8 @@
         {"name": "Sizing table uses 7-column format", "description": "Sizing table header row contains 7 pipe-separated column labels matching the Capacity Sizing Procedure: P95 In ÷ per-eCKU-in, P95 Out ÷ per-eCKU-out, User Partitions ÷ per-eCKU-partition-rate, Max, +Headroom, Verdict."},
         {"name": "Risks table uses 3-column format", "description": "Risks table header row contains exactly 3 pipe-separated column labels: Risk, Severity, Mitigation."},
         {"name": "Auth Approach names a SCRAM-compatible CC target", "description": "Auth Approach section contains at least one of the following substrings as the recommended CC target: 'SCRAM-SHA-512', 'SCRAM-SHA-256', 'SCRAM', or 'API key' (or 'API keys')."},
-        {"name": "Connector approach names the source MSK Connect connector types", "description": "Pre-Migration Workstream, Risks, or a dedicated Connectors section contains at least one of the following substrings: 's3-sink', 'debezium-postgres', 'MSK Connect', or 'managed connector'."}
+        {"name": "Connector approach names the source MSK Connect connector types", "description": "Pre-Migration Workstream, Risks, or a dedicated Connectors section contains at least one of the following substrings: 's3-sink', 'debezium-postgres', 'MSK Connect', or 'managed connector'."},
+        {"name": "Doc citations use the .html extension for the user", "description": "Every docs.confluent.io URL cited in the Plan output ends with the `.html` extension — the user-facing rendered page. The skill fetches the `.md` variant internally but surfaces `.html` to the reader per the SKILL.md fetch/cite rule. Check every docs.confluent.io URL in the artifact (e.g., the cluster-types citation in the Sizing table)."}
       ]
     },
     {
