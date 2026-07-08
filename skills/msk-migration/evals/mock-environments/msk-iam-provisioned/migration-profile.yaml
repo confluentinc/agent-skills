@@ -1,0 +1,50 @@
+# Mock environment for R2 — IAM on the default (plain CL) path, MSK Provisioned.
+#
+# Source uses AWS IAM. On the recommended plain-Cluster-Linking path, IAM is
+# handled WITHOUT reshaping the client fleet — add a SASL/SCRAM listener for
+# the cluster link only, or use a KCP jump cluster. Moving clients off IAM is
+# optional modernization, not a migration gate. Only the Gateway path would
+# require pre-migrating clients off IAM. The target auth defaults to a real CC
+# method (API keys / OAuth / mTLS) — never SCRAM as a CC target.
+
+source:
+  platform: msk-provisioned
+  cloud_provider: aws
+  region: us-east-1
+  kafka_version: 3.5.1
+  migration_drivers: "Moving off MSK; source authenticates clients with AWS IAM today."
+  monthly_cost_usd: 24000
+
+clusters:
+  - name: orders-iam
+    broker_count: 6
+    broker_instance_type: kafka.m5.large
+    availability_zones: [us-east-1a, us-east-1b, us-east-1c]
+    topic_count: 96
+    partition_count_pre_replication: 1920
+    replication_factor: 3
+    p95_ingress_mbps: 100
+    p95_egress_mbps: 280
+    auth_types:
+      - iam
+    network_accessibility: private
+    vpc_topology: single-vpc
+    acl_count: 0  # IAM source has no Kafka ACLs (authz lives in IAM policies)
+    acl_source: iam-policies
+
+schema_registry:
+  type: confluent-sr
+  subject_count: 70
+
+connectors:
+  msk_connect_count: 0
+  self_managed_connect_count: 0
+  connector_types: []
+
+downstream:
+  tableflow_planned: false
+  flink_planned: false
+  lakehouse_planned: false
+
+target_context:
+  target_identity_model: null  # Undecided → cascade defaults to API Keys (a real CC target), never SCRAM

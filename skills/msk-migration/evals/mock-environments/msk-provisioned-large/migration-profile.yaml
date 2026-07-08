@@ -1,0 +1,41 @@
+source:
+  platform: msk-provisioned
+  cloud_provider: aws
+  region: us-west-2
+  kafka_version: 3.6.0
+  migration_drivers: "High-scale consolidation. Planning migration over 2 quarters."
+  monthly_cost_usd: 240000
+
+clusters:
+  - name: events-platform
+    broker_count: 80
+    broker_instance_type: kafka.m5.24xlarge
+    availability_zones: [us-west-2a, us-west-2b, us-west-2c]
+    topic_count: 1200
+    partition_count_pre_replication: 98000
+    replication_factor: 3
+    peak_ingress_mbps: 3500
+    peak_egress_mbps: 8400
+    auth_types:
+      - scram
+    network_accessibility: private
+    vpc_topology: single-vpc
+    acl_count: 3100
+    acl_source: kafka-acls
+
+schema_registry:
+  type: confluent-sr
+  subject_count: 880
+
+connectors:
+  msk_connect_count: 12
+  self_managed_connect_count: 2
+  connector_types:
+    - s3-sink
+    - elasticsearch-sink
+    - debezium-mysql
+
+downstream:
+  tableflow_planned: null
+  flink_planned: null
+  lakehouse_planned: null
