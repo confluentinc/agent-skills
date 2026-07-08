@@ -1,0 +1,52 @@
+# Mock environment for the private-MSK-direct-route CL eval.
+#
+# Tests that the Plan handles a private MSK source where CC HAS a direct
+# route to the MSK VPC (existing peering / TGW between the CC networking
+# VPC and the MSK VPC). The Plan should:
+#   - Recommend PNI as the default networking (AWS-to-AWS private).
+#   - Emit destination-initiated CL direction (MSK has no other option).
+#   - NOT recommend an Egress PrivateLink Endpoint — the direct route
+#     already gives CC reachability to the source.
+
+source:
+  platform: msk-provisioned
+  cloud_provider: aws
+  region: us-east-1
+  kafka_version: 3.5.1
+  migration_drivers: "Moving off MSK; private VPC with existing peering between the CC networking VPC and the MSK VPC."
+  monthly_cost_usd: 16000
+
+clusters:
+  - name: orders-prod
+    broker_count: 3
+    broker_instance_type: kafka.m5.large
+    availability_zones: [us-east-1a, us-east-1b, us-east-1c]
+    topic_count: 40
+    partition_count_pre_replication: 760
+    replication_factor: 3
+    peak_ingress_mbps: 85
+    peak_egress_mbps: 220
+    auth_types:
+      - scram
+    network_accessibility: private
+    vpc_topology: single-vpc
+    acl_count: 20
+    acl_source: kafka-acls
+
+schema_registry:
+  type: confluent-sr
+  subject_count: 28
+
+connectors:
+  msk_connect_count: 0
+  self_managed_connect_count: 0
+  connector_types: []
+
+downstream:
+  tableflow_planned: false
+  flink_planned: false
+  lakehouse_planned: false
+
+target_context:
+  cc_reaches_source: true  # Direct route exists: existing peering between the CC networking VPC and the MSK VPC. CC reaches MSK directly — no Egress PrivateLink Endpoint needed. CL stays destination-initiated.
+  cc_egress_required: false  # No CC managed connectors needing customer-side egress. PNI default lands cleanly — no additive egress endpoint required.

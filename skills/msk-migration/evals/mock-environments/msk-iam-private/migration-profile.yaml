@@ -1,0 +1,49 @@
+source:
+  platform: msk-provisioned
+  cloud_provider: aws
+  region: us-east-1
+  kafka_version: 3.4.0
+  migration_drivers: "Security team wants us off IAM-only auth. Also moving to managed."
+  monthly_cost_usd: 32000
+
+clusters:
+  - name: payments-prod
+    broker_count: 9
+    broker_instance_type: kafka.m5.xlarge
+    availability_zones: [us-east-1a, us-east-1b, us-east-1c]
+    topic_count: 120
+    user_topic_count: 112
+    internal_topic_count: 8
+    partition_count_pre_replication: 3600
+    user_partition_count: 3568
+    internal_partition_count: 32
+    replication_factor: 3
+    peak_ingress_mbps: 320
+    peak_egress_mbps: 960
+    auth_types:
+      - iam
+    network_accessibility: private
+    vpc_topology: single-vpc
+    # Kafka ACL scan ran successfully (topics were populated on this cluster),
+    # returned zero entries. State file shows `acls: null` — the nil-slice-on-zero
+    # case from KCP's scanKafkaAcls(). Skill must disambiguate: null + topics
+    # populated + PROVISIONED = scan ran, found zero ACLs. Row 9 Triggered
+    # (zero ACLs + IAM enabled → authz is in IAM policies).
+    acl_count: null
+    acl_source: iam-policies
+
+schema_registry:
+  type: aws-glue
+  subject_count: 94
+
+connectors:
+  msk_connect_count: 3
+  self_managed_connect_count: 0
+  connector_types:
+    - s3-sink
+    - lambda-sink
+
+downstream:
+  tableflow_planned: false
+  flink_planned: false
+  lakehouse_planned: false

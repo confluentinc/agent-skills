@@ -1,0 +1,57 @@
+# Mock environment for R2 — IAM on MSK Serverless (the Serverless fork).
+#
+# MSK Serverless is IAM-only — you cannot add a SASL/SCRAM or mTLS listener.
+# So the CL-dedicated SCRAM-listener bridge does NOT apply here. The only
+# plain-CL path for an IAM-only Serverless source is the KCP jump cluster.
+# Broker fields are null (Serverless has no broker sizing). Serverless maps
+# to an Enterprise target by default.
+
+source:
+  platform: msk-serverless
+  cloud_provider: aws
+  region: us-east-1
+  kafka_version: null  # Serverless does not expose a broker Kafka version
+  migration_drivers: "Moving an IAM-only MSK Serverless cluster to Confluent Cloud."
+  monthly_cost_usd: 9000
+
+clusters:
+  - name: events-serverless
+    broker_count: null  # Serverless — no brokers to size
+    broker_instance_type: null
+    availability_zones: []
+    topic_count: 60
+    partition_count_pre_replication: 480
+    replication_factor: 3
+    p95_ingress_mbps: null  # Serverless exposes limited CloudWatch metrics by design
+    p95_egress_mbps: null
+    peak_ingress_mbps: null
+    peak_egress_mbps: null
+    auth_types:
+      - iam
+    network_accessibility: private
+    vpc_topology: single-vpc
+    acl_count: null  # Serverless does not support the Kafka Admin API (authz lives in IAM policies)
+    acl_source: iam-policies
+
+schema_registry:
+  type: confluent-sr
+  subject_count: 40
+
+connectors:
+  msk_connect_count: 0
+  self_managed_connect_count: 0
+  connector_types: []
+
+downstream:
+  tableflow_planned: false
+  flink_planned: false
+  lakehouse_planned: false
+
+target_context:
+  target_identity_model: null
+
+known_gaps:
+  - field: clusters[events-serverless].p95_ingress_mbps
+    reason: "MSK Serverless exposes limited CloudWatch metrics; throughput not available from scan."
+  - field: clusters[events-serverless].p95_egress_mbps
+    reason: "MSK Serverless exposes limited CloudWatch metrics; throughput not available from scan."
