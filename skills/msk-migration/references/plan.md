@@ -85,7 +85,7 @@ Fetches 1 and 2 happen before writing every Technical Plan; fetch 3 only when th
 - **Multi-VPC source.** Transit Gateway is the only option that avoids per-VPC peering — this escalates to Dedicated.
 - **Cross-region migration.** Factor in data transfer costs and latency. Cluster Linking between regions is supported but adds per-GB transfer cost.
 - **On-prem source.** Need VPN or Direct Connect to AWS, then PrivateLink/PNI from there. Treat as multi-hop networking.
-- **Enterprise PNI on AWS.** Customer provides the networking substrate; Confluent delivers via ENIs. Higher throughput headroom than PrivateLink. Verify current ENI requirements against [networking docs](https://docs.confluent.io/cloud/current/networking/) live.
+- **Enterprise PNI on AWS.** Customer provides the networking substrate; Confluent delivers via ENIs. Higher throughput headroom than PrivateLink. Verify current ENI requirements against [networking docs](https://docs.confluent.io/cloud/current/networking/overview.md) live.
 - **Enterprise PrivateLink on AWS.** Default private connectivity. eCKU cap applies; verify current cap per networking type against cluster-types.html.
 
 ## Networking Choice
@@ -464,7 +464,7 @@ If a number can't be cited (fabricated, inferred without evidence, or from train
 ## Source of Truth
 
 - Cluster type specs, capacity caps, networking feature availability, SLA — https://docs.confluent.io/cloud/current/clusters/cluster-types.md. Fetch live before recommending a cluster type or citing a cap.
-- Cluster Linking source requirements, auth compatibility — https://docs.confluent.io/cloud/current/multi-cloud/cluster-linking. Fetch live.
+- Cluster Linking source requirements, auth compatibility — https://docs.confluent.io/cloud/current/multi-cloud/cluster-linking/index.md. Fetch live.
 - Schema Linking source matrix — https://docs.confluent.io Schema Registry / Schema Linking pages. Fetch live before committing to Schema Linking as the path.
 - Connector catalog — https://docs.confluent.io/cloud/current/connectors/index.md. Fetch live to check managed-connector availability.
 - Pricing and commercial quote are out of scope. Direct users to the public cost estimator at https://www.confluent.io/pricing/cost-estimator/ as the Sales handoff.
