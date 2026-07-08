@@ -37,6 +37,10 @@ Example prompts:
 - "Build a Flink Table API application in Python to filter streaming data"
 - "Set up a streaming pipeline with Schema Registry"
 
+## Contributing
+
+We welcome external contributions! Read [CONTRIBUTING.md](./CONTRIBUTING.md) for more, and please note that the confluent-skill-creator and confluent-skill-reviewer skills are available to help with development.
+
 ## Skills
 
 This repository includes the following skills:
@@ -50,6 +54,7 @@ This repository includes the following skills:
 | **confluent-cloud-cdc-tableflow** | Set up end-to-end Change Data Capture (CDC) pipelines on Confluent Cloud using Debezium source connectors, Flink for transformation, and Tableflow for data lake integration. Supports SQL Server, MySQL, PostgreSQL, Oracle, and DynamoDB to Iceberg or Delta Lake tables. |
 | **kafkajs-migration**         | Migrate Node.js Kafka applications from KafkaJS to Confluent's `@confluentinc/kafka-javascript` client. Handles import changes, `kafkaJS` config wrapping, producer/consumer/admin API differences, error handling, authentication, transactions, and performance tuning. Validates each change against the official migration guide and explains behavior differences before applying. |
 | **confluent-skill-reviewer** | Audit a skill in this repo against the Agent Skills spec (agentskills.io), the Confluent conventions in CLAUDE.md, and the PR template gates. Wraps `skill-validator` opportunistically and adds Confluent-specific checks: lazy-loaded references, trigger-overlap anti-clauses, evals-as-contract, 90% eval threshold, SME + DTX/DevRel reviewer assignment. Runs in PR-diff, single-skill, or repo-wide mode. |
+| **confluent-skill-creator** | Create new Confluent-specific skills that are tested against real Confluent environments (Cloud, Platform, Apache Kafka, or WarpStream). Guides scope and platform targeting, intent capture, spec-compliant authoring, credential setup (`.env` or YAML), end-to-end testing with bundled scripts, eval-driven iteration, and packaging. For *building* new skills — not for using existing product skills. |
 
 ## Repository layout
 

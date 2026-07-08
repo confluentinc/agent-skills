@@ -24,14 +24,16 @@ SOFT_404_TITLE='<title>Confluent Documentation &#124; Confluent Documentation</t
 UA='Mozilla/5.0 (compatible; agent-skills-linkcheck/1.0)'
 
 # Links we can't (or shouldn't) resolve over the network: RFC 6570 templates,
-# angle-bracket / xxxxx / your- placeholders, local endpoints, and the auth-gated
-# Confluent API host. These are illustrative, not browsable documentation.
+# angle-bracket / xxxxx / your- placeholders, local endpoints, the auth-gated
+# Confluent API host, and hosts behind a bot challenge that will yield a 403
+# (like support.confluent.io). These are illustrative or unverifiable, not browsable docs.
 should_skip() {
   case "$1" in
     *'{'*|*'}'*|*'<'*|*'>'*) return 0 ;;
     *xxxxx*|*your-*) return 0 ;;
     *localhost*|*0.0.0.0*|*:8081*) return 0 ;;
     https://api.confluent.cloud*) return 0 ;;
+    https://support.confluent.io*) return 0 ;;
   esac
   return 1
 }

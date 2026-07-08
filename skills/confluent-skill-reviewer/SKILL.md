@@ -1,6 +1,8 @@
 ---
 name: confluent-skill-reviewer
 description: Review a Confluent agent skill in this repo against the Agent Skills spec (agentskills.io), Confluent conventions in CLAUDE.md, the PR template gates, and the evals-as-contract rule. Use this skill whenever the user asks to review, audit, validate, or lint a skill; opens or inspects a PR that adds or modifies anything under `skills/`; asks about spec conformance, lazy-loading, frontmatter shape, trigger overlap, or eval coverage; or wants a pre-merge sanity check on skill changes. Do NOT trigger for general code review of application code; security review; auditing schemas, producer/consumer configs, PII tagging, or Terraform generation for Schema Registry (handled by `kafka-schema-registry`); runtime/log analysis of skill behavior (use `tools/skill_review_dashboard.py`); or any changes that don't touch the `skills/` tree.
+metadata:
+  version: "1.0.0"
 ---
 
 # confluent-skill-reviewer — audit a Confluent agent skill
@@ -86,11 +88,11 @@ Read `references/trigger-overlap.md` only when proposing the wording of an anti-
 Run `python3 skills/confluent-skill-reviewer/scripts/check_eval_schema.py <skill-path>/evals/evals.json` (from the repo root). The script validates:
 
 - Top-level `skill_name` (string) and `evals` (array) keys present.
-- Each eval has `id`, `prompt`, `expected_output`, `files`, and either `expectations` (array of strings, kafka-streams style) **or** `assertions` (array of objects, developing-kafka-python-client style). Mixing the two within the same file is a **Warning** — pick one shape.
+- Each eval has `id`, `prompt`, `expected_output`, `files`, and its checks under the `assertions` key. The repo standardized on one shape: **`assertions` holding a list of strings**. Two deviations are now **Blocking** — the legacy `expectations` key (must be renamed to `assertions`) and object-form entries `[{id, type, description, …}]` (must be flattened to strings).
 - `prompt` is realistic user phrasing, not abstract (heuristic: ≥40 chars, not just "Build me an X"). Short prompts are a **Warning**.
-- `expectations[]`/`assertions[]` are specific (heuristic: contain a verb, a noun, and at least one concrete identifier — file path, class name, config key, or "NOT" clause). Vague expectations are a **Warning**; cite `CLAUDE.md` § Evals are the contract: "expectations encode hard-won correctness — treat them as regression tests, not aspirations".
+- `assertions[]` are specific (heuristic: contain a verb, a noun, and at least one concrete identifier — file path, class name, config key, or "NOT" clause). Vague assertions are a **Warning**; cite `CLAUDE.md` § Evals are the contract: "expectations encode hard-won correctness — treat them as regression tests, not aspirations".
 
-Cross-check fixture sync: if the skill has an `evals/mock-repos/` or `evals/mock-skills/` directory, each `files: [path]` in evals.json must resolve. Missing fixtures are **Blocking**.
+Cross-check fixture sync: each entry in `files: [...]` is either an on-disk path (relative to the skill root — must resolve when the skill has an `evals/mock-repos/` or `evals/mock-skills/` directory; missing fixtures are **Blocking**) or an inline fixture object `{path, content}` that carries the file body in the eval itself (not resolved on disk).
 
 Read `references/evals-contract.md` for the JSON schema, both expectation shapes, and worked examples of weak vs strong expectations.
 
