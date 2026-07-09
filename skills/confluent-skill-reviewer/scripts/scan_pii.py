@@ -37,24 +37,35 @@ import sys
 from pathlib import Path
 
 # Only text formats a skill would legitimately contain. Everything else
-# (images, archives, compiled artifacts) is skipped.
+# (images, archives, compiled artifacts) is skipped. Cert/key extensions are
+# included so an accidentally committed private key can't dodge the scanner on
+# its file type alone. NOTE: extension-less files (e.g. `id_rsa`) are still
+# skipped — a stricter "scan any UTF-8-decodable file" mode would close that
+# remaining gap.
 TEXT_SUFFIXES = {
     ".md", ".markdown", ".json", ".yaml", ".yml", ".txt", ".csv", ".tsv",
     ".py", ".sh", ".bash", ".sql", ".java", ".js", ".ts", ".env", ".template",
     ".properties", ".conf", ".ini", ".toml",
+    ".pem", ".key", ".crt", ".cert",
 }
 
 SKIP_DIR_NAMES = {".git", "__pycache__", "node_modules", ".venv", "venv"}
 
-# Domains that mark an email as synthetic/documentation data.
+# Domains that mark an email as synthetic/documentation data. Only TLDs
+# reserved for documentation/testing (RFC 2606 / RFC 6761) count. `.local`
+# (RFC 6762 mDNS) is deliberately NOT here — it is used for real internal
+# addresses, so treating it as safe would let real data through.
 SAFE_EMAIL_SUFFIXES = (
     "example.com", "example.org", "example.net",
-    ".example", ".invalid", ".test", ".local", ".localhost",
+    ".example", ".invalid", ".test", ".localhost",
 )
 # Placeholder tokens that, when present in an email, mark it as a template.
+# Kept narrow on purpose: broad English words like "example"/"sample" as bare
+# substrings would skip real emails that merely contain them (the example
+# domains are already covered by SAFE_EMAIL_SUFFIXES).
 EMAIL_PLACEHOLDER_TOKENS = (
-    "example", "your-", "yourdomain", "your_domain", "changeme", "placeholder",
-    "sample", "domain.com", "email.com", "user@host",
+    "your-", "yourdomain", "your_domain", "changeme", "placeholder",
+    "domain.com", "email.com", "user@host",
 )
 
 SSN_RE = re.compile(r"(?<!\d)\d{3}-\d{2}-\d{4}(?!\d)")
@@ -100,11 +111,11 @@ def _finding(severity: str, file: str, line: int, kind: str, match: str, message
     }
 
 
-def _redact(text: str) -> str:
-    """Never echo a full potential-PII value back; keep the tail for locating it."""
-    if len(text) <= 4:
-        return "*" * len(text)
-    return "…" + text[-4:]
+def _redact(_text: str) -> str:
+    """Never echo any part of a potential-PII value — the JSON is printed into
+    CI logs, and even a tail (e.g. the last 4 of an SSN) is sensitive. The
+    finding's ``kind``/``file``/``line`` are enough to locate the match."""
+    return "[redacted]"
 
 
 def scan_line(rel: str, lineno: int, line: str) -> list[dict]:

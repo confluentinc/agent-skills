@@ -10,9 +10,22 @@ metadata:
 # leaky-data — order enrichment (INTENTIONALLY LEAKY TEST FIXTURE)
 
 This mock skill is structurally valid on purpose — it exists so the PII
-scanner has a positive target. Its eval prompts and fixtures embed
+scanner has a positive target. The sample record below embeds
 synthetic-but-pattern-matching customer data (fake SSN, test card number,
-real-looking email/phone) that a review must flag. Do not copy this shape.
+real-looking email/phone, sample AWS key) that a review must flag. Do not
+copy this shape into a real skill.
+
+Example enriched-order record — **every field here should trip the scanner**:
+
+```json
+{
+  "customer_ssn": "123-45-6789",
+  "payment_card": "4111 1111 1111 1111",
+  "contact_email": "jane.doe@northwind-traders.com",
+  "contact_phone": "+1 (415) 555-2671",
+  "export_aws_key": "AKIAIOSFODNN7EXAMPLE"
+}
+```
 
 ## Steps
 
