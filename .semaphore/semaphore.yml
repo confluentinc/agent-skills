@@ -51,3 +51,11 @@ blocks:
         - name: "Check Skill Links"
           commands:
             - ./tools/check-links.sh skills
+        # Scans skill files for embedded PII / secrets (real customer data,
+        # keys, card numbers) using the detector bundled with the
+        # confluent-skill-reviewer. Eval prompts, fixtures, and sample records
+        # are supposed to use synthetic data only — this catches real data
+        # before it lands on main.
+        - name: "Scan for PII"
+          commands:
+            - python3 skills/confluent-skill-reviewer/scripts/scan_pii.py skills/ --exclude '*/mock-skills/leaky-data/*'
