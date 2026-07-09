@@ -113,7 +113,7 @@ def scan_line(rel: str, lineno: int, line: str) -> list[dict]:
     for m in SSN_RE.finditer(line):
         findings.append(_finding(
             "blocking", rel, lineno, "us-ssn", _redact(m.group()),
-            "Looks like a US Social Security Number. Replace with synthetic data (e.g. 000-00-0000 style is still risky — use an obviously fake token).",
+            "Looks like a US Social Security Number. Replace it with an obviously fake, clearly non-real token rather than any real-looking nine-digit value.",
         ))
 
     for m in AWS_KEY_RE.finditer(line):
@@ -137,6 +137,10 @@ def scan_line(rel: str, lineno: int, line: str) -> list[dict]:
             ))
 
     for m in EMAIL_RE.finditer(line):
+        # Skip URL userinfo like `abfss://container@host` or `scheme://user@host` —
+        # the "@host" there is an authority component, not an email address.
+        if m.start() > 0 and line[m.start() - 1] == "/":
+            continue
         email = m.group()
         if not _email_is_synthetic(email):
             findings.append(_finding(
