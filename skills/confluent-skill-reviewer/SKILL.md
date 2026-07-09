@@ -2,7 +2,9 @@
 name: confluent-skill-reviewer
 description: Review a Confluent agent skill in this repo against the Agent Skills spec (agentskills.io), Confluent conventions in CLAUDE.md, the PR template gates, and the evals-as-contract rule. Use this skill whenever the user asks to review, audit, validate, or lint a skill; opens or inspects a PR that adds or modifies anything under `skills/`; asks about spec conformance, lazy-loading, frontmatter shape, trigger overlap, or eval coverage; or wants a pre-merge sanity check on skill changes. Do NOT trigger for general code review of application code; security review; auditing schemas, producer/consumer configs, PII tagging, or Terraform generation for Schema Registry (handled by `kafka-schema-registry`); runtime/log analysis of skill behavior (use `tools/skill_review_dashboard.py`); or any changes that don't touch the `skills/` tree.
 metadata:
-  version: "1.0.0"
+  author: confluent
+  version: "1.1.0"
+  last_updated: "2026-07-09"
 ---
 
 # confluent-skill-reviewer — audit a Confluent agent skill
@@ -69,6 +71,7 @@ Inspect the SKILL.md against rules in `CLAUDE.md` § Skill anatomy and § Evals 
 6. **Platform scoping**: if the `name` contains a platform token (`confluent-cloud-*`, `confluent-platform-*`, `warpstream-*`, `apache-kafka-*`), the body must scope its instructions to that platform — **Blocking** if it generically covers all platforms. Conversely, if the `name` lacks a platform token but the body performs platform-divergent operations (Cloud API keys, WarpStream object-storage config, on-prem SASL), expect a platform-detection step *and* per-platform reference files (`references/confluent-cloud.md`, `references/warpstream.md`, etc.). Missing either is a **Warning**.
 7. **Plan-before-execute**: skills that create, modify, or delete resources (Kafka topics, schemas, Flink statements, connectors, Terraform state) must include an explicit "present the plan, wait for user confirmation" step before any resource-modifying call. Absence in a CRUD-capable skill is **Blocking**.
 8. **Credential handling**: skills that read credentials must not `cat`, `Read`, `head`, or `grep` a `.env` file directly — they should reference variables by name (`$BOOTSTRAP_SERVERS`) and verify presence with `test -n "$VAR"`. SKILL.md or bundled scripts that read `.env` contents are **Blocking**. A credential-consuming skill with no guardrail language at all is a **Warning**.
+9. **Synthetic data only**: run `python3 skills/confluent-skill-reviewer/scripts/scan_pii.py <skill-path>` (from the repo root) to catch real customer data or secrets committed into the skill — SKILL.md, `references/`, eval prompts, on-disk fixtures, and bundled scripts must use *synthetic* data only. The script emits JSON; map each finding into the report. `severity: "blocking"` (US SSN, Luhn-valid payment card, AWS key id, private-key block) → **Blocking**; `severity: "warning"` (email on a non-example domain, phone number) → **Warning**. CI runs the same scanner over `skills/`, so a clean run here mirrors the gate.
 
 Read `references/confluent-conventions.md` for the full rule list and PR-template gates.
 

@@ -4,8 +4,8 @@ description: Create Confluent-specific skills for external users. Use this skill
 compatibility: Requires Python 3.9+, confluent-kafka, fastavro, requests. Needs access to a Confluent environment (Cloud, Platform, local Docker, or WarpStream) for E2E testing.
 metadata:
   author: confluent
-  version: "1.0.0"
-  last_updated: "2026-05-12"
+  version: "1.1.0"
+  last_updated: "2026-07-09"
 ---
 
 # Confluent Skill Creator
@@ -245,6 +245,7 @@ Before finalizing the description, check for unintended overlap with existing sk
   - Every eval must include a `files` field (empty array `[]` if no fixtures)
   - Prompts must be ≥40 chars and read like a real user message (specific data shapes, named environments, not just "Build me an X")
   - Assertions must be specific — include file paths, class names, config keys, `NOT` clauses, or quoted CLI flags. Vague assertions like "The code is well written" will be flagged
+  - **Synthetic data only** — prompts, fixtures, and sample records must never contain real customer PII or secrets (SSNs, Luhn-valid card numbers, AWS keys, private keys, real emails/phone numbers). Use `example.com`/`.example` domains, `555-01xx` phone numbers, and obvious placeholders. See [PII and synthetic data](references/confluent-best-practices.md#pii-and-synthetic-data); the `confluent-skill-reviewer` blocks violations
 - `.env.template` or `credentials.yaml.template` if the skill requires credentials
 - `references/<platform>.md` files if cross-platform (one per supported platform)
 
@@ -285,6 +286,8 @@ Credentials may live in a `.env` file or a YAML file (`credentials.yaml`) — th
 - For `credentials.yaml`: load it inside the script/process that consumes it (e.g., a YAML parser at runtime), never echo parsed values to logs or stdout
 - Add the credential file to `.gitignore` (`.env`, `credentials.yaml`)
 - Generated skills **must** include this same guardrail
+
+**CRITICAL: Use synthetic data only — never commit real customer PII or secrets.** Eval prompts, fixtures, sample records, and reference examples must use fabricated data (`example.com` emails, `555-01xx` phone numbers, obviously fake ids). Never embed real SSNs, Luhn-valid payment card numbers, AWS keys, or private key material. See [PII and synthetic data](references/confluent-best-practices.md#pii-and-synthetic-data). You can verify a skill directory with `python3 skills/confluent-skill-reviewer/scripts/scan_pii.py <skill-path>` before packaging.
 
 ### Set up credentials
 
