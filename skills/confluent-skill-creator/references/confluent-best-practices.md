@@ -10,6 +10,28 @@
 - Use separate API keys for different environments
 - Generated skills must include the same `.env` read prohibition in their instructions
 
+## PII and synthetic data
+
+**Skill files must never contain real customer data or secrets.** Everything committed into a skill — `SKILL.md`, `references/`, eval prompts in `evals.json`, on-disk fixtures (`mock-repos/`, `mock-skills/`, sample records), and bundled scripts — must use *synthetic* data only. This is the same rule the `confluent-skill-reviewer` enforces with `scripts/scan_pii.py`; a review will flag violations, so get it right at authoring time.
+
+**Never embed (blocking — remove and rotate if ever real):**
+- US Social Security Numbers or other government IDs
+- Luhn-valid payment card numbers — use a clearly fake, non-Luhn placeholder
+- AWS access key ids (`AKIA…`/`ASIA…`), private key blocks (`-----BEGIN … PRIVATE KEY-----`), or any live secret
+
+**Avoid (use synthetic equivalents instead):**
+- Real email addresses — use `example.com`, a `.example`/`.invalid`/`.test` domain, or an obvious placeholder like `you@example.com`
+- Real phone numbers — use a fictional `555-01xx` number
+- Real names, account ids, org ids, cluster ids, or hostnames pulled from an actual environment — replace with obvious placeholders
+
+**Verify before shipping:** you can run the reviewer's scanner against the skill directory to catch anything that slipped in:
+
+```bash
+python3 skills/confluent-skill-reviewer/scripts/scan_pii.py path/to/created-skill
+```
+
+Generated skills should carry this same "synthetic data only" guidance so their authors and evals stay clean.
+
 ## Error handling
 
 - Check if resources exist before trying to create them
