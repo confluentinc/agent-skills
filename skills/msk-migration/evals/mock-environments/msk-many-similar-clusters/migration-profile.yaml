@@ -1,0 +1,205 @@
+# Mock environment for R11 — similar-cluster bucketing.
+#
+# 10 substantially-identical clusters (same instance/broker/auth/networking/
+# version/scale band) plus 2 outliers that differ on a single load-bearing
+# dimension. The output should render the 10 identical clusters as one
+# "similar clusters" bucket with a member list, and itemize the 2 outliers
+# separately (naming the dimension each differs on). The trigger is
+# similarity (2+ identical), not a count threshold.
+
+source:
+  platform: msk-provisioned
+  cloud_provider: aws
+  region: us-east-1
+  kafka_version: 3.5.1
+  migration_drivers: "Consolidating a large fleet of near-identical regional ingest clusters onto Confluent Cloud."
+  monthly_cost_usd: 96000
+
+clusters:
+  # --- 10 substantially-identical clusters ---
+  - name: ingest-01
+    broker_count: 3
+    broker_instance_type: kafka.m5.large
+    availability_zones: [us-east-1a, us-east-1b, us-east-1c]
+    topic_count: 40
+    partition_count_pre_replication: 600
+    replication_factor: 3
+    p95_ingress_mbps: 30
+    p95_egress_mbps: 90
+    auth_types: [scram]
+    network_accessibility: private
+    vpc_topology: single-vpc
+    acl_count: 20
+    acl_source: kafka-acls
+  - name: ingest-02
+    broker_count: 3
+    broker_instance_type: kafka.m5.large
+    availability_zones: [us-east-1a, us-east-1b, us-east-1c]
+    topic_count: 40
+    partition_count_pre_replication: 600
+    replication_factor: 3
+    p95_ingress_mbps: 30
+    p95_egress_mbps: 90
+    auth_types: [scram]
+    network_accessibility: private
+    vpc_topology: single-vpc
+    acl_count: 20
+    acl_source: kafka-acls
+  - name: ingest-03
+    broker_count: 3
+    broker_instance_type: kafka.m5.large
+    availability_zones: [us-east-1a, us-east-1b, us-east-1c]
+    topic_count: 40
+    partition_count_pre_replication: 600
+    replication_factor: 3
+    p95_ingress_mbps: 30
+    p95_egress_mbps: 90
+    auth_types: [scram]
+    network_accessibility: private
+    vpc_topology: single-vpc
+    acl_count: 20
+    acl_source: kafka-acls
+  - name: ingest-04
+    broker_count: 3
+    broker_instance_type: kafka.m5.large
+    availability_zones: [us-east-1a, us-east-1b, us-east-1c]
+    topic_count: 40
+    partition_count_pre_replication: 600
+    replication_factor: 3
+    p95_ingress_mbps: 30
+    p95_egress_mbps: 90
+    auth_types: [scram]
+    network_accessibility: private
+    vpc_topology: single-vpc
+    acl_count: 20
+    acl_source: kafka-acls
+  - name: ingest-05
+    broker_count: 3
+    broker_instance_type: kafka.m5.large
+    availability_zones: [us-east-1a, us-east-1b, us-east-1c]
+    topic_count: 40
+    partition_count_pre_replication: 600
+    replication_factor: 3
+    p95_ingress_mbps: 30
+    p95_egress_mbps: 90
+    auth_types: [scram]
+    network_accessibility: private
+    vpc_topology: single-vpc
+    acl_count: 20
+    acl_source: kafka-acls
+  - name: ingest-06
+    broker_count: 3
+    broker_instance_type: kafka.m5.large
+    availability_zones: [us-east-1a, us-east-1b, us-east-1c]
+    topic_count: 40
+    partition_count_pre_replication: 600
+    replication_factor: 3
+    p95_ingress_mbps: 30
+    p95_egress_mbps: 90
+    auth_types: [scram]
+    network_accessibility: private
+    vpc_topology: single-vpc
+    acl_count: 20
+    acl_source: kafka-acls
+  - name: ingest-07
+    broker_count: 3
+    broker_instance_type: kafka.m5.large
+    availability_zones: [us-east-1a, us-east-1b, us-east-1c]
+    topic_count: 40
+    partition_count_pre_replication: 600
+    replication_factor: 3
+    p95_ingress_mbps: 30
+    p95_egress_mbps: 90
+    auth_types: [scram]
+    network_accessibility: private
+    vpc_topology: single-vpc
+    acl_count: 20
+    acl_source: kafka-acls
+  - name: ingest-08
+    broker_count: 3
+    broker_instance_type: kafka.m5.large
+    availability_zones: [us-east-1a, us-east-1b, us-east-1c]
+    topic_count: 40
+    partition_count_pre_replication: 600
+    replication_factor: 3
+    p95_ingress_mbps: 30
+    p95_egress_mbps: 90
+    auth_types: [scram]
+    network_accessibility: private
+    vpc_topology: single-vpc
+    acl_count: 20
+    acl_source: kafka-acls
+  - name: ingest-09
+    broker_count: 3
+    broker_instance_type: kafka.m5.large
+    availability_zones: [us-east-1a, us-east-1b, us-east-1c]
+    topic_count: 40
+    partition_count_pre_replication: 600
+    replication_factor: 3
+    p95_ingress_mbps: 30
+    p95_egress_mbps: 90
+    auth_types: [scram]
+    network_accessibility: private
+    vpc_topology: single-vpc
+    acl_count: 20
+    acl_source: kafka-acls
+  - name: ingest-10
+    broker_count: 3
+    broker_instance_type: kafka.m5.large
+    availability_zones: [us-east-1a, us-east-1b, us-east-1c]
+    topic_count: 40
+    partition_count_pre_replication: 600
+    replication_factor: 3
+    p95_ingress_mbps: 30
+    p95_egress_mbps: 90
+    auth_types: [scram]
+    network_accessibility: private
+    vpc_topology: single-vpc
+    acl_count: 20
+    acl_source: kafka-acls
+
+  # --- Outlier 1: differs on scale (much higher partition count / throughput) ---
+  - name: analytics-heavy
+    broker_count: 9
+    broker_instance_type: kafka.m5.xlarge
+    availability_zones: [us-east-1a, us-east-1b, us-east-1c]
+    topic_count: 220
+    partition_count_pre_replication: 6800
+    replication_factor: 3
+    p95_ingress_mbps: 320
+    p95_egress_mbps: 960
+    auth_types: [scram]
+    network_accessibility: private
+    vpc_topology: single-vpc
+    acl_count: 110
+    acl_source: kafka-acls
+
+  # --- Outlier 2: differs on auth (mTLS instead of SCRAM) ---
+  - name: partner-mtls
+    broker_count: 3
+    broker_instance_type: kafka.m5.large
+    availability_zones: [us-east-1a, us-east-1b, us-east-1c]
+    topic_count: 40
+    partition_count_pre_replication: 600
+    replication_factor: 3
+    p95_ingress_mbps: 30
+    p95_egress_mbps: 90
+    auth_types: [mtls]
+    network_accessibility: private
+    vpc_topology: single-vpc
+    acl_count: 20
+    acl_source: kafka-acls
+
+schema_registry:
+  type: confluent-sr
+  subject_count: 180
+
+connectors:
+  msk_connect_count: 0
+  self_managed_connect_count: 0
+  connector_types: []
+
+downstream:
+  tableflow_planned: false
+  flink_planned: false
+  lakehouse_planned: false

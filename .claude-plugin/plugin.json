@@ -1,6 +1,6 @@
 {
   "name": "streaming-skills-plugin",
   "description": "Skills for streaming application developers, covering Kafka and Flink client libraries and Schema Registry",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "skills": "./skills/"
 }

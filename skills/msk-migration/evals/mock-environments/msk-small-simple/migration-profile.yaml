@@ -1,0 +1,48 @@
+# Mock environment for R1 — plain Cluster Linking recommended (small/simple).
+#
+# Small single cluster, low throughput, cutover window acceptable, client
+# coordination manageable. No switchover-mechanism trigger fires, so the
+# Plan recommends plain Cluster Linking (not the Gateway).
+
+source:
+  platform: msk-provisioned
+  cloud_provider: aws
+  region: us-east-1
+  kafka_version: 3.5.1
+  migration_drivers: "Moving a small internal cluster off MSK. No hard deadline; a cutover window is fine."
+  monthly_cost_usd: 4000
+
+clusters:
+  - name: internal-tools
+    broker_count: 3
+    broker_instance_type: kafka.m5.large
+    availability_zones: [us-east-1a, us-east-1b, us-east-1c]
+    topic_count: 50
+    partition_count_pre_replication: 300
+    replication_factor: 3
+    p95_ingress_mbps: 20
+    p95_egress_mbps: 60
+    auth_types:
+      - scram
+    network_accessibility: private
+    vpc_topology: single-vpc
+    acl_count: 18
+    acl_source: kafka-acls
+
+schema_registry:
+  type: confluent-sr
+  subject_count: 22
+
+connectors:
+  msk_connect_count: 0
+  self_managed_connect_count: 0
+  connector_types: []
+
+downstream:
+  tableflow_planned: false
+  flink_planned: false
+  lakehouse_planned: false
+
+target_context:
+  downtime_tolerance: window_acceptable  # A cutover window is fine → no Gateway trigger
+  client_coordination_burden: manageable  # Few client apps, one team → no Gateway trigger
