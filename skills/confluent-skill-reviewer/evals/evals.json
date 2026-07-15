@@ -1,0 +1,128 @@
+{
+  "skill_name": "confluent-skill-reviewer",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "Review the skill at skills/confluent-skill-reviewer/evals/mock-skills/good-skill/ — I'm about to ship it.",
+      "expected_output": "A single Markdown report with zero Blocking findings and the recommendation 'approve'. No false positives flagged.",
+      "files": [
+        "evals/mock-skills/good-skill"
+      ],
+      "assertions": [
+        "Report's `Blocking` section shows `(0)` — zero blocking findings",
+        "Final recommendation is `approve` (NOT `request changes`)",
+        "Does NOT flag the SKILL.md as inlining references (the lazy-load preamble is present)",
+        "Does NOT flag the `description:` as missing an anti-trigger clause (`Do NOT trigger for self-managed Apache Kafka, schema registration, Terraform generation, or Kafka Streams topology authoring.` is present)",
+        "Confirms which mode it entered (Single-skill) in the report header",
+        "Notes `skill-validator` availability status (installed or not installed) in the report header"
+      ]
+    },
+    {
+      "id": 1,
+      "prompt": "Review skills/confluent-skill-reviewer/evals/mock-skills/inlined-refs/ before I merge.",
+      "expected_output": "A Blocking finding citing CLAUDE.md's lazy-load rule, identifying inlined content from references/exporters.md.",
+      "files": [
+        "evals/mock-skills/inlined-refs"
+      ],
+      "assertions": [
+        "Emits at least one `Blocking` finding under Phase B (Confluent conventions / lazy-load)",
+        "Cites `CLAUDE.md` § Skill anatomy (lazy-load references bullet)",
+        "Identifies the duplicated content between `SKILL.md` and `references/exporters.md` (the kafka-exporter / Confluent Control Center comparison)",
+        "Suggests moving the content out of SKILL.md and routing to `references/exporters.md` from a decision point",
+        "Final recommendation is `request changes`"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Audit skills/confluent-skill-reviewer/evals/mock-skills/trigger-overlap/ — its description feels too broad.",
+      "expected_output": "Flags missing 'Do NOT trigger for...' clause; cross-references the keyword overlap with good-skill (both about topic provisioning); suggests an anti-trigger that names good-skill's domain.",
+      "files": [
+        "evals/mock-skills/trigger-overlap",
+        "evals/mock-skills/good-skill"
+      ],
+      "assertions": [
+        "Emits a `Blocking` or `Warning` finding from Phase C (trigger overlap) — NOT silent",
+        "Names `good-skill` as the colliding peer",
+        "Identifies that `trigger-overlap`'s `description:` has no `Do NOT trigger for` clause",
+        "Proposes wording for an anti-trigger clause that explicitly hands off to the other skill (`Do NOT trigger for ...`)",
+        "Cites the overlapping keywords (e.g. provision, retention, compaction, idempotent) — NOT just domain words like `Confluent` or `Kafka`"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Validate skills/confluent-skill-reviewer/evals/mock-skills/bad-frontmatter/ — something is off about it.",
+      "expected_output": "Blocking findings for uppercase/underscore name, name/directory mismatch, and a too-vague description; cites agentskills.io spec.",
+      "files": [
+        "evals/mock-skills/bad-frontmatter"
+      ],
+      "assertions": [
+        "Flags `name: Bad_Frontmatter` as a Blocking spec violation (uppercase and underscores not allowed)",
+        "Flags the name/directory mismatch (`name` is `Bad_Frontmatter`, directory is `bad-frontmatter`)",
+        "Flags `description: Helps with stuff.` as too vague for triggering",
+        "Cites the Agent Skills spec (`agentskills.io/specification`) or `references/spec-conformance.md` for the name rules",
+        "Final recommendation is `request changes`"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Look at skills/confluent-skill-reviewer/evals/mock-skills/stale-expectations/ — I'm worried the evals aren't pulling their weight.",
+      "expected_output": "Phase D flags the non-standard `expectations` key as Blocking, plus aspirational expectations, an abstract prompt, and a missing fixture path.",
+      "files": [
+        "evals/mock-skills/stale-expectations"
+      ],
+      "assertions": [
+        "Flags use of the `expectations` key as Blocking — the repo standardized on the `assertions` key, so it must be renamed",
+        "Flags the object-form assertion in eval id 2 as Blocking — assertions must be plain strings, not `{id, type, description, ...}` objects",
+        "Reports a Blocking finding for the missing fixture path `evals/fixtures/missing-fixture`",
+        "Flags `Build me a thing.` as a Warning (abstract prompt, no domain detail)",
+        "Flags expectations like `Generates a working app`, `Includes error handling`, `Asks the right questions`, `Is well written` as Warnings (aspirational, not verifiable)",
+        "Cites CLAUDE.md § Evals are the contract (`expectations encode hard-won correctness — treat them as regression tests, not aspirations`)",
+        "Suggests concrete replacements that name files, classes, config keys, or NOT clauses"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "Review my current branch — I've added a new skill and want a pre-merge check before requesting reviewers.",
+      "expected_output": "Detects PR-diff mode, runs phases A–E, includes the PR-template checklist (docs, 90% evals, SME, DTX/DevRel) in the report.",
+      "files": [],
+      "assertions": [
+        "Reports `Mode: PR-diff` in the report header",
+        "Runs `git diff main...HEAD -- skills/` or `gh pr diff` to determine scope",
+        "Emits a `## PR-template checklist` section at the bottom of the report",
+        "Checklist enumerates: docs updated, evals at 90%+, SME reviewer, DTX/DevRel reviewer",
+        "For a newly added skill, flags missing README.md skill-table row as a Blocking finding (when `git diff main...HEAD -- README.md` shows no change)",
+        "Does NOT review files outside `skills/` (the `Makefile`, `service.yml`, `.claude-plugin/` are explicitly out of scope)"
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "Run a full audit on skills/confluent-skill-reviewer/evals/mock-skills/good-skill — assume skill-validator is installed.",
+      "expected_output": "Invokes scripts/run_skill_validator.sh, parses JSON results, maps level=error to Blocking and level=warning to Warning.",
+      "files": [
+        "evals/mock-skills/good-skill"
+      ],
+      "assertions": [
+        "Invokes `scripts/run_skill_validator.sh` (NOT raw `skill-validator` — uses the wrapper so `--allow-dirs=evals` is applied)",
+        "Parses the JSON output's `results[]` array",
+        "Maps `level=error` entries to Blocking and `level=warning` to Warning",
+        "Includes `validator: installed (v...)` in the report header",
+        "Does NOT propagate the validator's exit code as a blocking signal on its own (severity comes from `level`, not exit code)"
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "Audit skills/confluent-skill-reviewer/evals/mock-skills/good-skill when skill-validator is NOT installed on this machine.",
+      "expected_output": "Wrapper script exits 0 with install hint on stderr; the review continues with native spec checks per references/spec-conformance.md.",
+      "files": [
+        "evals/mock-skills/good-skill"
+      ],
+      "assertions": [
+        "Does NOT abort the review when `scripts/run_skill_validator.sh --probe` returns non-zero",
+        "Notes `validator: not installed` in the report header as a Warning, NOT Blocking",
+        "Falls back to native spec checks listed in `references/spec-conformance.md` (frontmatter parse, name regex, directory match, body line count, link resolution, code-fence balance)",
+        "Includes the install hint (`brew tap agent-ecosystem/tap && brew install skill-validator` or `go install ...`) in the report",
+        "Still emits a final recommendation (does NOT refuse to review)"
+      ]
+    }
+  ]
+}

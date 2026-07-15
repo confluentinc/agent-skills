@@ -2,7 +2,7 @@
 
 Diagnostic guide organized by symptom. Start from what the user sees, then work backward to the root cause.
 
-**Docs:** [Monitoring](https://docs.confluent.io/platform/current/streams/monitoring.html) | [Troubleshooting](https://docs.confluent.io/platform/current/streams/developer-guide/running-app.html)
+**Docs:** [Monitoring](https://docs.confluent.io/platform/current/streams/monitoring.md) | [Troubleshooting](https://docs.confluent.io/platform/current/streams/developer-guide/running-app.md)
 
 ## Table of Contents
 - [Startup Failures](#startup-failures)

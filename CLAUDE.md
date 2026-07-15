@@ -59,3 +59,21 @@ Requires Python 3.10+. No other build tooling is needed for skill development.
 ## Adding a new skill
 
 Create `skills/<name>/` with `SKILL.md` (frontmatter — `name`, `description` with triggers + anti-triggers — and a body that routes to `references/*.md` at decision points), `evals/evals.json` with prompts and `expectations[]`, and any `scripts/`. The plugin manifests in `.claude-plugin/` and `.cursor-plugin/` point at `./skills/` so new skills are auto-discovered — no manifest edit needed. Add the skill to the table in `README.md`. The PR template requires an SME reviewer plus a DTX/DevRel reviewer for new skills.
+
+## Versioning
+
+There are two levels of version that must be kept in sync.
+
+**Skill-level version** (`metadata.version` in `SKILL.md` frontmatter):
+
+| Bump | When |
+|------|------|
+| PATCH (`x.y.Z`) | Non-behavioral: typos, wording clarifications, reference content corrections that don't change what the skill does or produces |
+| MINOR (`x.Y.0`) | Additive: new modes, new reference files, new behavior branches, new eval cases for newly supported scenarios |
+| MAJOR (`X.0.0`) | Breaking: trigger `description` overhaul that changes which prompts the skill handles, removed modes or features, significant behavioral shifts |
+
+**Plugin-level version** (`.claude-plugin/plugin.json` and `.cursor-plugin/plugin.json`):
+
+- Bump whenever any skill in the repo receives a MINOR or MAJOR version bump.
+- Both files must be updated together and kept in sync with each other.
+- A PR that only bumps individual skill PATCH versions does **not** require a plugin-level bump.

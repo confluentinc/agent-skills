@@ -1,6 +1,8 @@
 ---
 name: confluent-cloud-cdc-tableflow
 description: Set up end-to-end Change Data Capture (CDC) pipelines on Confluent Cloud using Debezium source connectors, Flink for transformation, and Tableflow for data lake integration. Supports JSON_SR, Avro, and Protobuf formats. Handles schemaless topics (plain JSON without SR) and multi-event topics. This skill handles the complete workflow from database to Iceberg/Delta tables. Use this skill when users want to capture database changes and materialize them into Iceberg or Delta Lake tables via Confluent Cloud Tableflow. Trigger phrases include "CDC to Tableflow", "database to Iceberg", "database to Delta Lake", "stream database changes to data lake", "set up Tableflow pipeline", "schemaless topic to Tableflow", or "multi-event topic to Iceberg". Do NOT trigger for general CDC, Debezium, or database replication requests that do not involve Tableflow or Iceberg/Delta Lake as the destination.
+metadata:
+  version: "1.0.0"
 ---
 
 # Confluent Cloud CDC to Tableflow Pipeline
@@ -196,7 +198,7 @@ Each database requires specific CDC setup. Read `references/database-prerequisit
 - PostgreSQL: WAL level = logical, replication slots, publication
 - MySQL: binlog format = ROW, GTID mode
 - SQL Server: CDC enabled on database and tables, SQL Server Agent running
-- **Oracle XStream: GoldenGate replication enabled (`enable_goldengate_replication=TRUE`), ARCHIVELOG mode, supplemental logging, XStream admin user with `DBMS_XSTREAM_AUTH` privileges, XStream outbound server created via `DBMS_XSTREAM_ADM.CREATE_OUTBOUND`, connector user with XStream connect privilege. Full prereqs: https://docs.confluent.io/cloud/current/connectors/cc-oracle-xstream-cdc-source/prereqs-validation.html**
+- **Oracle XStream: GoldenGate replication enabled (`enable_goldengate_replication=TRUE`), ARCHIVELOG mode, supplemental logging, XStream admin user with `DBMS_XSTREAM_AUTH` privileges, XStream outbound server created via `DBMS_XSTREAM_ADM.CREATE_OUTBOUND`, connector user with XStream connect privilege. Full prereqs: https://docs.confluent.io/cloud/current/connectors/cc-oracle-xstream-cdc-source/prereqs-validation.md**
 - DynamoDB: Streams enabled with NEW_AND_OLD_IMAGES
 
 If the database isn't properly configured, guide the user through setup before proceeding.
@@ -514,7 +516,7 @@ After successful setup, provide the user with:
 - Flink SQL Patterns: `references/flink-sql-patterns.md`
 - Troubleshooting Guide: `references/troubleshooting.md`
 - REST API Reference: `references/rest-api.md`
-- Confluent Cloud Flink Docs: https://docs.confluent.io/cloud/current/flink/overview.html
-- Tableflow Docs: https://docs.confluent.io/cloud/current/topics/tableflow/overview.html
+- Confluent Cloud Flink Docs: https://docs.confluent.io/cloud/current/flink/overview.md
+- Tableflow Docs: https://docs.confluent.io/cloud/current/topics/tableflow/overview.md
 - Debezium CDC Docs: https://debezium.io/documentation/
 - Confluent MCP Server: https://github.com/confluentinc/mcp-confluent

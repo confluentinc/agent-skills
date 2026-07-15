@@ -1,6 +1,6 @@
 {
   "name": "confluent-streaming-skills",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Skills for streaming application developers, covering Kafka and Flink client libraries and Schema Registry.",
   "author": {
     "name": "Confluent"

@@ -2,7 +2,7 @@
 
 Every generated app starts with this baseline. Pattern-specific configs are layered on top (see `topology-patterns.md`).
 
-**Reference docs:** [Streams config reference](https://docs.confluent.io/platform/current/streams/developer-guide/config-streams.html)
+**Reference docs:** [Streams config reference](https://docs.confluent.io/platform/current/streams/developer-guide/config-streams.md)
 
 ## Core Properties
 

@@ -37,16 +37,23 @@ Example prompts:
 - "Build a Flink Table API application in Python to filter streaming data"
 - "Set up a streaming pipeline with Schema Registry"
 
+## Contributing
+
+We welcome external contributions! Read [CONTRIBUTING.md](./CONTRIBUTING.md) for more, and please note that the confluent-skill-creator and confluent-skill-reviewer skills are available to help with development.
+
 ## Skills
 
 This repository includes the following skills:
 
-| Skill                          | Description |
-|--------------------------------|-------------|
-| **kafka-schema-registry**  | Scan a project or repository to identify Kafka applications, extract schemas from data models, tag PII fields, generate Terraform for Confluent Schema Registry registration, and produce a migration report with rollout ordering. Automates the migration path from unmanaged schemas to Schema Registry with proper governance and compliance. |
-| **kafka-streams-programming**  | Architect, build, and debug Kafka Streams applications that run as a library inside your JVM with no separate cluster required. Handles topology design, pattern selection (joins, windows, aggregations), code generation for complete projects with proper Schema Registry integration, and troubleshooting production issues like rebalancing loops, state store problems, and performance tuning. |
-| **developing-kafka-python-client**  | Scaffold a Python Kafka producer/consumer project using confluent-kafka-python with Schema Registry serialization (Avro, JSON Schema, or Protobuf). Supports async (AIOProducer) and synchronous (Producer) modes, Confluent Cloud, and local Docker. |
+| Skill                             | Description |
+|-----------------------------------|------------|
+| **flink-udf**                     | Build and deploy custom Apache Flink user-defined functions (UDFs) in Java to extend Flink SQL and Table API capabilities with custom logic. Supports scalar UDFs for value transformations, user-defined table functions (UDTFs) for one-to-many operations, and process table functions (PTFs) for advanced stateful stream processing. |
+| **kafka-schema-registry**         | Scan a project or repository to identify Kafka applications, extract schemas from data models, tag PII fields, generate Terraform for Confluent Schema Registry registration, and produce a migration report with rollout ordering. Automates the migration path from unmanaged schemas to Schema Registry with proper governance and compliance. |
+| **kafka-streams-programming**     | Architect, build, and debug Kafka Streams applications that run as a library inside your JVM with no separate cluster required. Handles topology design, pattern selection (joins, windows, aggregations), code generation for complete projects with proper Schema Registry integration, and troubleshooting production issues like rebalancing loops, state store problems, and performance tuning. |
+| **developing-kafka-python-client** | Scaffold a Python Kafka producer/consumer project using confluent-kafka-python with Schema Registry serialization (Avro, JSON Schema, or Protobuf). Supports async (AIOProducer) and synchronous (Producer) modes, Confluent Cloud, and local Docker. |
 | **confluent-cloud-cdc-tableflow** | Set up end-to-end Change Data Capture (CDC) pipelines on Confluent Cloud using Debezium source connectors, Flink for transformation, and Tableflow for data lake integration. Supports SQL Server, MySQL, PostgreSQL, Oracle, and DynamoDB to Iceberg or Delta Lake tables. |
+| **confluent-skill-reviewer** | Audit a skill in this repo against the Agent Skills spec (agentskills.io), the Confluent conventions in CLAUDE.md, and the PR template gates. Wraps `skill-validator` opportunistically and adds Confluent-specific checks: lazy-loaded references, trigger-overlap anti-clauses, evals-as-contract, 90% eval threshold, SME + DTX/DevRel reviewer assignment. Runs in PR-diff, single-skill, or repo-wide mode. |
+| **confluent-skill-creator** | Create new Confluent-specific skills that are tested against real Confluent environments (Cloud, Platform, Apache Kafka, or WarpStream). Guides scope and platform targeting, intent capture, spec-compliant authoring, credential setup (`.env` or YAML), end-to-end testing with bundled scripts, eval-driven iteration, and packaging. For *building* new skills — not for using existing product skills. |
 
 ## Repository layout
 

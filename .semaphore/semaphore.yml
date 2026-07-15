@@ -44,3 +44,18 @@ blocks:
           commands:
             - go install github.com/agent-ecosystem/skill-validator/cmd/skill-validator@v1.3.0
             - skill-validator check skills || [ $? -eq 2 ]
+        # Authoritative broken-link gate: sweeps every Markdown file (incl.
+        # references/) for hard 404s AND docs.confluent.io soft-404s — coverage
+        # skill-validator lacks. No Go needed; pure bash + curl. Exits 1 on a
+        # broken link, failing the block.
+        - name: "Check Skill Links"
+          commands:
+            - ./tools/check-links.sh skills
+        # Scans skill files for embedded PII / secrets (real customer data,
+        # keys, card numbers) using the detector bundled with the
+        # confluent-skill-reviewer. Eval prompts, fixtures, and sample records
+        # are supposed to use synthetic data only — this catches real data
+        # before it lands on main.
+        - name: "Scan for PII"
+          commands:
+            - python3 skills/confluent-skill-reviewer/scripts/scan_pii.py skills/ --exclude '*/mock-skills/leaky-data/*'

@@ -2,7 +2,7 @@
 
 How Kafka Streams works internally. Read this when explaining KS to users, sizing applications, or diagnosing issues.
 
-**Docs:** [Architecture guide](https://docs.confluent.io/platform/current/streams/architecture.html)
+**Docs:** [Architecture guide](https://docs.confluent.io/platform/current/streams/architecture.md)
 
 ## Core Concepts
 
