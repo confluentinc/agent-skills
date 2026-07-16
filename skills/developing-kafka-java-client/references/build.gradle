@@ -1,0 +1,65 @@
+// Gradle build for the Kafka Java client project (alternative to pom.xml).
+// Generates Avro SpecificRecord classes from src/main/avro via the davidmc24 plugin.
+
+plugins {
+    id 'java'
+    id 'application'
+    // Avro code generation (src/main/avro/*.avsc -> generated Java sources)
+    id 'com.github.davidmc24.gradle.plugin.avro' version '1.9.1'
+}
+
+group = 'com.example'
+version = '1.0.0'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+ext {
+    kafkaVersion = '4.2.1'
+    confluentVersion = '8.2.1'
+    avroVersion = '1.11.4'
+}
+
+repositories {
+    mavenCentral()
+    // Confluent serializers are NOT on Maven Central.
+    maven { url 'https://packages.confluent.io/maven/' }
+}
+
+dependencies {
+    implementation "org.apache.kafka:kafka-clients:${kafkaVersion}"
+
+    // Avro (default)
+    implementation "org.apache.avro:avro:${avroVersion}"
+    implementation "io.confluent:kafka-avro-serializer:${confluentVersion}"
+
+    // JSON Schema alternative: uncomment to use KafkaJsonSchemaSerializer.
+    // implementation "io.confluent:kafka-json-schema-serializer:${confluentVersion}"
+
+    // Protobuf alternative:
+    // implementation "io.confluent:kafka-protobuf-serializer:${confluentVersion}"
+
+    implementation 'org.slf4j:slf4j-simple:2.0.13'
+
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+    testImplementation 'org.mockito:mockito-core:5.11.0'
+    // Gradle 9 no longer adds the JUnit Platform launcher automatically — declare it explicitly.
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+// Make Avro emit java.lang.String instead of CharSequence.
+avro {
+    stringType = 'String'
+}
+
+application {
+    // Override at run time: ./gradlew run -PmainClass=com.example.kafka.AvroConsumer
+    mainClass = project.hasProperty('mainClass') ? project.getProperty('mainClass') : 'com.example.kafka.AvroProducer'
+}
+
+test {
+    useJUnitPlatform()
+}
