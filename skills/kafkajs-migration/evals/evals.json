@@ -1,0 +1,126 @@
+{
+  "skill_name": "kafkajs-migration",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I need to migrate our Node.js microservice from kafkajs to the Confluent JavaScript client. The app has a producer that sends order events and a consumer group that processes them. We're running on Confluent Cloud with SASL/PLAIN auth. Here's our main config file that creates the Kafka client with brokers, ssl, and sasl options.",
+      "expected_output": "Migration plan covering import changes, kafkaJS config wrapping, producer and consumer adjustments, package swap, and verification. Should check Node.js version compatibility first.",
+      "files": [],
+      "assertions": [
+        "Runs node -v and npm view @confluentinc/kafka-javascript engines to verify the user's Node version is supported before starting migration",
+        "Changes require('kafkajs') to require('@confluentinc/kafka-javascript').KafkaJS",
+        "Wraps Kafka client config in a kafkaJS block: new Kafka({ kafkaJS: { brokers: [...], ssl: ..., sasl: {...}, clientId: '...' } }) \u2014 NOT new Kafka({ brokers: [...] })",
+        "Moves producer acks/compression/timeout from send() to kafka.producer({ kafkaJS: { ... } })",
+        "Moves consumer fromBeginning from subscribe() to kafka.consumer({ kafkaJS: { fromBeginning: true } })",
+        "Moves autoCommit/autoCommitInterval from run() to kafka.consumer({ kafkaJS: { ... } })",
+        "Presents proposed changes in diff format (```diff blocks) with a 'Why' section and a 'What to know' section for each change, NOT applying edits silently",
+        "Runs npm uninstall kafkajs && npm install @confluentinc/kafka-javascript and verifies package.json updated"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "We have a KafkaJS consumer that uses eachBatch with heartbeat() calls, autoCommit in run(), and consumer.on() event listeners for logging rebalance events. It also calls consumer.stop() on shutdown. Can you migrate this to the Confluent JS client?",
+      "expected_output": "Migration that removes heartbeat() calls, consumer.on() events, consumer.stop(), moves autoCommit to init, and explains each removal with behavior context.",
+      "files": [],
+      "assertions": [
+        "Removes await heartbeat() calls from eachBatch callback and explains that heartbeats are automatic in confluent-kafka-javascript",
+        "Removes consumer.on('consumer.group_join', ...) and similar event listeners and explains they are not supported",
+        "Replaces consumer.stop() with consumer.disconnect() and explains that stop() is not supported",
+        "Moves autoCommit and autoCommitInterval from run() options to kafka.consumer({ kafkaJS: { autoCommit: ..., autoCommitInterval: ... } })",
+        "Wraps groupId in kafkaJS block: kafka.consumer({ kafkaJS: { groupId: '...' } }) \u2014 NOT kafka.consumer({ groupId: '...' })"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Our KafkaJS app uses SSL with custom certificates - we pass ca, key, and cert buffers in the ssl config object. How does this change with the Confluent client?",
+      "expected_output": "Migration showing ssl becomes boolean-only inside kafkaJS block, certificate paths move outside as librdkafka properties.",
+      "files": [],
+      "assertions": [
+        "Changes ssl from an object with ca/key/cert to ssl: true inside the kafkaJS block",
+        "Adds ssl.ca.location, ssl.certificate.location, and ssl.key.location outside the kafkaJS block as librdkafka properties",
+        "Explains that the Confluent client uses file paths (ssl.ca.location) instead of reading certificate content into buffers with fs.readFileSync"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "I'm migrating a KafkaJS admin client that creates topics with waitForLeaders: true and validateOnly: true. It also uses fetchOffsets with resolveOffsets. What changes are needed?",
+      "expected_output": "Migration that removes unsupported admin options and explains what is no longer available.",
+      "files": [],
+      "assertions": [
+        "Removes waitForLeaders: true from createTopics and explains it is not supported in confluent-kafka-javascript",
+        "Removes validateOnly: true from admin.createTopics() call \u2014 NOT supported in @confluentinc/kafka-javascript",
+        "Removes resolveOffsets from fetchOffsets and explains it is not yet supported, noting requireStableOffsets as an alternative option"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "Our KafkaJS error handling uses instanceof checks like error instanceof KafkaJSNumberOfRetriesExceeded and error.name checks. How should I update this for the Confluent client?",
+      "expected_output": "Migration that replaces instanceof/name checks with Kafka.isKafkaJSError() and error.code/error.fatal pattern.",
+      "files": [],
+      "assertions": [
+        "Replaces error instanceof KafkaJSError with Kafka.isKafkaJSError(error)",
+        "Replaces error.name string checks with error.code comparisons using Kafka.ErrorCode constants",
+        "Lists error classes that no longer exist (KafkaJSNumberOfRetriesExceeded, KafkaJSBrokerNotFound, etc.) and explains librdkafka handles them automatically",
+        "Explains the new error.fatal boolean and recommends checking it for unrecoverable errors"
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "We're migrating a high-throughput KafkaJS producer that sends 50k messages per second. Each send is awaited individually. After switching to the Confluent client our throughput dropped dramatically. What's going on?",
+      "expected_output": "Diagnosis of the producer batching issue with fire-and-forget + flush pattern as the fix, plus linger.ms guidance.",
+      "files": [],
+      "assertions": [
+        "Identifies that 'await producer.send()' per message defeats librdkafka batching \u2014 references GitHub Issue #42 or the 1000x slowdown",
+        "Shows the pattern of calling send() without await in a loop, then await producer.flush({ timeout: ... })",
+        "Mentions setting linger.ms to 0 outside the kafkaJS block if the user must await each send",
+        "Reads or references references/performance-guidance.md for additional tuning recommendations"
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "My KafkaJS transactional producer uses sendOffsets with consumerGroupId to commit offsets in the transaction. How do I migrate this?",
+      "expected_output": "Migration showing sendOffsets now takes the consumer object instead of consumerGroupId.",
+      "files": [],
+      "assertions": [
+        "Changes sendOffsets({ consumerGroupId: '...' }) to sendOffsets({ consumer }) passing the actual consumer instance",
+        "Shows transactionalId moving into kafka.producer({ kafkaJS: { transactionalId: '...' } })"
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "After migrating to the Confluent JS client, our Kubernetes pods are using 3x more memory than with KafkaJS. The consumers used to sit at 500MB and now they're at 1.5GB. Is this a memory leak?",
+      "expected_output": "Should NOT trigger this skill. This is a post-migration infrastructure/operations issue, not a code migration.",
+      "files": [],
+      "assertions": [
+        "Recognizes this is a post-migration infrastructure troubleshooting question (Kubernetes memory tuning), NOT a KafkaJS code migration request"
+      ]
+    },
+    {
+      "id": 11,
+      "prompt": "Our Kafka consumers are slow and we're seeing high consumer lag. We're using the Confluent JavaScript client already. How can we tune performance?",
+      "expected_output": "Should NOT trigger this skill. The user is already on the Confluent client and needs performance tuning, not a migration from KafkaJS.",
+      "files": [],
+      "assertions": [
+        "Recognizes the user is already using @confluentinc/kafka-javascript (NOT migrating from KafkaJS) and either declines or redirects to general Confluent client performance tuning documentation"
+      ]
+    },
+    {
+      "id": 9,
+      "prompt": "I want to build a new Kafka producer in Node.js from scratch using the Confluent JavaScript client. I don't have any existing code.",
+      "expected_output": "Should NOT trigger this skill. This is a greenfield project, not a migration from KafkaJS.",
+      "files": [],
+      "assertions": [
+        "Recognizes this is not a KafkaJS migration and either declines to use this skill or redirects the user to general Confluent JS client documentation"
+      ]
+    },
+    {
+      "id": 10,
+      "prompt": "I need to migrate our Node.js app from node-rdkafka to the Confluent JavaScript client. We're using the callback-based API.",
+      "expected_output": "Should NOT trigger this skill. This is a node-rdkafka migration, not KafkaJS.",
+      "files": [],
+      "assertions": [
+        "Recognizes this is a node-rdkafka migration (not KafkaJS) and either declines or explains that node-rdkafka migration only requires changing the import statement"
+      ]
+    }
+  ]
+}
