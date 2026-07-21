@@ -59,3 +59,40 @@ blocks:
         - name: "Scan for PII"
           commands:
             - python3 skills/confluent-skill-reviewer/scripts/scan_pii.py skills/ --exclude '*/mock-skills/leaky-data/*'
+
+  - name: "Validate Plugin Versions"
+    run:
+      when: "change_in(['/.claude-plugin/plugin.json', '/.cursor-plugin/plugin.json'], {default_branch: 'main'})"
+    task:
+      jobs:
+        # Ensures the plugin-level version in .claude-plugin/plugin.json and
+        # .cursor-plugin/plugin.json stay in sync (see "Versioning" in
+        # CLAUDE.md) — a mismatch means one manifest was bumped without the other.
+        - name: "Check Plugin Versions"
+          commands:
+            - ./tools/check-plugin-versions.sh
+
+  - name: "Validate Plugin Version Changes On Skill Version Change"
+    run:
+      when: "branch != 'main'"
+    task:
+      jobs:
+        # If any commit on this branch introduces a new skill or changes an
+        # existing skill's metadata.version, both .claude-plugin/plugin.json
+        # and .cursor-plugin/plugin.json must be bumped too (see "Versioning"
+        # in CLAUDE.md). Fails if skills changed but the plugin version didn't.
+        - name: "Check Skill Version Bump"
+          commands:
+            - ./tools/validate-skill-version-bump.sh
+
+  - name: "Tag Plugin Release"
+    run:
+      when: "branch = 'main'"
+    task:
+      jobs:
+        # Tags the repo v<plugin-version> (from .claude-plugin/plugin.json) if
+        # that tag doesn't already exist on origin, and cuts a GitHub Release.
+        # No-op on repeat runs where the tag already exists.
+        - name: "Tag and Release"
+          commands:
+            - ./tools/tag-and-release.sh
