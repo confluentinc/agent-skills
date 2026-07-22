@@ -74,7 +74,7 @@ blocks:
 
   - name: "Validate Plugin Version Changes On Skill Version Change"
     run:
-      when: "branch != 'main'"
+      when: "tag !~ '.*' and branch != 'main'"
     task:
       jobs:
         # If any commit on this branch introduces a new skill or changes an
@@ -87,7 +87,7 @@ blocks:
 
   - name: "Tag Plugin Release"
     run:
-      when: "branch = 'main'"
+      when: "tag !~ '.*' and branch = 'main'"
     task:
       jobs:
         # Tags the repo v<plugin-version> (from .claude-plugin/plugin.json) if
