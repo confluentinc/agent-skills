@@ -1,0 +1,16 @@
+# Semaphore Schedule (Task) resource that runs the eval pipeline weekly.
+# Apply once with the Semaphore CLI:
+#
+#   sem create -f .semaphore/evals-schedule.yml
+#
+# Edit the cron in `at` to change the cadence. This runs Mondays 09:00 UTC.
+# Confirm the project name matches your Semaphore project (`sem get projects`).
+apiVersion: v1alpha
+kind: Schedule
+metadata:
+  name: weekly-skill-evals
+spec:
+  project: agent-skills
+  branch: main
+  at: "0 9 * * 1"
+  pipeline_file: .semaphore/evals.yml

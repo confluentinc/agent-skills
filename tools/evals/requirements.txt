@@ -1,0 +1,6 @@
+# Dependencies for tools/evals/run_evals.py
+# pydantic-evals provides the Dataset/Evaluator harness; the [anthropic]
+# extra on pydantic-ai-slim provides the Claude model provider used by both
+# the skill-running agent and the LLM judge.
+pydantic-evals==1.107.0
+pydantic-ai-slim[anthropic]==1.107.0
