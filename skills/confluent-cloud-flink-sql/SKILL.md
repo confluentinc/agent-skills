@@ -3,7 +3,6 @@ name: confluent-cloud-flink-sql
 description: "Write and debug Flink SQL that runs on Confluent Cloud, enforcing the CC-vs-Apache-Flink (OSS) dialect boundary. Use when the working directory is a Confluent Cloud Flink workspace, when a Flink SQL statement needs checking before it runs on a CC compute pool, or when the user mentions CC Flink, Confluent Cloud Flink SQL, the `confluent flink` CLI, a CFU compute pool, `CREATE CONNECTION`, or asks to check or debug Flink SQL whose runtime is Confluent Cloud. Also trigger when a Flink SQL question is posed and nothing establishes an Apache Flink OSS runtime. Do NOT trigger for: building or deploying Flink UDFs in Java (UDF/UDTF/PTF — use flink-udf); a full CDC pipeline from a database through Flink into Tableflow/Iceberg/Delta Lake (use confluent-cloud-cdc-tableflow); Kafka Streams topology work (use kafka-streams-programming); or Flink SQL confirmed to run on Apache Flink OSS, not Confluent Cloud."
 metadata:
   version: "1.0.0"
-compatibility: Requires the `confluent` CLI (logged in, `confluent login --save`) and access to a Confluent Cloud environment with a Flink compute pool for live verification.
 ---
 
 # Confluent Cloud Flink SQL
@@ -82,6 +81,7 @@ See [references/cli-reference.md](references/cli-reference.md) for full flag sch
 - Committing `.tfvars`, `.tfstate*`, `.terraform/`, `*.secret*`
 - Swallowing Flink statement exceptions — fail loud; read `statement exception list`
 - Hardcoded secrets in `CREATE CONNECTION` or UDF source
+- "Don't invent identifiers — use <placeholder> for anything you haven't verified." 
 
 ## Tutorials
 
