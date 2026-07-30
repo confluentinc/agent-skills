@@ -13,8 +13,8 @@ Enforce the CC-Flink-vs-OSS-Flink dialect boundary and the CLI-driven verificati
 ## Non-negotiables
 
 1. **CC Flink ≠ Apache Flink.** Verify every API, SQL construct, and runtime behavior against:
-   - [Confluent Cloud Flink docs](https://docs.confluent.io/cloud/current/flink/)
-   - [CC Flink SQL reference](https://docs.confluent.io/cloud/current/flink/reference/)
+   - [Confluent Cloud Flink docs](https://docs.confluent.io/cloud/current/flink/overview.md)
+   - [CC Flink SQL reference](https://docs.confluent.io/cloud/current/flink/reference/overview.md)
    - [Confluent Terraform provider](https://registry.terraform.io/providers/confluentinc/confluent/latest/docs)
    - Live `confluent flink shell` against the user's compute pool
 2. **No mocks in verification.** Integration claims require real `confluent` CLI runs. Unit tests may mock; anything calling itself "end-to-end verification" may not.
@@ -99,8 +99,8 @@ When a new trap is discovered: add it to `references/dialect-traps.md` first, th
 
 ## References
 
-- [Confluent Cloud Flink docs](https://docs.confluent.io/cloud/current/flink/)
-- [Confluent Cloud Flink SQL reference](https://docs.confluent.io/cloud/current/flink/reference/)
+- [Confluent Cloud Flink docs](https://docs.confluent.io/cloud/current/flink/overview.md)
+- [Confluent Cloud Flink SQL reference](https://docs.confluent.io/cloud/current/flink/reference/overview.md)
 - [Confluent Terraform provider](https://registry.terraform.io/providers/confluentinc/confluent/latest/docs)
-- [Confluent CLI reference — Flink](https://docs.confluent.io/confluent-cli/current/command-reference/flink/)
+- [Confluent CLI reference — Flink](https://docs.confluent.io/confluent-cli/current/command-reference/flink/index.md)
 - [Tutorials (filter for CC only)](https://developer.confluent.io/tutorials/#flink)

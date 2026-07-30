@@ -48,4 +48,4 @@ The `Was expecting one of: <BACK_QUOTED_IDENTIFIER>` means the token IS a reserv
 
 ## Full reserved word list
 
-Reference: https://docs.confluent.io/cloud/current/flink/reference/keywords.html
+Reference: https://docs.confluent.io/cloud/current/flink/reference/keywords.md
