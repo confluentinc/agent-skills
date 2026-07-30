@@ -64,7 +64,7 @@ GROUP BY window_start, window_end;
 
 ### Chained windows (multi-level aggregation)
 ```sql
--- Step 1: 1-minute pre-aggregation (use CTE, not CREATE VIEW on CC)
+-- Step 1: 1-minute pre-aggregation (use CTE, not CREATE TEMPORARY VIEW on CC — TEMPORARY is unsupported; persistent CREATE VIEW works but a CTE avoids the extra object)
 INSERT INTO hourly_stats
 WITH minute_stats AS (
   SELECT window_start, window_end, sensor_id,
@@ -284,7 +284,7 @@ GROUP BY window_start;
 
 ## OVER Aggregation
 
-CC supports single OVER window per query (not multiple):
+CC supports multiple `OVER` windows in one query only if all window specs are identical in streaming mode; otherwise stick to a single `OVER` window per query:
 
 ```sql
 SELECT

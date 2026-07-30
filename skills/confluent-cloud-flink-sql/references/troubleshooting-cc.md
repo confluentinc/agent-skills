@@ -44,7 +44,7 @@ Function 'PROCTIME' is not supported in Confluent's Flink SQL dialect.
 2. Regular join against upsert-kafka topic (reference data in Kafka)
 3. Event-time temporal join: `FOR SYSTEM_TIME AS OF o.order_time`
 
-See `sql-patterns-cc.md` for full examples.
+See [sql-patterns-cc.md](sql-patterns-cc.md) for full examples.
 
 ### "Non-deterministic function in update query"
 ```

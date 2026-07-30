@@ -61,12 +61,12 @@ Canonical validation loop for any CC Flink SQL claim:
 0. **EXPLAIN** the query in `flink shell` — catches syntax and type errors for free.
 1. Write a minimal reproducer in `repro/<phase>-<slug>.sql`.
 2. Run: `confluent flink statement create <name> --sql "$(cat repro.sql)" --compute-pool <id> --database <cluster> --environment <env> --wait`
-3. Observe. Consume downstream: `confluent kafka topic consume <topic> --from-beginning --value-format jsonschema 2>/dev/null | grep -v '^%'`
+3. Observe. Consume downstream: `confluent kafka topic consume <topic> --cluster <id> --from-beginning --value-format <matching-format> 2>/dev/null | grep -v '^%'` — match `<matching-format>` to the sink's `value.format` (see [references/formats-and-serialization.md](references/formats-and-serialization.md); `jsonschema` for `json-registry`, `avro` for `avro-registry`, `protobuf` for `proto-registry`, `string` for `raw`)
 4. Paste the command + output into `docs/VERIFICATION-<phase>.md`.
 
 Escalation-required states (no silent workarounds):
 
-- Statement `PENDING` > 60s → `confluent flink statement exception list`
+- Statement `PENDING` > 60s → `confluent flink statement exception list <name> --cloud <provider> --region <region>`
 - UDF deploy "jar not found" → `confluent flink artifact list`
 - Schema mismatch → `DESCRIBE <table>`, diff against the producer schema
 - Egress denied → check `CREATE CONNECTION` + `USING CONNECTIONS` clause
