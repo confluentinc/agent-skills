@@ -1,11 +1,11 @@
 ---
 name: confluent-skill-creator
-description: Create Confluent-specific skills for external users. Use this skill when users want to create, build, or author a new skill related to Confluent Cloud, Confluent Platform, Apache Kafka, WarpStream, Flink, Connectors, Schema Registry, Tableflow, CDC pipelines, or any Confluent product. Skills can be use-case focused (like data enrichment, CDC to Tableflow, stream processing workflows) or component-specific (like a Flink skill, Schema Registry skill, or Connector skill). Do NOT use this skill when users want to directly use Confluent products (e.g., build a pipeline, write a producer, deploy Flink SQL) — use the appropriate product-specific skill instead. This skill is specifically for creating new skills, not for using existing ones.
+description: Create Confluent-specific skills for external users. Use this skill when users want to create, build, or author a new skill related to Confluent Cloud, Confluent Platform, Apache Kafka, WarpStream, Flink, Connectors, Schema Registry, Tableflow, CDC pipelines, or any Confluent product. Skills can be use-case focused (like data enrichment, CDC to Tableflow, stream processing workflows) or component-specific (like a Flink skill, Schema Registry skill, or Connector skill). Do NOT trigger for users wanting to directly use Confluent products (e.g., build a pipeline, write a producer, deploy Flink SQL) — use the appropriate product-specific skill instead. This skill is specifically for creating new skills, not for using existing ones.
 compatibility: Requires Python 3.9+, confluent-kafka, fastavro, requests. Needs access to a Confluent environment (Cloud, Platform, local Docker, or WarpStream) for E2E testing.
 metadata:
   author: confluent
-  version: "1.1.0"
-  last_updated: "2026-07-09"
+  version: "1.1.1"
+  last_updated: "2026-07-30"
 ---
 
 # Confluent Skill Creator
