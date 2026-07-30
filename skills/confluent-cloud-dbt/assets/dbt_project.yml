@@ -18,7 +18,7 @@ seed-paths:     ["seeds"]
 test-paths:     ["tests"]
 analysis-paths: ["analyses"]
 macro-paths:    ["macros"]
-snapshot-paths: ["snapshots"]    # snapshots are NOT supported by dbt-confluent — keep this empty
+snapshot-paths: []    # snapshots are NOT supported by dbt-confluent — empty list disables snapshot discovery
 
 clean-targets:
   - "target"

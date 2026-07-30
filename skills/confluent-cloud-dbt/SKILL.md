@@ -59,7 +59,7 @@ In rough order of how often they bite. Read this before writing anything.
 8. **Suggesting `ALTER TABLE …` to fix anything.** All forms (rename, add/drop column, truncate) are unsupported from dbt's side. The answer is `--full-refresh`.
 9. **Telling the user to just `dbt run` to redeploy a streaming pipeline after editing the SELECT.** Without `--full-refresh`, the materialization SKIPs (column names/types unchanged → no drift detected). See the schema-drift callout below — this is a silent failure.
 10. **Treating `database` and `schema` as warehouse-style.** `database` = Confluent Environment (`env-xxxxxx`); `schema` = Kafka cluster. The adapter cannot create or drop either — both are managed in Confluent Cloud.
-11. **Suggesting `dbt seed` for non-trivial CSVs.** Single-batch INSERT, errors past the batch size. Direct users to a `streaming_source` (Datagen) or an external producer.
+11. **Suggesting `dbt seed` for non-trivial CSVs.** Single-batch INSERT, errors past the batch size. Direct users to a `streaming_source` (`connector='faker'`) or an external producer.
 12. **Running `dbt test` against an unbounded streaming table.** The cursor returns at most a 1000-row partial snapshot — a `not_null` violation that hasn't appeared yet passes spuriously. See `references/testing.md`.
 13. **Putting `SET 'sql.…' = '…'` in a dbt `pre-hook`.** Each dbt query is submitted as a separate Flink statement; a hook-issued `SET` does not carry over to the next statement. Use `config(with={...})` for table-level options; set session-wide defaults once in a Cloud Console workspace. See `references/profiles-and-auth.md` → "SET statements" for the macro-based workaround.
 

@@ -10,7 +10,7 @@ How to pick a materialization, how each behaves in the dbt-confluent adapter, pl
 |---|---|---|
 | Batch transformation that runs to completion | `table` | CTAS. Re-runs are no-ops (schema-drift gated). |
 | Continuous streaming pipeline (a topic of derived events) | `streaming_table` | Two statements: a quick `CREATE TABLE` + a long-running `INSERT INTO ... SELECT`. |
-| Connector-backed source table (e.g. Datagen for testing) | `streaming_source` | Model body is column DDL, not a SELECT. `connector` config required.[^connectors] |
+| Connector-backed source table (e.g. `faker` for testing) | `streaming_source` | Model body is column DDL, not a SELECT. `connector` config required.[^connectors] |
 | Read-only reference to an existing Kafka topic | **dbt `source`**, not a model | Topics auto-appear as Flink tables. |
 | Lightweight virtual relation | `view` | Drop-and-recreate every run. |
 | Inline CTE-style helper | `ephemeral` | Standard dbt behaviour. |
@@ -79,7 +79,7 @@ This means the **tested model must already exist** in the cluster. If it doesn't
 Workflow: `dbt run --select my_model && dbt test --select unit_my_model`.
 
 ## `seed`
-Single batched `INSERT INTO ... VALUES (...), (...), ...`. There is no chunking; if `agate_table.rows | length > batch_size`, the materialization raises a compile error. For datasets that don't fit, route to a `streaming_source` (Datagen) or an external producer.
+Single batched `INSERT INTO ... VALUES (...), (...), ...`. There is no chunking; if `agate_table.rows | length > batch_size`, the materialization raises a compile error. For datasets that don't fit, route to a `streaming_source` (`connector='faker'`) or an external producer.
 
 ## Execution modes
 

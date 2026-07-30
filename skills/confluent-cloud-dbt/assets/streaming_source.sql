@@ -10,13 +10,15 @@
 --
 -- For READ-ONLY references to topics that already exist in your cluster, do NOT use
 -- this materialization — declare a dbt `source` instead (see the sources.yml example).
+--
+-- `number-of-rows` bounds the source so dbt tests are deterministic.
 
 {{ config(
     materialized='streaming_source',
     connector='faker',
     with={
       'rows-per-second': '5',
-      'number-of-rows': '1000',     -- bound the source so dbt tests are deterministic
+      'number-of-rows': '1000',
       'changelog.mode': 'append',
     }
 ) }}
