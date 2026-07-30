@@ -1,0 +1,20 @@
+# dbt outputs
+target/
+dbt_packages/
+logs/
+
+# Secrets — never commit. Use profiles.yml.example as the version-controlled template.
+profiles.yml
+.env
+.env.*
+!.env.example
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
