@@ -1,21 +1,20 @@
 # Confluent Cloud Flink — CLI Reference
 
-## Flag schema
-
-All `flink statement` subcommands accept `--cloud`/`--region`, `--environment`, and `--context` — none of them are rejected on any subcommand. `--sql` is the only flag marked REQUIRED anywhere in this group (on `create`); everything else, including `--environment`, is optional per the CLI's own docs (the CLI falls back to whatever `confluent environment use`/`confluent kafka cluster use` context is active).
+## Flag schema (inconsistent across subcommands)
 
 | Subcommand | `--cloud`/`--region` | `--environment` | `--sql` | `--wait` |
 |---|---|---|---|---|
-| `flink statement create` | optional | optional | ✅ required | optional (60s default) |
-| `flink statement list` | optional | optional | — | — |
-| `flink statement describe` | optional | optional | — | — |
-| `flink statement stop` | optional | optional | — | — |
-| `flink statement delete` | optional | optional | — | — |
+| `flink statement create` | ❌ rejected | ✅ required | ✅ string only | ✅ (60s default) |
+| `flink statement list` | ✅ required | ✅ optional | — | — |
+| `flink statement describe` | ✅ required | ✅ optional | — | — |
+| `flink statement stop` | ✅ required | ✅ optional | — | — |
+| `flink statement delete` | ✅ required | ✅ optional | — | — |
 
 Key rules:
-- `create`, `list`, `describe`, `stop`, and `delete` all accept `--cloud`/`--region` AND `--environment` — there's no per-subcommand rejection. Pass whichever ones the active CLI context hasn't already resolved.
+- `create` → `--environment`, NOT `--cloud`/`--region`
+- `list/describe/stop/delete` → MUST use `--cloud`/`--region`
 - `--sql-file` does NOT exist — read file: `--sql "$(cat file.sql)"`
-- `--property` accepts comma-separated values in one flag (`--property "k1=v1,k2=v2"`); the CLI docs describe it as a string slice, so it may also work as a repeated flag — comma-separated is the tested form.
+- `--property` is comma-separated in ONE flag: `--property "k1=v1,k2=v2"` (NOT repeated flags)
 
 ## Canonical commands
 
@@ -104,11 +103,8 @@ After delete, `list` still shows resource for ~5-15s. Gate on side-effects, not 
 if confluent kafka topic list --cluster $CLUSTER --output json | grep -q '"name": "my-topic"'; then
   echo "topic exists; skip DDL"
 fi
-```
 
-`kafka topic delete` and `schema-registry subject delete --permanent` are irreversible. Confirm with the user before running either — state which topic/subject and cluster/registry you're targeting — then wait for deletion propagation:
-
-```bash
+# Wait for deletion propagation
 confluent kafka topic delete my-topic --cluster $CLUSTER --force
 until ! confluent kafka topic list --cluster $CLUSTER --output json | grep -q '"name": "my-topic"'; do
   sleep 5

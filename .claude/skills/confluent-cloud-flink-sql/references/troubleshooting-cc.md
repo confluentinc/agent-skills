@@ -87,6 +87,13 @@ For carry-over: ensure v1 is STOPPED (not just submitted for stop).
 confluent login --save
 ```
 
+### Wrong flags on statement commands
+```
+Error: unknown flag: --cloud
+```
+**Cause:** `--cloud`/`--region` used on `statement create` (which only accepts `--environment`).
+**Fix:** See CLI flag schema table in `cli-reference.md`.
+
 ## Schema Errors
 
 ### Table not found

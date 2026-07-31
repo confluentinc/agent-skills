@@ -1,14 +1,10 @@
 # CC Flink SQL — Reserved Words
 
-## Must-backquote list (reserved keywords)
+## Must-backquote list
 
-These are reserved keywords per the [CC Flink SQL keyword reference](https://docs.confluent.io/cloud/current/flink/reference/keywords.md) and MUST be enclosed in backticks everywhere they appear as identifiers — column definitions, ROW type aliases, SELECT lists, CREATE TABLE, aliases:
+These identifiers MUST be enclosed in backticks everywhere they appear — column definitions, ROW type aliases, SELECT lists, CREATE TABLE, aliases:
 
-`timestamp`, `value`, `time`, `offset`, `partition`, `row`, `table`, `order`, `group`, `select`, `from`, `where`, `having`, `join`, `on`, `as`, `set`, `start`, `end`, `interval`, `date`, `year`, `month`, `day`, `hour`, `minute`, `second`
-
-## Commonly backquoted but NOT reserved
-
-`payload`, `name`, `key`, `type`, and `data` are nonreserved on CC — they parse fine unquoted. They show up backquoted in examples throughout this skill purely as a defensive habit (backquoting a nonreserved word is always safe), not because CC rejects them bare.
+`timestamp`, `value`, `time`, `payload`, `name`, `key`, `offset`, `partition`, `row`, `table`, `order`, `group`, `select`, `from`, `where`, `having`, `join`, `on`, `as`, `set`, `type`, `data`, `start`, `end`, `interval`, `date`, `year`, `month`, `day`, `hour`, `minute`, `second`
 
 ## Examples
 

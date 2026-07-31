@@ -98,7 +98,7 @@
       "expected_output": "A confluent flink statement create command using --environment and --sql \"$(cat filter.sql)\", not --sql-file.",
       "files": [],
       "assertions": [
-        "Command includes --environment env-xyz789 on flink statement create",
+        "Command uses --environment env-xyz789, NOT --cloud/--region, on flink statement create",
         "Reads the SQL file with --sql \"$(cat filter.sql)\", NOT a --sql-file flag (which does not exist)",
         "Includes --compute-pool lfcp-abc123"
       ]
@@ -110,7 +110,7 @@
       "files": [],
       "assertions": [
         "Command is confluent flink statement list --cloud aws --region eu-central-1",
-        "Uses --cloud and --region to target the AWS eu-central-1 region named in the prompt"
+        "Uses --cloud and --region rather than --environment, since statement list requires cloud/region"
       ]
     },
     {
@@ -199,30 +199,7 @@
       "assertions": [
         "Query includes MATCH_RECOGNIZE, PARTITION BY sensor_id, and ORDER BY reading_time",
         "Does NOT use PREV( or NEXT( physical offset functions (not supported in CC's MATCH_RECOGNIZE)",
-        "Does NOT use LAG( or LEAD( inside DEFINE (these are OVER-window functions and are invalid there)",
-        "DEFINE clause navigates using the logical offset function LAST(variable.field, n) (or FIRST(variable.field, n)) to compare a reading against the prior row",
         "Pattern uses a quantified variable such as `PATTERN (N{3,} C)` for the 3+ consecutive increases requirement"
-      ]
-    },
-    {
-      "id": 21,
-      "prompt": "Write a Flink SQL CREATE TABLE on Confluent Cloud with columns for a Unix timestamp, a payload value, and a row key. Use column names timestamp, value, and key.",
-      "expected_output": "A CREATE TABLE statement that backquotes the reserved keywords timestamp and value, since both fail to parse unquoted on CC, while key (nonreserved) may appear either way.",
-      "files": [],
-      "assertions": [
-        "The column named timestamp is backquoted as `timestamp` (reserved keyword on CC — fails to parse otherwise)",
-        "The column named value is backquoted as `value` (reserved keyword on CC — fails to parse otherwise)",
-        "Does NOT claim that key, name, or payload cause a parse error if left unquoted (they are nonreserved on CC)"
-      ]
-    },
-    {
-      "id": 22,
-      "prompt": "Write the confluent CLI command to create a Flink SQL statement with two statement properties: sql.state-ttl set to 3600000 and sql.tables.initial-offset-from set to my-old-statement.",
-      "expected_output": "A confluent flink statement create command passing both properties via a single comma-separated --property flag.",
-      "files": [],
-      "assertions": [
-        "Uses a single --property flag with comma-separated key=value pairs, e.g. --property \"sql.state-ttl=3600000,sql.tables.initial-offset-from=my-old-statement\"",
-        "Does NOT claim repeated --property flags are invalid or rejected by the CLI"
       ]
     }
   ]

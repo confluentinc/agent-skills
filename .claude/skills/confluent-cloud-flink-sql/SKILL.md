@@ -1,18 +1,13 @@
 ---
 name: confluent-cloud-flink-sql
 description: "Write and debug Flink SQL that runs on Confluent Cloud, enforcing the CC-vs-Apache-Flink (OSS) dialect boundary. Use when the working directory is a Confluent Cloud Flink workspace, when a Flink SQL statement needs checking before it runs on a CC compute pool, or when the user mentions CC Flink, Confluent Cloud Flink SQL, the `confluent flink` CLI, a CFU compute pool, `CREATE CONNECTION`, or asks to check or debug Flink SQL whose runtime is Confluent Cloud. Also trigger when a Flink SQL question is posed and nothing establishes an Apache Flink OSS runtime. Do NOT trigger for: building or deploying Flink UDFs in Java (UDF/UDTF/PTF — use flink-udf); a full CDC pipeline from a database through Flink into Tableflow/Iceberg/Delta Lake (use confluent-cloud-cdc-tableflow); Kafka Streams topology work (use kafka-streams-programming); or Flink SQL confirmed to run on Apache Flink OSS, not Confluent Cloud."
-compatibility: Requires the `confluent` CLI (authenticated session) and an active Confluent Cloud compute pool — statement runs consume CFUs. Terraform is optional, needed only if managing `CREATE CONNECTION` credentials via the Confluent Terraform provider.
 metadata:
-  author: confluent
   version: "1.0.0"
-  last_updated: "2026-07-31"
 ---
 
 # Confluent Cloud Flink SQL
 
 Enforce the CC-Flink-vs-OSS-Flink dialect boundary and the CLI-driven verification loop for any Confluent Cloud Flink SQL work. Apache Flink OSS training data is a trap — CC rejects or silently mishandles a long list of otherwise-valid Flink SQL constructs.
-
-Scope note: this skill's reference material is built around the OSS-vs-CC dialect boundary — traps in constructs that exist in both dialects but behave differently. It does not yet catalog CC-only DDL that has no OSS counterpart (e.g. `CREATE MATERIALIZED TABLE`, `CREATE MODEL`/`AI_COMPLETE`, `CREATE AGENT`, `USE CATALOG`). For those, verify directly against the [CC Flink SQL reference](https://docs.confluent.io/cloud/current/flink/reference/overview.md) rather than expecting a trap entry here.
 
 ## Non-negotiables
 
@@ -22,10 +17,9 @@ Scope note: this skill's reference material is built around the OSS-vs-CC dialec
    - [Confluent Terraform provider](https://registry.terraform.io/providers/confluentinc/confluent/latest/docs)
    - Live `confluent flink shell` against the user's compute pool
 2. **No mocks in verification.** Integration claims require real `confluent` CLI runs. Unit tests may mock; anything calling itself "end-to-end verification" may not.
-3. **Record decisions somewhere durable.** Ask the user where they want dialect traps and verification notes tracked (e.g. `docs/flink-dialect-traps.md` in their project) before writing any new file — don't assume a `docs/` layout.
+3. **Docs first.** Decisions land in `docs/*.md` before code. Dialect traps go in `docs/flink-dialect-traps.md`.
 4. **Secrets never in repo.** `CREATE CONNECTION` parameters are Terraform-injected, never hardcoded. Gitignore `.tfvars`, `.tfstate*`, `*.secret*` from day one.
 5. **EXPLAIN before CREATE.** Always `EXPLAIN` a query before `statement create` — catches parse/type errors without consuming CFUs.
-6. **Don't invent identifiers.** Use `<placeholder>` for any topic, table, statement, or resource name you haven't verified.
 
 ## Reference files
 
@@ -57,17 +51,17 @@ Stop and consult `references/dialect-traps.md` if you catch yourself writing any
 - `CREATE FUNCTION f AS '...'` without `USING JAR` — CC UDFs require an uploaded artifact
 - Savepoints / `STOP WITH SAVEPOINT` — not exposed on CC
 - `--sql-file` flag — doesn't exist; use `--sql "$(cat file.sql)"`
+- `--cloud`/`--region` on `statement create` — rejected; use `--environment`
 
 ## Verification loop
 
 Canonical validation loop for any CC Flink SQL claim:
 
 0. **EXPLAIN** the query in `flink shell` — catches syntax and type errors for free.
-1. Write a minimal reproducer.
-2. **Present the plan and wait for explicit user confirmation** before running anything that creates or modifies a real resource. State: the statement name and SQL, the compute pool/database/environment it targets, and any side effects (DDL creates a Kafka topic and Schema Registry subject; every run consumes CFUs). Do not proceed to step 3 without a go-ahead.
-3. Run: `confluent flink statement create <name> --sql "$(cat repro.sql)" --compute-pool <id> --database <cluster> --environment <env> --wait`
-4. Observe. Consume downstream: `confluent kafka topic consume <topic> --cluster <id> --from-beginning --value-format <matching-format> 2>/dev/null | grep -v '^%'` — match `<matching-format>` to the sink's `value.format` (see [references/formats-and-serialization.md](references/formats-and-serialization.md); `jsonschema` for `json-registry`, `avro` for `avro-registry`, `protobuf` for `proto-registry`, `string` for `raw`)
-5. Record the command + output for later reference.
+1. Write a minimal reproducer in `repro/<phase>-<slug>.sql`.
+2. Run: `confluent flink statement create <name> --sql "$(cat repro.sql)" --compute-pool <id> --database <cluster> --environment <env> --wait`
+3. Observe. Consume downstream: `confluent kafka topic consume <topic> --cluster <id> --from-beginning --value-format <matching-format> 2>/dev/null | grep -v '^%'` — match `<matching-format>` to the sink's `value.format` (see [references/formats-and-serialization.md](references/formats-and-serialization.md); `jsonschema` for `json-registry`, `avro` for `avro-registry`, `protobuf` for `proto-registry`, `string` for `raw`)
+4. Paste the command + output into `docs/VERIFICATION-<phase>.md`.
 
 Escalation-required states (no silent workarounds):
 
@@ -87,6 +81,7 @@ See [references/cli-reference.md](references/cli-reference.md) for full flag sch
 - Committing `.tfvars`, `.tfstate*`, `.terraform/`, `*.secret*`
 - Swallowing Flink statement exceptions — fail loud; read `statement exception list`
 - Hardcoded secrets in `CREATE CONNECTION` or UDF source
+- "Don't invent identifiers — use <placeholder> for anything you haven't verified." 
 
 ## Tutorials
 
@@ -98,9 +93,9 @@ See [references/cli-reference.md](references/cli-reference.md) for full flag sch
 
 1. `references/dialect-traps.md` (this skill) — canonical, consolidated
 2. Per-project `CLAUDE.md` — references this skill, adds project-specific context
-3. A per-project trap log, if the user wants one kept — ask where before creating it
+3. Per-project `docs/flink-dialect-traps.md` — append-only session log, periodically upstreamed into this skill
 
-When a new trap is discovered during a session, tell the user so they can decide whether to record it in their project's own notes. Do not edit this skill's own installed files (`references/dialect-traps.md` or elsewhere) — propose the change and let the user (or a separate PR to this skill's repo) apply it.
+When a new trap is discovered: add it to `references/dialect-traps.md` first, then propagate.
 
 ## References
 
