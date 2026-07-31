@@ -198,7 +198,7 @@ SELECT * FROM (
 
 ## Pattern Detection (MATCH_RECOGNIZE)
 
-CC limitations: no `PREV()`/`NEXT()` physical offsets, flat columns only, no greedy quantifiers as last pattern variable, no UDFs inside MATCH_RECOGNIZE. Within `DEFINE`, navigate using the logical offset functions `LAST(variable.field, n)`/`FIRST(variable.field, n)` — `LAG()`/`LEAD()` are OVER-window functions and are not valid inside `DEFINE`.
+CC limitations: no `PREV()`/`NEXT()` physical offsets, flat columns only, no greedy quantifiers as last pattern variable, no UDFs inside MATCH_RECOGNIZE. Within `DEFINE`, navigate using the logical offset functions `LAST(variable.field, n)`/`FIRST(variable.field, n)` — documented pattern-navigation constructs, handling the first-row NULL case.
 
 ```sql
 SELECT * FROM sensor_readings

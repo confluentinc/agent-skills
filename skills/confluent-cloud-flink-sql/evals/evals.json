@@ -79,7 +79,8 @@
       "files": [],
       "assertions": [
         "Recommends the carry-over offset pattern (sql.tables.initial-offset-from) for stateless statement replacement",
-        "Does NOT recommend STOP WITH SAVEPOINT, CREATE SAVEPOINT, or confluent flink savepoint create (savepoints are not exposed on CC)"
+        "Does NOT recommend STOP WITH SAVEPOINT, CREATE SAVEPOINT, or confluent flink savepoint create (savepoints are not exposed on CC)",
+        "States that carry-over applies to stateless statements only (no aggregates/windows/pattern matching/upsert sinks)"
       ]
     },
     {
@@ -199,8 +200,7 @@
       "assertions": [
         "Query includes MATCH_RECOGNIZE, PARTITION BY sensor_id, and ORDER BY reading_time",
         "Does NOT use PREV( or NEXT( physical offset functions (not supported in CC's MATCH_RECOGNIZE)",
-        "Does NOT use LAG( or LEAD( inside DEFINE (these are OVER-window functions and are invalid there)",
-        "DEFINE clause navigates using the logical offset function LAST(variable.field, n) (or FIRST(variable.field, n)) to compare a reading against the prior row",
+        "DEFINE clause navigates using the logical offset function LAST(variable.field, n) (or FIRST(variable.field, n)) — documented pattern-navigation construct, handles the first-row NULL case",
         "Pattern uses a quantified variable such as `PATTERN (N{3,} C)` for the 3+ consecutive increases requirement"
       ]
     },

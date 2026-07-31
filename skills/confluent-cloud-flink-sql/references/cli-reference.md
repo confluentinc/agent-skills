@@ -12,6 +12,10 @@ All `flink statement` subcommands accept `--cloud`/`--region`, `--environment`, 
 | `flink statement stop` | optional | optional | — | — |
 | `flink statement delete` | optional | optional | — | — |
 
+This table covers `flink statement` only. Other `flink` subcommand groups diverge:
+- `flink artifact create`/`list`/`describe`: `--cloud` and `--region` are REQUIRED, unlike `flink statement` where both are optional.
+- `flink compute-pool`: no `--cloud` flag exists. `list` accepts `--region`; `describe` accepts only `--environment`.
+
 Key rules:
 - `create`, `list`, `describe`, `stop`, and `delete` all accept `--cloud`/`--region` AND `--environment` — there's no per-subcommand rejection. Pass whichever ones the active CLI context hasn't already resolved.
 - `--sql-file` does NOT exist — read file: `--sql "$(cat file.sql)"`
@@ -41,8 +45,8 @@ confluent flink statement exception list <name> --cloud <provider> --region <reg
 
 # Artifact management (UDFs)
 confluent flink artifact create <name> --cloud <provider> --region <region> --artifact-file <jar>
-confluent flink artifact list
-confluent flink artifact describe <artifact-id>
+confluent flink artifact list --cloud <provider> --region <region>
+confluent flink artifact describe <artifact-id> --cloud <provider> --region <region>
 
 # Kafka operations
 confluent kafka topic consume <topic> --cluster <id> --from-beginning --value-format jsonschema 2>/dev/null | grep -v '^%'
@@ -82,7 +86,7 @@ confluent flink statement stop kf-stmt-v1 --cloud aws --region eu-central-1
 for i in $(seq 1 60); do
   STATUS=$(confluent flink statement describe kf-stmt-v2 \
     --cloud aws --region eu-central-1 --output json \
-    | jq -r '.status // .status.phase // "UNKNOWN"')
+    | jq -r '.status | if type == "object" then .phase else . end // "UNKNOWN"')
   [[ "$STATUS" == "RUNNING" ]] && break
   [[ "$STATUS" == "FAILED" ]] && { echo "v2 failed"; exit 1; }
   sleep 5

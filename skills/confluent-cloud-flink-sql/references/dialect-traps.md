@@ -39,12 +39,6 @@ Single source of truth. Update here; per-project CLAUDE.md references this file.
 | 31 | Aggregate UDFs (UDAF), table aggregate functions | UDAF and table aggregates not supported. Scalar UDFs and table functions (UDTF, Java only) ARE supported | HIGH | CC docs |
 | 32 | `CREATE TEMPORARY FUNCTION` | Not supported on CC | MEDIUM | CC docs / community |
 
-## How to update
-
-1. Hit a new trap → add row here
-2. Run `cc-flink-sql` skill in affected project → skill loads this file
-3. Periodically upstream to per-project CLAUDE.md shareable block
-
 ## Severity guide
 
 - **CRITICAL**: Silent data loss or incorrect results with no error message

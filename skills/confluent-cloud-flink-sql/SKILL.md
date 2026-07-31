@@ -72,7 +72,7 @@ Canonical validation loop for any CC Flink SQL claim:
 Escalation-required states (no silent workarounds):
 
 - Statement `PENDING` > 60s → `confluent flink statement exception list <name> --cloud <provider> --region <region>`
-- UDF deploy "jar not found" → `confluent flink artifact list`
+- UDF deploy "jar not found" → `confluent flink artifact list --cloud <provider> --region <region>`
 - Schema mismatch → `DESCRIBE <table>`, diff against the producer schema
 - Egress denied → check `CREATE CONNECTION` + `USING CONNECTIONS` clause
 

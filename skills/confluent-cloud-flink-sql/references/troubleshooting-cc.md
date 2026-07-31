@@ -116,7 +116,7 @@ Compare with producer schema. Register explicit schema if auto-inference is wron
 **Cause:** Wrong artifact ID, artifact in different region, or artifact deleted.
 **Fix:**
 ```bash
-confluent flink artifact list
+confluent flink artifact list --cloud <provider> --region <region>
 # Verify artifact ID matches USING JAR 'confluent-artifact://<id>'
 ```
 
