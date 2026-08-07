@@ -100,7 +100,7 @@ blocks:
   - name: "Validate Claude Plugin Manifest"
     task:
       jobs:
-        - name: "Claude Plugin Validate"
+        - name: "Claude Plugin Validation"
           commands:
             # Install Claude CLI in order to run manifest validation (doesn't call LLM)
             - curl -fsSL https://claude.ai/install.sh | bash
