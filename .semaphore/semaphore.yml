@@ -96,3 +96,10 @@ blocks:
         - name: "Tag and Release"
           commands:
             - ./tools/tag-and-release.sh
+
+  - name: "Validate Claude Plugin Manifest"
+    task:
+      jobs:
+        - name: "Claude Plugin Validate"
+          commands:
+            - r2 sandbox claude plugin validate .
