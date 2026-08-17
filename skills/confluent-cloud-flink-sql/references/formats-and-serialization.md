@@ -28,9 +28,11 @@ CREATE TABLE clean_output (
 );
 ```
 
+Option keys follow the pattern `key.<format>.id-encoding` / `value.<format>.id-encoding` (e.g. `value.json-registry.id-encoding`, `value.avro-registry.id-encoding`).
+
 | `id-encoding` | Behavior |
 |---|---|
-| `confluent` (default) | Magic byte + 4-byte schema ID prepended to payload |
+| `payload` (default) | Magic byte + 4-byte schema ID prepended to payload |
 | `header` | Schema ID in Kafka record header, payload is clean format |
 
 Write-only option. Reads auto-resolve via header → prefix → fallback chain.
@@ -54,12 +56,12 @@ Caveat: registered schema types must match actual JSON types exactly. For polymo
 | Topic encoding | `--value-format` flag |
 |---|---|
 | Raw bytes (no SR) | `string` (default) |
-| JSON Schema (SR-backed, `id-encoding=confluent`) | `jsonschema` |
+| JSON Schema (SR-backed, `id-encoding=payload`) | `jsonschema` |
 | JSON Schema (SR-backed, `id-encoding=header`) | `jsonschema` or `string` (both work) |
 | Avro | `avro` |
 | Protobuf | `protobuf` |
 
-**Default `string` on SR-backed topic with `id-encoding=confluent`** = first 5 bytes are wire-format prefix → UTF-8 errors.
+**Default `string` on SR-backed topic with `id-encoding=payload`** = first 5 bytes are wire-format prefix → UTF-8 errors.
 
 **With `id-encoding=header`:** `string` works but consumer prints interleaved `% Headers:` lines on stdout:
 ```

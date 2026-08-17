@@ -33,7 +33,7 @@ Load these on demand when the topic matches — do not read them all upfront:
 
 | File | When to load |
 |------|-------------|
-| [references/dialect-traps.md](references/dialect-traps.md) | Before writing ANY Flink SQL — 32 CC-vs-OSS traps, single source of truth |
+| [references/dialect-traps.md](references/dialect-traps.md) | Before writing ANY Flink SQL — 22 CC-vs-OSS traps, single source of truth |
 | [references/cli-reference.md](references/cli-reference.md) | Before running `confluent` CLI — flag schemas, carry-over recipe, timing, token expiry |
 | [references/sql-patterns-cc.md](references/sql-patterns-cc.md) | When writing SQL — CC-validated patterns: windows, joins, dedup, MATCH_RECOGNIZE, JSON, External Tables |
 | [references/formats-and-serialization.md](references/formats-and-serialization.md) | When configuring table formats — 7 supported formats, id-encoding, consume flags |
@@ -44,7 +44,7 @@ Load these on demand when the topic matches — do not read them all upfront:
 
 Stop and consult `references/dialect-traps.md` if you catch yourself writing any of these:
 
-- DataStream API (Java/Scala) — not supported on CC. Table API (Java/Python) IS supported
+- DataStream API (Java/Scala) — not supported on CC. Table API + PTF are GA in Java; Python Table API is Open Preview with no PTF yet
 - `CREATE CATALOG ...` — catalog = CC environment, not creatable
 - `SET 'execution.checkpointing.*'` — CC-managed, not settable
 - `CREATE TABLE ... WITH ('connector' = 'kafka', ...)` — tables auto-map from topics
@@ -53,10 +53,11 @@ Stop and consult `references/dialect-traps.md` if you catch yourself writing any
 - `$rowtime AS alias` in a CTE — silently strips the time-attribute property
 - `GROUP BY TUMBLE(ts, INTERVAL ...)` — must use the TVF form: `TUMBLE(TABLE t, DESCRIPTOR(ts), ...)`
 - `LATERAL TABLE(UNNEST(...))` — parse error; use `CROSS JOIN UNNEST(...)`
-- `PROCTIME()` — not supported; use External Tables/`KEY_SEARCH_AGG` or an upsert-kafka join
+- `PROCTIME()` — not supported; use External Tables/`KEY_SEARCH_AGG` or an event-time temporal join (avoid a regular join against an upsert-kafka topic — it retains the whole table in state)
 - `CREATE FUNCTION f AS '...'` without `USING JAR` — CC UDFs require an uploaded artifact
 - Savepoints / `STOP WITH SAVEPOINT` — not exposed on CC
 - `--sql-file` flag — doesn't exist; use `--sql "$(cat file.sql)"`
+- `DROP TABLE` — deletes the physical Kafka topic and its data on CC, not just metadata; confirm before running
 
 ## Verification loop
 

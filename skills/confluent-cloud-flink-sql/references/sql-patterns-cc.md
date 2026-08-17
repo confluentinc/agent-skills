@@ -5,7 +5,7 @@ All patterns use table-valued window functions (TVFs), CC-supported syntax only.
 ## Table of contents
 
 - [Window Aggregations](#window-aggregations) — tumbling, hopping, session, cumulating, chained
-- [Joins](#joins) — interval, temporal, upsert-kafka, External Tables + `KEY_SEARCH_AGG`
+- [Joins](#joins) — interval, temporal, External Tables + `KEY_SEARCH_AGG`
 - [Deduplication](#deduplication) — keep latest, keep first
 - [Top-N](#top-n) — continuous, window
 - [Pattern Detection (MATCH_RECOGNIZE)](#pattern-detection-match_recognize)
@@ -97,16 +97,7 @@ JOIN currency_rates FOR SYSTEM_TIME AS OF o.order_time AS r
 ON o.currency = r.currency;
 ```
 
-### Regular join against upsert-kafka (lookup alternative)
-
-CC has no `PROCTIME()`. For current-value lookups when reference data is in a compacted topic:
-```sql
--- Sink MUST be upsert + PK (join emits updates)
-SELECT o.*, c.name
-FROM orders o
-LEFT JOIN customers_ref c    -- compacted upsert-kafka topic
-  ON o.customer_id = c.id;
-```
+> **Avoid regular joins against upsert-kafka topics as a lookup substitute.** CC has no `PROCTIME()`, but a plain `LEFT JOIN` against a compacted/upsert-kafka topic is a streaming join over an *updating* table — it retains the entire reference table in state and doesn't scale. CC also infers upsert/retract mode from the topic itself (compaction → upsert, Debezium schema → retract), so hand-rolling this pattern is doubly unnecessary. Use External Tables + `KEY_SEARCH_AGG`, or an event-time temporal join, instead — both are append-only and efficient.
 
 ### External Tables + KEY_SEARCH_AGG (canonical CC lookup)
 
@@ -319,4 +310,4 @@ SELECT
 FROM my_topic;
 ```
 
-Never alias `$rowtime` in CTEs -- silently strips time-attribute property.
+`$rowtime` can be aliased inside a CTE (`SELECT $rowtime AS event_time, ...`) without losing the time-attribute property — verified on a live CC compute pool. It can also be qualified with a table alias (`o.$rowtime`).

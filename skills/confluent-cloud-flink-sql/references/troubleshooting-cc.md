@@ -41,8 +41,9 @@ Function 'PROCTIME' is not supported in Confluent's Flink SQL dialect.
 **Cause:** CC has no `PROCTIME()`. Lookup join pattern doesn't compile.
 **Fix (pick one):**
 1. External Tables + `KEY_SEARCH_AGG` (canonical for DB/REST lookups)
-2. Regular join against upsert-kafka topic (reference data in Kafka)
-3. Event-time temporal join: `FOR SYSTEM_TIME AS OF o.order_time`
+2. Event-time temporal join: `FOR SYSTEM_TIME AS OF o.order_time`
+
+Avoid a regular join against an upsert-kafka topic as a substitute — it keeps the whole reference table in state and is inefficient; prefer the two options above.
 
 See [sql-patterns-cc.md](sql-patterns-cc.md) for full examples.
 

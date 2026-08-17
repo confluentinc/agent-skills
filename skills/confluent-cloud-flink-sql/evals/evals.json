@@ -35,31 +35,33 @@
     {
       "id": 4,
       "prompt": "Write CC Flink SQL to explode a JSON array field from a Kafka topic. The input table raw_events has a VARBINARY val column containing JSON with a $.items array. Extract each item as a separate row.",
-      "expected_output": "A query using CROSS JOIN UNNEST to explode the array, avoiding the LATERAL TABLE(UNNEST(...)) form that parses on OSS but fails on CC.",
+      "expected_output": "A query using CROSS JOIN UNNEST to explode the array, avoiding the LATERAL TABLE(UNNEST(...)) form, which is not valid Flink SQL syntax in either dialect.",
       "files": [],
       "assertions": [
-        "Uses CROSS JOIN UNNEST(...) to explode the array, NOT LATERAL TABLE(UNNEST(...)) (parse error on CC)",
+        "Uses CROSS JOIN UNNEST(...) to explode the array, NOT LATERAL TABLE(UNNEST(...)) (not valid Flink SQL syntax in either OSS or CC)",
         "Extracts the $.items array via JSON_QUERY/CAST before the UNNEST"
       ]
     },
     {
       "id": 5,
       "prompt": "On Confluent Cloud Flink SQL, I need to enrich streaming orders with customer data from an external Postgres database. Write the lookup join pattern.",
-      "expected_output": "A lookup join using External Tables + KEY_SEARCH_AGG (or an upsert-kafka/temporal join alternative), not the unsupported PROCTIME() lookup-join pattern.",
+      "expected_output": "A lookup join using External Tables + KEY_SEARCH_AGG (or an event-time temporal join alternative), not the unsupported PROCTIME() lookup-join pattern or an inefficient regular join against an upsert-kafka topic.",
       "files": [],
       "assertions": [
-        "Uses External Tables + KEY_SEARCH_AGG (or an upsert-kafka join / temporal join) for the lookup, NOT PROCTIME() (unsupported on CC)",
+        "Uses External Tables + KEY_SEARCH_AGG (or an event-time temporal join) for the lookup, NOT PROCTIME() (unsupported on CC)",
+        "Does NOT recommend a regular join against an upsert-kafka topic as the lookup mechanism (retains the whole table in state, inefficient)",
         "Includes a `CREATE CONNECTION` step for the Postgres endpoint when using the External Tables approach"
       ]
     },
     {
       "id": 6,
-      "prompt": "Write a CC Flink SQL query that uses a CTE to prepare data, then does a tumbling window aggregation. The source table is sensor_data. Use the system rowtime column for event time.",
-      "expected_output": "A query that references $rowtime inside the CTE without aliasing it, preserving the time-attribute property needed for the downstream window.",
+      "prompt": "On Confluent Cloud Flink SQL, will running DROP TABLE on a table backed by a Kafka topic delete the underlying topic and its data, or just the table's metadata?",
+      "expected_output": "An explanation that DROP TABLE on CC deletes the physical Kafka topic and its data, unlike OSS Flink where DROP TABLE only removes catalog metadata.",
       "files": [],
       "assertions": [
-        "References the system column as `$rowtime` without aliasing it inside the CTE (not 'AS $rowtime' or 'as $rowtime'), since aliasing silently strips the time-attribute property",
-        "Tumbling window aggregation uses the TVF form `TUMBLE(TABLE ..., DESCRIPTOR(...), INTERVAL ...)`"
+        "States that DROP TABLE on Confluent Cloud deletes the underlying physical Kafka topic and its data, not just table metadata",
+        "Notes this differs from Apache Flink OSS, where DROP TABLE only removes catalog metadata and leaves the underlying storage untouched",
+        "Recommends confirming the topic is disposable, or double-checking before running DROP TABLE"
       ]
     },
     {
@@ -185,11 +187,12 @@
     {
       "id": 19,
       "prompt": "How do I set state TTL for a Flink SQL statement on Confluent Cloud?",
-      "expected_output": "Guidance to pass state TTL via the CLI --property flag on statement create, not a SQL SET statement.",
+      "expected_output": "Guidance to set state TTL via either a SQL SET 'sql.state-ttl' statement or the CLI --property flag on statement create — both are valid on CC.",
       "files": [],
       "assertions": [
-        "Sets state TTL via the CLI --property sql.state-ttl=<ms> flag on flink statement create",
-        "Does NOT use a SET 'sql.state-ttl' or SET 'table.exec.state.ttl' SQL statement"
+        "Recommends either SET 'sql.state-ttl' = '<ms>' as a SQL statement, or --property sql.state-ttl=<ms> on flink statement create — both are valid on CC",
+        "Does NOT claim SET 'sql.state-ttl' is rejected or unsupported on CC",
+        "Does NOT recommend SET 'table.exec.state.ttl' (wrong option key)"
       ]
     },
     {
