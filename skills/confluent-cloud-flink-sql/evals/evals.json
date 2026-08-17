@@ -1,0 +1,147 @@
+{
+  "skill_name": "confluent-cloud-flink-sql",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Write a Flink SQL tumbling window query that counts vehicle telemetry signals per hour, grouped by vehicle_id. The table is called telemetry and has columns vehicle_id, signal_value, and recorded_at. Target runtime is Confluent Cloud.",
+      "expected_output": "A tumbling window aggregation using the CC table-valued function syntax, not the legacy GROUP BY TUMBLE() form.",
+      "files": [],
+      "assertions": [
+        "Query uses the table-valued function form TUMBLE(TABLE telemetry, DESCRIPTOR(recorded_at), INTERVAL '1' HOUR), NOT GROUP BY TUMBLE(recorded_at, INTERVAL '1' HOUR)",
+        "GROUP BY clause references `window_start`, `window_end`, and `vehicle_id` (the TVF output columns)"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Write a CREATE TABLE statement for a Kafka source in Confluent Cloud Flink SQL with topic 'vehicle-signals' and bootstrap servers.",
+      "expected_output": "An explanation that CC auto-maps Kafka topics to tables rather than requiring manual connector DDL.",
+      "files": [],
+      "assertions": [
+        "Explains that CC auto-maps Kafka topics to tables and that manual 'connector' = 'kafka' DDL with bootstrap servers is not the CC pattern",
+        "Does not present 'connector' = 'kafka' or bootstrap.servers as a working CREATE TABLE option for CC — it may name them only to reject them"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "I'm building a Flink SQL pipeline on Confluent Cloud: a source table reading Debezium CDC data from a Postgres connector topic, and a sink table order_summary (order_id STRING, total DECIMAL(10,2)) writing plain JSON to a Kafka topic. Write both CREATE TABLE WITH clauses.",
+      "expected_output": "A source table using CC's format-first Debezium naming (e.g. json-debezium-registry or avro-debezium-registry), and a sink using json-registry — never the OSS debezium-json naming or plain 'json'.",
+      "files": [],
+      "assertions": [
+        "Sink table's value.format is 'json-registry', NOT 'json'",
+        "Source table's value.format uses a *-debezium-registry format (format-first naming), NOT the OSS debezium-json naming"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "On Confluent Cloud Flink SQL: (1) write a reusable named view that filters sensor_data where temperature > 100, and (2) write an INSERT INTO output_topic statement that uses a CTE (WITH clause) to pre-filter input_signals (columns signal_id, vehicle_id, temperature) before inserting.",
+      "expected_output": "A persistent CREATE VIEW (or CTE) instead of CREATE TEMPORARY VIEW, and an INSERT INTO with the CTE placed after INSERT INTO rather than before it.",
+      "files": [],
+      "assertions": [
+        "Uses a persistent CREATE VIEW or a CTE (WITH v AS (...)), NOT CREATE TEMPORARY VIEW",
+        "In the INSERT statement, the WITH clause appears after INSERT INTO output_topic, not before it"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "Write CC Flink SQL to explode a JSON array field from a Kafka topic. The input table raw_events has a VARBINARY val column containing JSON with a $.items array. Extract each item as a separate row.",
+      "expected_output": "A query using CROSS JOIN UNNEST to explode the array, avoiding the LATERAL TABLE(UNNEST(...)) form, which is not valid Flink SQL syntax in either dialect.",
+      "files": [],
+      "assertions": [
+        "Uses CROSS JOIN UNNEST(...) to explode the array, NOT LATERAL TABLE(UNNEST(...))",
+        "Extracts the $.items array via JSON_QUERY/CAST before the UNNEST"
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "On Confluent Cloud Flink SQL, I need to enrich streaming orders with customer data from an external Postgres database. Write the lookup join pattern.",
+      "expected_output": "A lookup join using External Tables + KEY_SEARCH_AGG (or an event-time temporal join alternative), not the unsupported PROCTIME() lookup-join pattern or an inefficient regular join against an upsert-kafka topic.",
+      "files": [],
+      "assertions": [
+        "Uses External Tables + KEY_SEARCH_AGG (or an event-time temporal join) for the lookup, NOT PROCTIME()",
+        "Does NOT recommend a regular join against an upsert-kafka topic as the lookup mechanism"
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "On Confluent Cloud Flink SQL, will running DROP TABLE on a table backed by a Kafka topic delete the underlying topic and its data, or just the table's metadata?",
+      "expected_output": "An explanation that DROP TABLE on CC deletes the physical Kafka topic and its data — a production-safety fact, not just a metadata operation.",
+      "files": [],
+      "assertions": [
+        "States that DROP TABLE on Confluent Cloud deletes the underlying physical Kafka topic and its data, not just table metadata",
+        "Recommends confirming or double-checking before running DROP TABLE, since the data loss is irreversible"
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "Set up a new Confluent Cloud Flink SQL environment for me: create a catalog to organize my tables, and configure checkpointing to run every 30 seconds.",
+      "expected_output": "An explanation that catalogs map to CC environments (not created via CREATE CATALOG) and that CC manages checkpointing internally (not user-settable via SET).",
+      "files": [],
+      "assertions": [
+        "Explains that a CC Flink catalog maps to the Confluent Cloud environment and is not user-creatable via CREATE CATALOG",
+        "States that CC manages checkpointing and it is not user-settable via SET 'execution.checkpointing.interval'"
+      ]
+    },
+    {
+      "id": 9,
+      "prompt": "I want to upgrade my running Flink SQL statement on Confluent Cloud to a new version. How do I create a savepoint and restore from it?",
+      "expected_output": "Guidance toward the carry-over offset pattern for stateless statement replacement, since savepoints are not exposed on Confluent Cloud.",
+      "files": [],
+      "assertions": [
+        "Recommends the carry-over offset pattern (sql.tables.initial-offset-from) for stateless statement replacement",
+        "Does NOT recommend STOP WITH SAVEPOINT, CREATE SAVEPOINT, or confluent flink savepoint create"
+      ]
+    },
+    {
+      "id": 10,
+      "prompt": "Write a Confluent Cloud Flink job in Java using the DataStream API to filter Kafka messages by vehicle_id.",
+      "expected_output": "A steer toward Flink SQL or the Table API, with an explanation that the DataStream API is not supported on Confluent Cloud.",
+      "files": [],
+      "assertions": [
+        "Response steers the user to Flink SQL or the Table API and states the DataStream API is not supported on Confluent Cloud",
+        "Does NOT contain StreamExecutionEnvironment, DataStream<, or env.fromSource"
+      ]
+    },
+    {
+      "id": 11,
+      "prompt": "Walk me through creating a Flink SQL statement from a file called filter.sql on compute pool lfcp-abc123 in environment env-xyz789, then checking its status. The statement is named my-filter and runs in AWS us-east-1.",
+      "expected_output": "A confluent flink statement create command using --sql \"$(cat filter.sql)\" (not --sql-file) and --environment, followed by a describe command using --cloud and --region.",
+      "files": [],
+      "assertions": [
+        "Reads the SQL file with --sql \"$(cat filter.sql)\", NOT a --sql-file flag",
+        "The describe command includes both --cloud aws and --region us-east-1"
+      ]
+    },
+    {
+      "id": 12,
+      "prompt": "Write a Flink SQL CREATE TABLE on Confluent Cloud with columns for a Unix timestamp, a payload value, and a row key. Use column names timestamp, value, and key.",
+      "expected_output": "A CREATE TABLE statement that backquotes the reserved keywords timestamp and value, since both fail to parse unquoted on CC, while key (nonreserved) may appear either way.",
+      "files": [],
+      "assertions": [
+        "The column named timestamp is backquoted as `timestamp`",
+        "The column named value is backquoted as `value`",
+        "Does NOT claim that key causes a parse error if left unquoted"
+      ]
+    },
+    {
+      "id": 13,
+      "prompt": "In CC Flink SQL, cast the ISO-8601 string '2024-06-15T10:30:00Z' to a TIMESTAMP value.",
+      "expected_output": "A TO_TIMESTAMP-based conversion, since a direct CAST of an ISO-8601 string to TIMESTAMP fails.",
+      "files": [],
+      "assertions": [
+        "Uses TO_TIMESTAMP(REPLACE(...)) or an equivalent TO_TIMESTAMP-based conversion",
+        "Does NOT use a direct CAST('2024-06-15T10:30:00Z' AS TIMESTAMP)"
+      ]
+    },
+    {
+      "id": 14,
+      "prompt": "Write a MATCH_RECOGNIZE query on Confluent Cloud Flink SQL that detects when a sensor reading spikes: 3+ consecutive increases followed by a value over 200. Partition by sensor_id, order by reading_time.",
+      "expected_output": "A MATCH_RECOGNIZE query respecting CC's limitations (no PREV()/NEXT() physical offsets).",
+      "files": [],
+      "assertions": [
+        "Does NOT use PREV( or NEXT( physical offset functions",
+        "DEFINE clause navigates using the logical offset function LAST(variable.field, n) (or FIRST(variable.field, n))",
+        "Pattern uses a quantified variable such as `PATTERN (N{3,} C)` for the 3+ consecutive increases requirement"
+      ]
+    }
+  ]
+}
