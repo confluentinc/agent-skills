@@ -18,7 +18,7 @@
       "files": [],
       "assertions": [
         "Explains that CC auto-maps Kafka topics to tables and that manual 'connector' = 'kafka' DDL with bootstrap servers is not the CC pattern",
-        "Does NOT contain 'connector' = 'kafka' or 'properties.bootstrap.servers'"
+        "Does not present 'connector' = 'kafka' or bootstrap.servers as a working CREATE TABLE option for CC — it may name them only to reject them"
       ]
     },
     {
@@ -64,11 +64,11 @@
     {
       "id": 7,
       "prompt": "On Confluent Cloud Flink SQL, will running DROP TABLE on a table backed by a Kafka topic delete the underlying topic and its data, or just the table's metadata?",
-      "expected_output": "An explanation that DROP TABLE on CC deletes the physical Kafka topic and its data, unlike OSS Flink where DROP TABLE only removes catalog metadata.",
+      "expected_output": "An explanation that DROP TABLE on CC deletes the physical Kafka topic and its data — a production-safety fact, not just a metadata operation.",
       "files": [],
       "assertions": [
         "States that DROP TABLE on Confluent Cloud deletes the underlying physical Kafka topic and its data, not just table metadata",
-        "Notes this differs from Apache Flink OSS, where DROP TABLE only removes catalog metadata"
+        "Recommends confirming or double-checking before running DROP TABLE, since the data loss is irreversible"
       ]
     },
     {
