@@ -147,7 +147,7 @@ confluent flink statement list --cloud <provider> --region <region>
 ## Consume Errors
 
 ### UTF-8 decode errors on topic consume
-**Cause:** Default `--value-format string` on SR-backed topic with `id-encoding=confluent` — first 5 bytes are wire-format prefix.
+**Cause:** Default `--value-format string` on SR-backed topic with `id-encoding=payload` — first 5 bytes are wire-format prefix.
 **Fix:** Use `--value-format jsonschema` (or `avro`/`protobuf`).
 
 ### Interleaved `% Headers:` lines in output

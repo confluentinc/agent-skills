@@ -129,7 +129,7 @@ CREATE TABLE vehicle_registry (
 -- Step 3: KEY_SEARCH_AGG + CROSS JOIN UNNEST
 SELECT s.signal_id, v.make, v.model, v.fleet_id
 FROM telemetry_signals s,
-LATERAL TABLE(KEY_SEARCH_AGG(vehicle_registry, DESCRIPTOR(vin), vin))
+LATERAL TABLE(KEY_SEARCH_AGG(vehicle_registry, DESCRIPTOR(vin), s.vehicle_id))
 CROSS JOIN UNNEST(search_results) AS v(vin, make, model, fleet_id);
 ```
 
