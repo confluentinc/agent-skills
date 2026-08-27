@@ -2,22 +2,22 @@
 
 ## Flag schema
 
-All `flink statement` subcommands accept `--cloud`/`--region`, `--environment`, and `--context` — none of them are rejected on any subcommand. `--sql` is the only flag marked REQUIRED anywhere in this group (on `create`); everything else, including `--environment`, is optional per the CLI's own docs (the CLI falls back to whatever `confluent environment use`/`confluent kafka cluster use` context is active).
+All `flink statement` subcommands accept `--cloud`/`--region`, `--environment`, and `--context` — none of them are rejected on any subcommand. `flink statement create` requires `--sql`, `--compute-pool`, `--database`, and `--environment`; the other subcommands (`list`/`describe`/`stop`/`delete`) leave all of these optional, falling back to whatever `confluent environment use`/`confluent kafka cluster use` context is active.
 
-| Subcommand | `--cloud`/`--region` | `--environment` | `--sql` | `--wait` |
-|---|---|---|---|---|
-| `flink statement create` | optional | optional | ✅ required | optional (60s default) |
-| `flink statement list` | optional | optional | — | — |
-| `flink statement describe` | optional | optional | — | — |
-| `flink statement stop` | optional | optional | — | — |
-| `flink statement delete` | optional | optional | — | — |
+| Subcommand | `--cloud`/`--region` | `--environment` | `--compute-pool` | `--database` | `--sql` | `--wait` |
+|---|---|---|---|---|---|---|
+| `flink statement create` | optional | ✅ required | ✅ required | ✅ required | ✅ required | optional (60s default) |
+| `flink statement list` | optional | optional | — | — | — | — |
+| `flink statement describe` | optional | optional | — | — | — | — |
+| `flink statement stop` | optional | optional | — | — | — | — |
+| `flink statement delete` | optional | optional | — | — | — | — |
 
 This table covers `flink statement` only. Other `flink` subcommand groups diverge:
 - `flink artifact create`/`list`/`describe`: `--cloud` and `--region` are REQUIRED, unlike `flink statement` where both are optional.
 - `flink compute-pool`: no `--cloud` flag exists. `list` accepts `--region`; `describe` accepts only `--environment`.
 
 Key rules:
-- `create`, `list`, `describe`, `stop`, and `delete` all accept `--cloud`/`--region` AND `--environment` — there's no per-subcommand rejection. Pass whichever ones the active CLI context hasn't already resolved.
+- `create` requires `--environment`, `--compute-pool`, and `--database` in addition to `--sql` — omitting any of them fails to schedule the statement or risks running it against whichever pool/cluster happens to be active in context. `list`, `describe`, `stop`, and `delete` accept `--cloud`/`--region` AND `--environment` but don't require them — there's no per-subcommand rejection there. Pass whichever ones the active CLI context hasn't already resolved.
 - `--sql-file` does NOT exist — read file: `--sql "$(cat file.sql)"`
 - `--property` accepts comma-separated values in one flag (`--property "k1=v1,k2=v2"`); the CLI docs describe it as a string slice, so it may also work as a repeated flag — comma-separated is the tested form.
 

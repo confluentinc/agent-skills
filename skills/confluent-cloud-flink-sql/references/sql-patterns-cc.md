@@ -224,8 +224,7 @@ FROM raw_topic;
 SELECT order_id, signal_str
 FROM input_topic
 CROSS JOIN UNNEST(
-  CAST(JSON_QUERY(CAST(val AS STRING), 'lax $.signals[*]'
-       RETURNING ARRAY<STRING>) AS ARRAY<STRING>)
+  JSON_QUERY(CAST(val AS STRING), 'lax $.signals[*]' RETURNING ARRAY<STRING>)
 ) AS T(signal_str);
 ```
 
@@ -290,14 +289,16 @@ FROM events;
 ## LAG/LEAD Window Functions
 
 ```sql
-SELECT product_id, event_time, price,
-  LAG(price) OVER (PARTITION BY product_id ORDER BY event_time) AS prev_price,
+SELECT product_id, event_time, price, prev_price,
   CASE
-    WHEN price > LAG(price) OVER (PARTITION BY product_id ORDER BY event_time) THEN 'UP'
-    WHEN price < LAG(price) OVER (PARTITION BY product_id ORDER BY event_time) THEN 'DOWN'
+    WHEN price > prev_price THEN 'UP'
+    WHEN price < prev_price THEN 'DOWN'
     ELSE 'FLAT'
   END AS trend
-FROM price_updates;
+FROM (
+  SELECT *, LAG(price) OVER (PARTITION BY product_id ORDER BY event_time) AS prev_price
+  FROM price_updates
+);
 ```
 
 ## CC System Columns

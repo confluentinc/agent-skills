@@ -50,7 +50,6 @@ Stop and consult `references/dialect-traps.md` if you catch yourself writing any
 - `CREATE TABLE ... WITH ('connector' = 'kafka', ...)` — tables auto-map from topics
 - `'value.format' = 'json'` — must be `'json-registry'` (or another SR-backed format)
 - `WITH cte AS (...) INSERT INTO ...` — CC requires the CTE AFTER `INSERT INTO`
-- `$rowtime AS alias` in a CTE — silently strips the time-attribute property
 - `GROUP BY TUMBLE(ts, INTERVAL ...)` — must use the TVF form: `TUMBLE(TABLE t, DESCRIPTOR(ts), ...)`
 - `LATERAL TABLE(UNNEST(...))` — parse error; use `CROSS JOIN UNNEST(...)`
 - `PROCTIME()` — not supported; use External Tables/`KEY_SEARCH_AGG` or an event-time temporal join (avoid a regular join against an upsert-kafka topic — it retains the whole table in state)
