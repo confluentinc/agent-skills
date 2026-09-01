@@ -14,8 +14,16 @@ Schema Registry docs: <https://docs.confluent.io/platform/current/schema-registr
 | `FULL_TRANSITIVE` | all previous versions | add optional fields, delete optional fields | Either order |
 | `NONE` | nothing | anything | — (no guarantee) |
 
-"Optional" means the field has a **default value** (Avro/JSON Schema) — Protobuf treats this
-differently, see `protobuf-rules.md`.
+What counts as an **optional** field depends on the format:
+
+- **Avro** — the field has a `default`. Avro substitutes the default when a value is absent,
+  which is what makes an add or a remove safe. See `avro-rules.md`.
+- **JSON Schema** — the field is **not listed in `required`**. A `default` is advisory only;
+  Confluent's serializers do not inject it, so a `default` alone does **not** make a field
+  optional. See `json-schema-rules.md`.
+- **Protobuf** — every field is already optional on the wire (proto3 scalars carry an
+  implicit default), so "add a field" is generally safe both ways; a removal still needs
+  `reserved`. See `protobuf-rules.md`.
 
 ### What "backward" and "forward" actually mean
 
