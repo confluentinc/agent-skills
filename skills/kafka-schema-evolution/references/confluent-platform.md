@@ -27,7 +27,7 @@ curl -s -X PUT "$SR_URL/config/orders-value" $SR_AUTH \
 ```
 
 REST API reference:
-<https://docs.confluent.io/platform/current/schema-registry/develop/api.html>
+<https://docs.confluent.io/platform/current/schema-registry/develop/api.md>
 
 ## Maven / Gradle CI gate
 

@@ -1,6 +1,6 @@
 # Compatibility modes
 
-Schema Registry docs: <https://docs.confluent.io/platform/current/schema-registry/fundamentals/schema-evolution.html>
+Schema Registry docs: <https://docs.confluent.io/platform/current/schema-registry/fundamentals/schema-evolution.md>
 
 ## The seven modes
 

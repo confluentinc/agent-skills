@@ -5,7 +5,7 @@ diff algorithm. Always confirm a verdict with a live check-without-registering c
 reasoning is a guide, not the authority.
 
 Confluent algorithm reference:
-<https://docs.confluent.io/platform/current/schema-registry/fundamentals/serdes-develop/serdes-json.html#json-schema-compatibility-rules>
+<https://docs.confluent.io/platform/current/schema-registry/fundamentals/serdes-develop/serdes-json.md#json-schema-compatibility-rules>
 
 ## Content model is the pivot
 

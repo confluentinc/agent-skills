@@ -4,7 +4,7 @@ Protobuf wire format identifies fields by **field number**, not name. That makes
 additive changes safe in both directions, but makes a handful of changes silently corrupting.
 
 Confluent algorithm reference:
-<https://docs.confluent.io/platform/current/schema-registry/fundamentals/serdes-develop/serdes-protobuf.html#protobuf-schema-compatibility-rules>
+<https://docs.confluent.io/platform/current/schema-registry/fundamentals/serdes-develop/serdes-protobuf.md#protobuf-schema-compatibility-rules>
 
 ## Field-level changes
 

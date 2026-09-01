@@ -32,7 +32,7 @@ confluent schema-registry schema describe --subject orders-value --version lates
 ```
 
 Flag names drift between CLI versions — verify with `confluent schema-registry <cmd> --help`.
-CLI reference: <https://docs.confluent.io/confluent-cli/current/command-reference/schema-registry/index.html>
+CLI reference: <https://docs.confluent.io/confluent-cli/current/command-reference/schema-registry/index.md>
 
 ## Stream Governance packages
 

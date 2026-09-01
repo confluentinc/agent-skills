@@ -76,7 +76,7 @@ Wire a compatibility check into the pipeline that builds the producer:
 - Fail the build on `is_compatible: false`. Print the verbose messages.
 
 Full plugin docs:
-<https://docs.confluent.io/platform/current/schema-registry/develop/maven-plugin.html>
+<https://docs.confluent.io/platform/current/schema-registry/develop/maven-plugin.md>
 
 ## Breaking changes — when compatibility genuinely can't hold
 
@@ -87,7 +87,7 @@ Full plugin docs:
    (e.g. `major_version`). Schemas in different groups are exempt from the mode check;
    `ruleSet.migrationRules` (JSONata transforms with `UPGRADE` / `DOWNGRADE`) let SR-aware
    consumers read across the break. Requires clients on a recent serde version. Docs:
-   <https://docs.confluent.io/platform/current/schema-registry/fundamentals/data-contracts.html>
+   <https://docs.confluent.io/platform/current/schema-registry/fundamentals/data-contracts.md>
 3. **Dual-write / transform**: a stream processor (Flink, Streams) reads `orders` and writes a
    transformed `orders.v2`. Use when consumers can't all move at once.
 
