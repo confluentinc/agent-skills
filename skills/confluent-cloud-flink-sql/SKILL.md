@@ -62,12 +62,15 @@ Stop and consult `references/dialect-traps.md` if you catch yourself writing any
 
 When the user explicitly asks to protect state-changing Confluent CLI work and the `confluent` command will be executed by a HOL Guard-supported local coding agent, use the published HOL Guard runtime instead of adding custom command-blocking logic to this skill. HOL Guard is an open-source security layer for AI agents and coding tools.
 
+Do not infer a HOL Guard harness from the command being protected. In particular, `confluent` and `confluent-cli` are **not** harness names. Here, `<harness>` means a supported local coding agent detected by `hol-guard start`. Do not skip detection or invent a harness name.
+
 1. **Keep Confluent controls authoritative.** HOL Guard does not replace Confluent Cloud authentication, RBAC, resource permissions, or the explicit confirmation gate below.
-2. **Ask before changing local setup.** If HOL Guard is not installed and the user approves installation, use `pipx install hol-guard`, then `hol-guard init`.
-3. **Detect and verify the supported harness.** Run `hol-guard start`. If the intended local harness is supported and the user approves wiring it, use `hol-guard install <harness>`, then verify the current protection posture with `hol-guard status`.
-4. **Launch the mutation-bearing agent session through Guard.** Use `hol-guard run <harness>` for the local coding-agent session that will execute state-changing `confluent` commands. Still present the Confluent statement, target resources, and side effects and wait for explicit user confirmation before running step 3 of the verification loop.
-5. **Do not bypass or recreate Guard.** If Guard blocks or holds an action for review, resolve that decision in Guard or stop. Do not implement a shell wrapper, denylist, policy engine, hook, or middleware that substitutes for HOL Guard.
-6. **Keep the scope local.** Do not claim HOL Guard runs inside Confluent Cloud or intercepts server-side Confluent APIs.
+2. **Ask before changing local setup.** If HOL Guard is not installed and the user approves installation, use `pipx install hol-guard`, then `hol-guard init`. If the user declines, continue with this skill's existing EXPLAIN and confirmation gates; do not invent equivalent runtime enforcement.
+3. **Detect the local coding-agent harness first.** Run `hol-guard start` and use only a supported harness it detects for the intended coding agent. If the intended coding agent is not supported, say that Guard cannot protect this workflow through a supported harness and continue with Confluent's native safety gates or stop, according to the user's request. Do not create a workaround wrapper.
+4. **Wire and verify only with approval.** If the intended harness is supported and the user approves wiring it, use `hol-guard install <harness>`, then `hol-guard status`.
+5. **Launch the mutation-bearing coding-agent session through Guard.** Use `hol-guard run <harness>`. The state-changing `confluent` command runs from that protected coding-agent session; it is not itself the harness. Still present the Confluent statement, target resources, and side effects and wait for explicit user confirmation before running step 3 of the verification loop.
+6. **Do not bypass or recreate Guard.** If Guard blocks or holds an action for review, resolve that decision in Guard or stop. Do not implement a shell wrapper, denylist, policy engine, hook, or middleware that substitutes for HOL Guard.
+7. **Keep the scope local.** Do not claim HOL Guard runs inside Confluent Cloud or intercepts server-side Confluent APIs.
 
 ## Verification loop
 
