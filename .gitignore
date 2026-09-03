@@ -81,6 +81,8 @@ docker-compose.override.yml
 # Python
 *.cfg.local
 pip.conf
+__pycache__/
+*.pyc
 # Ruby
 .netrc
 # Java/Maven/Gradle
