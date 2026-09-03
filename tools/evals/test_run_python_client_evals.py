@@ -138,6 +138,19 @@ class RunAgentLoopTests(unittest.TestCase):
         tool_result_text = tool_result_message["content"][0]["toolResult"]["content"][0]["text"]
         self.assertIn("def get_kafka_config", tool_result_text)
 
+    def test_raises_if_tool_use_stop_reason_has_no_tool_use_blocks(self):
+        client = mock.Mock()
+        client.converse.return_value = {
+            "output": {"message": {"role": "assistant", "content": [{"text": "oops"}]}},
+            "stopReason": "tool_use",
+        }
+        skill_root = Path(__file__).resolve().parents[2] / "skills" / "developing-kafka-python-client"
+
+        with self.assertRaises(RuntimeError) as ctx:
+            run_agent_loop(client, "some-model", "system prompt", "hello", skill_root)
+        self.assertIn("no toolUse blocks", str(ctx.exception))
+        client.converse.assert_called_once()
+
     def test_raises_if_agent_never_stops_calling_tools(self):
         client = mock.Mock()
         client.converse.return_value = {
@@ -214,6 +227,49 @@ class JudgeCaseTests(unittest.TestCase):
         self.assertEqual(results[0]["assertion"], "producer.py is generated")
         self.assertFalse(results[0]["passed"])
         self.assertIn("judge response", results[0]["reason"])
+
+    def test_judge_reply_that_is_a_single_object_not_a_list_marks_assertions_failed(self):
+        client = mock.Mock()
+        client.converse.return_value = {
+            "output": {
+                "message": {
+                    "role": "assistant",
+                    "content": [{"text": json.dumps({"assertion": "producer.py is generated", "passed": True})}],
+                }
+            },
+            "stopReason": "end_turn",
+        }
+
+        results = judge_case(
+            client,
+            "judge-model",
+            prompt="build me a producer",
+            expected_output="a producer project",
+            output="<generated files>",
+            assertions=["producer.py is generated"],
+        )
+
+        self.assertEqual(len(results), 1)
+        self.assertFalse(results[0]["passed"])
+
+    def test_judge_reply_with_non_dict_list_items_marks_assertions_failed(self):
+        client = mock.Mock()
+        client.converse.return_value = {
+            "output": {"message": {"role": "assistant", "content": [{"text": json.dumps(["not a dict"])}]}},
+            "stopReason": "end_turn",
+        }
+
+        results = judge_case(
+            client,
+            "judge-model",
+            prompt="build me a producer",
+            expected_output="a producer project",
+            output="<generated files>",
+            assertions=["producer.py is generated"],
+        )
+
+        self.assertEqual(len(results), 1)
+        self.assertFalse(results[0]["passed"])
 
 
 class RunCaseTests(unittest.TestCase):

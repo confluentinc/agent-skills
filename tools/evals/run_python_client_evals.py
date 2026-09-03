@@ -1,4 +1,4 @@
-# Runs this skill's evals and writes one JSON line per case to $EVAL_OUT (project/suite/case/verdict/score/notes), per the cc-agent-evals contract.
+# Requires Python 3.9+. Runs this skill's evals and writes one JSON line per case to $EVAL_OUT (project/suite/case/verdict/score/notes), per the cc-agent-evals contract.
 
 import json
 import os
@@ -85,6 +85,8 @@ def run_agent_loop(client, model_id: str, system_prompt: str, user_message: str,
             tool_result_blocks.append(
                 {"toolResult": {"toolUseId": tool_use["toolUseId"], "content": [{"text": content_text}]}}
             )
+        if not tool_result_blocks:
+            raise RuntimeError("model reported stopReason=tool_use but returned no toolUse blocks")
         messages.append({"role": "user", "content": tool_result_blocks})
 
     raise RuntimeError(f"agent did not finish within {MAX_AGENT_ITERATIONS} tool-use iterations")
@@ -121,7 +123,7 @@ def judge_case(
         start, end = reply_text.index("["), reply_text.rindex("]") + 1
         parsed = json.loads(reply_text[start:end])
         return [{"assertion": r["assertion"], "passed": bool(r["passed"]), "reason": r["reason"]} for r in parsed]
-    except (ValueError, KeyError):
+    except (ValueError, KeyError, TypeError):
         return [
             {"assertion": a, "passed": False, "reason": f"could not parse judge response: {reply_text!r}"}
             for a in assertions
