@@ -1,0 +1,45 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <!-- Confluent.Kafka multi-targets .NET Framework 4.6.2, .NET Standard 2.0, net8.0,
+         and net10.0; net8.0 is used here as the example's baseline for broad LTS
+         compatibility. Bump to net10.0 (or point at net462/netstandard2.0 for a
+         .NET Framework / older host) if the user's environment calls for it; no other
+         change is needed since the same package versions below cover all of them. -->
+    <!-- Multiple classes in this project define a static Main (JsonSchemaProducer,
+         JsonSchemaConsumer, ...), mirroring how the Java skill picks a main class via
+         `mvn exec:java -Dexec.mainClass=...`. Pick which one runs with StartupObject,
+         either here or via `dotnet run -p:StartupObject=ExampleKafka.JsonSchemaConsumer`. -->
+    <StartupObject>ExampleKafka.JsonSchemaProducer</StartupObject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Confluent.Kafka" Version="2.15.0" />
+    <PackageReference Include="Confluent.SchemaRegistry" Version="2.15.0" />
+    <PackageReference Include="Confluent.SchemaRegistry.Serdes.Json" Version="2.15.0" />
+    <PackageReference Include="Confluent.SchemaRegistry.Serdes.Avro" Version="2.15.0" />
+    <!-- Avro alternative: swap the line above for
+         PackageReference Confluent.SchemaRegistry.Serdes.Avro, version 2.15.0.
+         Generate C# classes from *.avsc with avrogen before building; see
+         schema-generation-rules.md for the avrogen install command and invocation
+         (an XML comment cannot contain two adjacent dashes, so it isn't repeated here). -->
+    <!-- Protobuf alternative: swap the Serdes.Json line above for
+         PackageReference Confluent.SchemaRegistry.Serdes.Protobuf plus
+         PackageReference Grpc.Tools (PrivateAssets="All"), version 2.83.0,
+         and add an item group with a Protobuf element pointing at Protos/value.proto.
+         Grpc.Tools generates the C# message classes automatically at build time. -->
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- appsettings.json is gitignored (holds credentials); copy it next to the built
+         binary so KafkaConfig.LoadEnv() finds it at run time. Only present once the
+         user copies it from appsettings.json.example, so the Condition below avoids
+         a build failure before that copy exists. -->
+    <None Update="appsettings.json" CopyToOutputDirectory="PreserveNewest" Condition="Exists('appsettings.json')" />
+  </ItemGroup>
+
+</Project>
