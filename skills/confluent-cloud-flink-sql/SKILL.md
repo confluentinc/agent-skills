@@ -5,7 +5,7 @@ compatibility: Requires the `confluent` CLI (authenticated session) and an activ
 metadata:
   author: confluent
   version: "1.1.0"
-  last_updated: "2025-09-18"
+  last_updated: "2026-09-18"
 ---
 
 # Confluent Cloud Flink SQL
@@ -162,7 +162,7 @@ Create or modify the Flink statement only after receiving explicit user confirma
 
 After the statement is running:
 
-1. Consume the output topic to confirm expected records are being produced.
+1. Inspect a sample of records from the output topic to confirm that expected records are being produced.
 2. Monitor statement status and exceptions.
 3. If verification fails, inspect diagnostics (`statement exception list`) and iterate.
 
