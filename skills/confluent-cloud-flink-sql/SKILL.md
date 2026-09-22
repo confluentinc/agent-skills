@@ -4,8 +4,8 @@ description: "Write and debug Flink SQL that runs on Confluent Cloud, enforcing 
 compatibility: Requires the `confluent` CLI (authenticated session) and an active Confluent Cloud compute pool — statement runs consume CFUs. Terraform is optional, needed only if managing `CREATE CONNECTION` credentials via the Confluent Terraform provider.
 metadata:
   author: confluent
-  version: "1.0.0"
-  last_updated: "2026-07-31"
+  version: "1.1.0"
+  last_updated: "2026-09-18"
 ---
 
 # Confluent Cloud Flink SQL
@@ -26,6 +26,156 @@ Scope note: this skill's reference material is built around the OSS-vs-CC dialec
 4. **Secrets never in repo.** `CREATE CONNECTION` parameters are Terraform-injected, never hardcoded. Gitignore `.tfvars`, `.tfstate*`, `*.secret*` from day one.
 5. **EXPLAIN before CREATE.** Always `EXPLAIN` a query before `statement create` — catches parse/type errors without consuming CFUs.
 6. **Don't invent identifiers.** Use `<placeholder>` for any topic, table, statement, or resource name you haven't verified.
+
+## Stream Processing Workflow
+
+When a user asks to build, modify, or troubleshoot a Flink SQL streaming solution, first understand the streaming problem and identify the required data and processing semantics before generating SQL.
+
+Use this workflow:
+
+1. Understand the requirement
+2. Discover existing Confluent resources
+3. Establish the required streaming semantics (when needed)
+4. Propose the processing design (when needed)
+5. Confirm the design before modifying resources
+6. Generate and validate Flink SQL
+7. Execute the statement when explicitly approved
+8. Observe and verify the result
+
+Do not ask questions that have already been answered by the user or that can be answered through available MCP tools.
+
+For simple requests where the user has already provided all required information, skip directly to the relevant implementation and validation steps.
+
+### 1. Understand the Requirement
+
+Before generating Flink SQL, determine what the user is trying to accomplish.
+
+Establish, when relevant:
+
+- What streaming problem is being solved?
+- What data/events should be processed?
+- What are the input sources?
+- What should the output represent?
+- Where should the output go?
+- What business conditions determine which records are processed?
+- What are the required time semantics?
+- What should happen with duplicates, late events, or invalid data?
+- Are there important assumptions that could change the result?
+
+Ask only questions that materially affect the pipeline design.
+
+Do not ask for information that is already available in the conversation.
+
+### 2. Discover Existing Confluent Resources
+
+When MCP tools are available, prefer inspecting existing Confluent resources over asking the user for information that can be discovered.
+
+For referenced input resources:
+
+1. Find the relevant topic/table.
+2. Inspect its schema.
+3. Inspect representative records when necessary.
+4. Identify relevant keys and timestamp fields.
+5. Confirm the fields required by the proposed transformation.
+6. Identify the target resource if it already exists.
+
+Do not invent topic names, table names, column names, schemas, or timestamp fields.
+
+If multiple resources could match the request, present the candidates and ask the user to select one.
+
+### 3. Establish Streaming Semantics (when needed)
+
+Before generating SQL, determine the semantics that materially affect the result. Skip this step if all relevant semantics are already established from the user's prompt or the discovery step.
+
+Examples include:
+
+- Event time vs processing time
+- Window duration and behavior
+- Grouping keys
+- Join keys and temporal semantics
+- Deduplication key and ordering
+- Late-event handling
+- Output granularity
+- Whether the result represents individual events, aggregates, alerts, or another derived stream
+
+### 4. Propose the Processing Design (when needed)
+
+For non-trivial requests, summarize the proposed design before generating executable SQL. For simple, fully specified requests, this can be reduced to a brief summary or skipped entirely.
+
+Use:
+
+**Input**
+- Relevant topic/table(s)
+- Relevant fields
+
+**Processing**
+- Main transformations
+- Joins/enrichment
+- Aggregation/windowing
+- Other required operations
+
+**Output**
+- Target topic/table
+- Output semantics
+
+**Assumptions**
+- Material assumptions that have not been explicitly specified
+
+Ask the user to confirm or correct the design before creating or modifying resources.
+
+### 5. Plan Before Execute
+
+Before creating, modifying, or deleting a Confluent resource, present the execution plan.
+
+The plan should identify:
+
+1. Resources that will be inspected.
+2. SQL that will be validated.
+3. Statements/resources that will be created or modified.
+4. MCP tools or CLI commands that will be used.
+5. How the resulting pipeline will be verified.
+
+Wait for explicit user confirmation before performing resource-modifying operations.
+
+Read-only discovery and inspection may be performed before confirmation.
+
+### 6. Generate and Validate Flink SQL
+
+After the design is confirmed, generate and validate the SQL:
+
+1. Generate the Flink SQL.
+2. Validate it against the Confluent Cloud Flink SQL dialect.
+3. Use `EXPLAIN` where appropriate to catch parse/type errors without consuming CFUs.
+4. Follow the existing resource-modification and safety guidance.
+
+Use the existing dialect, SQL pattern, CLI, and troubleshooting references for implementation details.
+
+### 7. Execute the Statement
+
+Create or modify the Flink statement only after receiving explicit user confirmation:
+
+1. Create the statement using the CLI or MCP tools.
+2. Wait for the statement to reach RUNNING state.
+3. Surface any PENDING or FAILED states immediately — do not silently retry.
+
+### 8. Observe and Verify the Result
+
+After the statement is running:
+
+1. Inspect a sample of records from the output topic to confirm that expected records are being produced.
+2. Monitor statement status and exceptions.
+3. If verification fails, inspect diagnostics (`statement exception list`) and iterate.
+
+### Requirements Gathering Guardrails
+
+Requirements gathering must be adaptive rather than a fixed questionnaire.
+
+- Do not ask for information already provided.
+- Do not ask for information that can be reliably discovered through available MCP tools.
+- Do not ask every possible question before performing useful read-only discovery.
+- Ask follow-up questions only when missing information materially affects correctness or semantics.
+- Prefer a clearly stated, low-risk assumption over unnecessary questioning.
+- When an assumption could materially change the result, ask the user to confirm it.
 
 ## Reference files
 
