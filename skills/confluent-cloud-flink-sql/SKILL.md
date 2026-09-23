@@ -42,9 +42,9 @@ Use this workflow:
 7. Execute the statement when explicitly approved
 8. Observe and verify the result
 
-Do not ask questions that have already been answered by the user or that can be answered through available MCP tools.
+Do not ask clarifying questions if a request is complete (i.e., all required information, context, and parameters are provided or retrievable via available MCP tools). Skip directly to implementation and validation. 
 
-For simple requests where the user has already provided all required information, skip directly to the relevant implementation and validation steps.
+Only ask questions when critical information is missing and cannot be resolved through existing context or tools.
 
 ### 1. Understand the Requirement
 
@@ -164,7 +164,7 @@ After the statement is running:
 
 1. Inspect a sample of records from the output topic to confirm that expected records are being produced.
 2. Monitor statement status and exceptions.
-3. If verification fails, inspect diagnostics (`statement exception list`) and iterate.
+3. If the output is unexpected, inspect the input data and statement configuration before making changes.
 
 ### Requirements Gathering Guardrails
 
