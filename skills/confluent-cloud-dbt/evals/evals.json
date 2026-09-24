@@ -1,0 +1,124 @@
+{
+  "skill_name": "confluent-cloud-dbt",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "I want to start a new dbt-confluent project from scratch. I've already got a Confluent Cloud env, a Kafka cluster called 'orders-cluster', a Flink compute pool, and a service-account Flink API key. The source data is an existing Kafka topic 'orders' in the 'orders-cluster'. I want a 5-minute tumbling window of order counts and total revenue per customer.",
+      "expected_output": "Scaffolded project with dbt_project.yml (streaming_table default), profiles.yml.example, requirements.txt with a verified dbt-confluent pin, .gitignore, models/sources.yml declaring the existing orders topic, models/models.yml with column types and constraints for the new streaming_table, and models/<model>.sql containing the windowed aggregation using the TVF TUMBLE form. The warning-comment block is at the top of the streaming model. The user is told to run dbt commands themselves (not autonomous).",
+      "files": [],
+      "assertions": [
+        "Confirms the detected workflow (1 — scaffold) via AskUserQuestion before generating files",
+        "Asks pre-flight question and acknowledges the user already has the Confluent Cloud prerequisites — skips to scaffolding",
+        "Verifies the published dbt-confluent version against PyPI (e.g. via WebFetch on https://pypi.org/pypi/dbt-confluent/json) before pinning in requirements.txt",
+        "Generates a models/sources.yml entry for the existing 'orders' topic with database: <env-id>, schema: orders-cluster — NOT a streaming_source",
+        "Does NOT generate a streaming_source for the existing 'orders' topic (existing topics use dbt sources)",
+        "Generates a models/models.yml entry with column types for the new streaming_table model (required, not optional)",
+        "Streaming-table model SQL uses the TVF form: FROM TABLE(TUMBLE(TABLE ..., DESCRIPTOR(`$rowtime`), INTERVAL '5' MINUTES)) — not the legacy GROUP BY tumble(...) form",
+        "Uses backticks for identifiers including `$rowtime`, `window_start`, `window_end`",
+        "Streaming-table model SQL starts with the verbatim warning comment block about running --full-refresh after editing the query",
+        "dbt_project.yml sets +materialized: streaming_table as the project default",
+        ".gitignore includes profiles.yml, target/, dbt_packages/, logs/, .env",
+        "profiles.yml.example uses environment_id (aliased to database) and dbname (aliased to schema), with cloud_provider+cloud_region or endpoint",
+        "Does NOT autonomously run `dbt run` or `dbt run --full-refresh` — presents these as user-runnable steps",
+        "Recommends a service-account-bound Flink API key for prod targets"
+      ]
+    },
+    {
+      "id": 1,
+      "prompt": "Add an incremental dbt model to my dbt-confluent project that updates a running per-user order total. I want efficient incremental updates instead of recomputing every run.",
+      "expected_output": "Explains that `incremental` is not supported by dbt-confluent and would raise a compile error. Routes the user to `streaming_table`, which is continuously updated by Flink — exactly the 'incremental updates without recompute' mental model the user wants. Generates a streaming_table model with the required warning comment block and a matching models.yml entry.",
+      "files": [],
+      "assertions": [
+        "Does NOT generate an incremental materialization — explicitly explains it raises a compilation error in dbt-confluent",
+        "Explains that `streaming_table` is the right answer because Flink continuously updates the underlying table — no recompute needed",
+        "Generates a streaming_table model with the verbatim warning comment block at the top",
+        "Generates a matching models.yml entry with column types and any not_null/primary_key constraints (constraints in the constraints: list, NOT in data_type)",
+        "Uses backticks for identifiers in the model SQL",
+        "Does NOT suggest `materialized_view` — explains that in Confluent Flink, `table` (CTAS) is continuously updated by Flink",
+        "Does NOT autonomously run `dbt run`"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "I edited the WHERE clause on my streaming_table model `orders_per_5m` yesterday to filter out test customers. I ran `dbt run --select orders_per_5m` and it said SKIP. The change isn't showing up in the output topic. What's wrong?",
+      "expected_output": "Identifies the silent-failure mode in schema-drift detection: changes to query logic (WHERE clause) that don't shift column names/types are not detected, and `dbt run` SKIPs. The fix is `dbt run --full-refresh --select orders_per_5m`. Surfaces this as the universal cause for 'I edited a streaming model and nothing changed.' Does NOT autonomously run --full-refresh — suggests it to the user.",
+      "files": [],
+      "assertions": [
+        "Identifies that schema-drift detection only checks column names, data types, and WITH options — not query logic",
+        "Explains that a WHERE-clause change is exactly the silent-failure case: no drift detected, no error, no redeploy",
+        "Suggests `dbt run --full-refresh --select orders_per_5m` as the fix",
+        "Does NOT autonomously run `dbt run --full-refresh` — surfaces that this is a state-changing command the user must run",
+        "Mentions or implies that --full-refresh will delete the existing Flink statement and recreate the table",
+        "Does NOT recommend ALTER TABLE or any other workaround — the only mechanism is --full-refresh"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "I'm running `dbt test --select orders_per_5m` on my streaming_table model with a not_null test on `customer_id`. The test passes, but I just spotted a null customer_id in the output topic in the UI. Why is the test missing it?",
+      "expected_output": "Identifies that data tests on unbounded streaming tables are unreliable: the cursor returns at most a 1000-row partial snapshot, so a not_null violation that hasn't appeared yet passes spuriously. Suggests mitigations in order: bound the source (number-of-rows on streaming_source), use config(limit=N), or prefer unit tests with controlled fixtures. Explains that unit tests need the model to exist first (`dbt run --select my_model && dbt test --select unit_my_model`).",
+      "files": [],
+      "assertions": [
+        "Identifies the partial-snapshot / 1000-row cursor cap on unbounded streaming statements as the cause",
+        "Explains the spurious pass: a violation that hasn't appeared in the snapshot passes — does not mean the data is clean",
+        "Suggests bounding the source (e.g. `number-of-rows` on a streaming_source) OR using `config(limit=N)` on the test OR using unit tests",
+        "Mentions that unit tests use a custom materialization (CREATE TABLE LIKE ... EXCLUDING OPTIONS + INSERT) — not CTEs — because Flink CTEs can't carry watermarks",
+        "Mentions that the tested model must already exist before `dbt test --select unit_<model>` runs",
+        "Does NOT suggest standard data tests are reliable here without bounding"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Write me a streaming_source model that pulls from a 'page_views' Kafka topic that already exists in my cluster. I want to read it and aggregate.",
+      "expected_output": "Pushes back: `streaming_source` is for adapter-CREATED connector-backed tables, not for read-only references to topics produced elsewhere. For an existing topic, use a dbt `source` (the topic auto-appears as a Flink table). Generates a `sources.yml` entry for `page_views` and a separate `streaming_table` (or `table`) model that references it via `{{ source('...', 'page_views') }}`.",
+      "files": [],
+      "assertions": [
+        "Does NOT generate a streaming_source for the existing 'page_views' topic",
+        "Explains the distinction: streaming_source CREATES a connector-backed table; existing topics are accessed via dbt sources (every Kafka topic is automatically a Flink table)",
+        "Generates a sources.yml entry with database: <env-id>, schema: <cluster>, tables: [{name: page_views}]",
+        "Generates the aggregation model as either `streaming_table` or `table`, referencing the source via {{ source('<source_name>', 'page_views') }}",
+        "If the aggregation is a streaming_table, includes the verbatim warning comment block and a matching models.yml entry",
+        "Uses backticks for identifiers"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "Quick question — what does config(with={'changelog.mode': 'upsert'}) do, and when should I use it?",
+      "expected_output": "Brief explanation: upsert mode is last-value-per-key (requires a PRIMARY KEY); append is insert-only. Downstream consumers see different streams. Default depends on whether the table has a PK. Picks the right mode deliberately. No scaffolding needed — this is a one-off question per the SKILL.md router.",
+      "files": [],
+      "assertions": [
+        "Treats this as a one-off question (no workflow scaffolding, no AskUserQuestion confirming a workflow)",
+        "Explains append vs upsert succinctly: append = insert-only; upsert = last-value-per-key, requires PRIMARY KEY",
+        "Mentions that the choice changes what downstream consumers see — not interchangeable",
+        "Notes that PRIMARY KEY in Flink is NOT ENFORCED (metadata for downstream operators, not a unique constraint at write time)",
+        "Does NOT scaffold files or run commands"
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "My `dbt run` keeps failing on the first run after the cluster's been idle — I get `read operation timed out`. After it warms up, reruns are fine. My requirements.txt pins `dbt-confluent==0.2.0`. What's going on?",
+      "expected_output": "Identifies the cold-`INFORMATION_SCHEMA`-lookup HTTP read timeout (old 5s default) as the known cause, fixed in 0.2.1 (default raised to 60s). Runs the currency check first: notes the pin is 0.2.0, checks the latest published version (PyPI / the in-repo marker), and because the fix landed in a LATER version than the user's, recommends the minimal upgrade (>= 0.2.1) rather than 'upgrade to latest'. Does not autonomously run state-changing commands.",
+      "files": [],
+      "assertions": [
+        "Reads references/adapter-behaviours.md and runs the currency check: identifies the user's version (0.2.0 from the requirements.txt pin) before recommending anything",
+        "Determines the latest published version — via WebFetch on https://pypi.org/pypi/dbt-confluent/json (.info.version), falling back to the in-repo 'latest known' marker if WebFetch is unavailable",
+        "Identifies the cold-lookup `read operation timed out` as the known quirk caused by the old 5s confluent-sql HTTP timeout on the drift-catalog UNION ALL query",
+        "States the quirk was fixed in 0.2.1 (default timeout raised to 60s) — a version LATER than the user's 0.2.0, so it still applies to them",
+        "Recommends the minimal upgrade target (>= 0.2.1), not merely 'upgrade to the latest'",
+        "Does NOT autonomously run `pip install`, `dbt run`, or any state-changing command — suggests them for the user to run"
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "I just upgraded to the newest dbt-confluent release and pinned it. Before I build my first streaming_table, are there any known adapter bugs or quirks I should watch out for?",
+      "expected_output": "Runs the currency check and finds the user is already on the latest published version, so there are no later fixes that would apply. Does NOT dump the historical bugfix list as if those quirks were live for this user. Confirms they're current (verifying latest via PyPI / the marker) and points them at the live changelog for anything newer, rather than reciting stale 0.2.x notes.",
+      "files": [],
+      "assertions": [
+        "Runs the currency check: establishes the user is on the latest published version (verifying latest via PyPI's JSON API or the in-repo marker, noting the marker may be stale)",
+        "Because the user is on the latest release, does NOT preemptively dump the historical quirk table as live issues for them",
+        "Frames the past fixes (timeout / 403 / 409) as already-resolved in their version, if mentioned at all — not as things to watch out for",
+        "Points the user at the live changelog (GitHub releases) and/or PyPI for anything newer than the skill's marker",
+        "Does NOT autonomously run state-changing commands"
+      ]
+    }
+  ]
+}
