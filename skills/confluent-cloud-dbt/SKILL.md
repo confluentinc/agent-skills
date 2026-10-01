@@ -1,6 +1,9 @@
 ---
 name: confluent-cloud-dbt
 description: "Authoring, scaffolding, or modifying dbt projects for the dbt-confluent adapter — Confluent Cloud's managed Apache Flink SQL service ONLY (not self-managed Flink, not other Flink runtimes). Triggers on existing dbt-confluent projects (`profile.type: confluent`, `dbt-confluent` in `pyproject.toml`/`requirements.txt`) and when the user wants to scaffold a new dbt-confluent project. Do NOT trigger for non-Confluent dbt adapters, plain Flink SQL outside dbt, self-managed Flink clusters, or CDC/Tableflow pipelines (database → Iceberg/Delta) — that's the confluent-cloud-cdc-tableflow skill."
+metadata:
+  author: confluent
+  version: "1.0.0"
 ---
 
 # confluent-cloud-dbt
