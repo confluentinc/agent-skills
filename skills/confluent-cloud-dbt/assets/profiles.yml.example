@@ -1,0 +1,55 @@
+# Version-controlled template — copy to ~/.dbt/profiles.yml and fill in real
+# values. Never commit profiles.yml itself (the .gitignore in this folder
+# excludes it).
+#
+# All identifiers below are placeholders. Replace the xxxxx fragments and the
+# region/provider with values from your Confluent Cloud environment.
+
+my_project:
+  target: dev
+  outputs:
+
+    dev:
+      type: confluent
+
+      # Required — Confluent identifiers
+      organization_id: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+      environment_id:  env-xxxxxx       # exposed inside dbt as `database`
+      dbname:          dev-cluster      # Kafka cluster name — exposed as `schema`
+      compute_pool_id: lfcp-xxxxx
+
+      # Required — Flink-scoped API key (NOT a Kafka API key).
+      # For dev, a personal user-bound key is fine.
+      flink_api_key:    "{{ env_var('DBT_CONFLUENT_DEV_FLINK_API_KEY') }}"
+      flink_api_secret: "{{ env_var('DBT_CONFLUENT_DEV_FLINK_API_SECRET') }}"
+
+      # Required — exactly one of (cloud_provider + cloud_region) OR endpoint.
+      cloud_provider: aws
+      cloud_region:   us-west-2
+      # endpoint: https://flink.us-east-2.aws.private.confluent.cloud  # for private link / non-public regions
+
+      # Optional
+      threads: 1
+      # statement_name_prefix: dbt-                  # default; final name: {prefix}{project}-{model}[-ddl]
+      # statement_label:       dbt-confluent-dev     # set per-env if multiple envs share a compute pool
+
+    prod:
+      type: confluent
+
+      organization_id: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+      environment_id:  env-yyyyyy
+      dbname:          prod-cluster
+      compute_pool_id: lfcp-yyyyy
+
+      # PROD MUST use a service-account-bound API key. Long-running streaming
+      # statements outlive employees; a user-bound key gets revoked when the
+      # user leaves the org and the INSERT will fail.
+      # https://docs.confluent.io/cloud/current/security/authenticate/workload-identities/service-accounts/api-keys/overview.md
+      flink_api_key:    "{{ env_var('DBT_CONFLUENT_PROD_FLINK_API_KEY') }}"
+      flink_api_secret: "{{ env_var('DBT_CONFLUENT_PROD_FLINK_API_SECRET') }}"
+
+      cloud_provider: aws
+      cloud_region:   us-west-2
+
+      threads: 1
+      statement_label: dbt-confluent-prod
