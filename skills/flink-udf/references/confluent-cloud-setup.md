@@ -275,7 +275,7 @@ Not all regions support Flink. Try:
 - us-west-2 (AWS)
 - eu-west-1 (AWS)
 
-Check current availability: https://docs.confluent.io/cloud/current/flink/reference/cloud-regions.md
+Check current availability: https://docs.confluent.io/cloud/current/flink/reference/overview.md#flink-cloud-regions
 
 ### API Key Permission Errors
 

@@ -4,6 +4,8 @@ This contributing guide outlines best practices for contributing an AI agent ski
 
 Developers use the skills in this repo for developing data streaming applications and pipelines. These skills help developers using AI coding assistants (like Claude Code and Cursor) quickly build prototype or production-ready data streaming applications.
 
+Note: To ensure the long-term maintainability of this project, we do not accept PRs that primarily serve to promote external commercial tools, personal portfolios, or individual blogs.
+
 ## Prerequisites
 
 - **Claude Code or another tool that supports [Agent Skills](https://agentskills.io/home)** in order to test

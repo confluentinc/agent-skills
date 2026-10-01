@@ -1,7 +1,7 @@
 ---
 name: confluent-skill-creator
-description: Create Confluent-specific skills for external users. Use this skill when users want to create, build, or author a new skill related to Confluent Cloud, Confluent Platform, Apache Kafka, WarpStream, Flink, Connectors, Schema Registry, Tableflow, CDC pipelines, or any Confluent product. Skills can be use-case focused (like data enrichment, CDC to Tableflow, stream processing workflows) or component-specific (like a Flink skill, Schema Registry skill, or Connector skill). Do NOT use this skill when users want to directly use Confluent products (e.g., build a pipeline, write a producer, deploy Flink SQL) — use the appropriate product-specific skill instead. This skill is specifically for creating new skills, not for using existing ones.
-compatibility: Requires Python 3.9+, confluent-kafka, fastavro, requests. Needs access to a Confluent environment (Cloud, Platform, local Docker, or WarpStream) for E2E testing.
+description: "Create Confluent-specific skills for external users. Use this skill when users want to create, build, or author a new skill related to Confluent Cloud, Confluent Platform, Apache Kafka, WarpStream, Flink, Connectors, Schema Registry, Tableflow, CDC pipelines, or any Confluent product. Skills can be use-case focused (like data enrichment, CDC to Tableflow, stream processing workflows) or component-specific (like a Flink skill, Schema Registry skill, or Connector skill). Do NOT use this skill when users want to directly use Confluent products (e.g., build a pipeline, write a producer, deploy Flink SQL) — use the appropriate product-specific skill instead. This skill is specifically for creating new skills, not for using existing ones."
+compatibility: Requires Python 3.9+, confluent-kafka (with avro/json/protobuf extras), requests, jsonschema, python-dotenv. Needs access to a Confluent environment (Cloud, Platform, local Docker, or WarpStream) for E2E testing.
 metadata:
   author: confluent
   version: "1.1.0"
@@ -20,6 +20,12 @@ This skill extends the base skill-creator workflow with Confluent-specific requi
 - **Credential management**: Proper .env file setup for all required credentials
 - **Spec compliance**: Created skills validated against the [Agent Skills specification](https://agentskills.io/specification)
 - **Smart defaults**: Schema Registry with JSON_SR (schema GUID in header) by default
+
+## Prerequisites
+
+- Python 3.9+
+- `confluent-kafka[avro,json,protobuf]`, `requests`, `jsonschema`, `python-dotenv` Python packages (see `scripts/requirements.txt`)
+- Access to a Confluent environment (Cloud, Platform, local Docker, or WarpStream) for E2E testing
 
 ## When to use this skill
 
@@ -346,7 +352,15 @@ For common operations, use the bundled scripts in `scripts/`:
 - `register_schema.py` — Register schemas with Schema Registry
 - `cleanup_resources.py` — Clean up topics, schemas, Flink statements (local only)
 
-Include relevant scripts in the created skill's `scripts/` directory when packaging.
+**If script execution is denied** (e.g., headless/non-interactive sessions have no approval mechanism) — fall back to the manual steps below rather than stalling silently:
+
+- `check_compute_pool.py` → manually check pool status via the `confluent flink compute-pool` CLI or the Cloud Console
+- `produce_data.py` → manually produce JSON_SR-encoded records via the `confluent kafka topic produce` CLI, or a one-off producer snippet described in prose
+- `consume_and_verify.py` → manually consume via `confluent kafka topic consume` and compare the count/contents against expectations by hand
+- `register_schema.py` → manually register the schema via `confluent schema-registry schema create` or the Schema Registry UI
+- `cleanup_resources.py` → manually delete topics/schemas/statements via their respective `confluent` CLI delete commands (Cloud), or skip cleanup if the environment is ephemeral (local only)
+
+Include relevant scripts in the created skill's `scripts/` directory when packaging — and require the created skill to document this same fallback if it ships its own scripts.
 
 ---
 

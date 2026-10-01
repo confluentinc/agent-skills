@@ -96,3 +96,14 @@ blocks:
         - name: "Tag and Release"
           commands:
             - ./tools/tag-and-release.sh
+
+  - name: "Validate Claude Plugin Manifest"
+    task:
+      jobs:
+        - name: "Claude Plugin Validation"
+          commands:
+            # Install Claude CLI in order to run manifest validation (doesn't call LLM)
+            - curl -fsSL https://claude.ai/install.sh | bash
+            # Fails on a non-zero exit AND on a zero exit that still reports
+            # "Found N warnings"
+            - ./tools/check-plugin-manifest.sh
