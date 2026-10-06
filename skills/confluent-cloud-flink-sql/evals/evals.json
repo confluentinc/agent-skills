@@ -142,6 +142,70 @@
         "DEFINE clause navigates using the logical offset function LAST(variable.field, n) (or FIRST(variable.field, n))",
         "Pattern uses a quantified variable such as `PATTERN (N{3,} C)` for the 3+ consecutive increases requirement"
       ]
+    },
+    {
+      "id": 15,
+      "prompt": "I want to detect suspicious customer activity from my payment stream. Alert me when a customer makes more than three failed payments within fifteen minutes. I have not decided what fields the alert should contain yet.",
+      "expected_output": "The agent should gather the missing streaming requirements before generating executable Flink SQL, using available Confluent resource discovery where possible.",
+      "files": [],
+      "assertions": [
+        "Does NOT immediately generate executable Flink SQL before resolving the missing output semantics",
+        "Determines or asks for the input topic and relevant customer, payment-status, and event-time fields",
+        "Identifies the requirement as a time-bounded aggregation followed by a threshold condition",
+        "Determines that the fifteen-minute requirement needs explicit time semantics",
+        "Clarifies the desired alert output before creating or modifying a Flink resource"
+      ]
+    },
+    {
+      "id": 16,
+      "prompt": "Create a Flink SQL pipeline that calculates average order value from my existing orders topic in Confluent Cloud. Please inspect the topic first because I do not remember the exact field names or timestamp field.",
+      "expected_output": "The agent should inspect the existing topic and schema before generating SQL and use discovered field names rather than inventing them.",
+      "files": [],
+      "assertions": [
+        "Uses available Confluent resource discovery before generating the final SQL",
+        "Inspects the existing orders topic and its schema",
+        "Uses discovered schema field names rather than assuming fields such as amount or order_value",
+        "Does NOT invent a timestamp or other field that was not discovered",
+        "Explains any material assumption before executing the pipeline"
+      ]
+    },
+    {
+      "id": 17,
+      "prompt": "I have an orders stream and customer information in Confluent Cloud. I want every order enriched with the customer's current segment before the result is written to another Kafka topic. Help me design the Flink SQL pipeline.",
+      "expected_output": "The agent should determine the input resources, join key, current-state/reference-data semantics, and output requirements before selecting and generating the join SQL.",
+      "files": [],
+      "assertions": [
+        "Identifies orders and customer information as separate input resources",
+        "Determines or asks for the join key before generating the join SQL",
+        "Determines whether current-state or event-time semantics are required for the customer enrichment",
+        "Identifies the required output fields and destination before resource creation",
+        "Does NOT silently choose join semantics when the requirement is ambiguous"
+      ]
+    },
+    {
+      "id": 18,
+      "prompt": "Using the existing orders topic, group successful orders by customer_id in five-minute tumbling event-time windows using the order_created_at field, calculate total_amount, and write the result to customer-order-totals. Show me the execution plan before creating anything.",
+      "expected_output": "The agent should recognize that the requirements are already sufficiently specified, avoid unnecessary questions, produce the design and execution plan, and wait for confirmation before creating the statement.",
+      "files": [],
+      "assertions": [
+        "Recognizes the five-minute tumbling event-time window and order_created_at field without asking redundant questions",
+        "Uses customer_id as the grouping key and total_amount as the aggregate measure",
+        "Produces an execution plan before creating the Flink statement",
+        "Does NOT create or modify the customer-order-totals resource before explicit confirmation",
+        "Includes SQL validation or EXPLAIN in the proposed execution sequence"
+      ]
+    },
+    {
+      "id": 19,
+      "prompt": "I want to build a Flink SQL pipeline on Confluent Cloud that reads from the payments topic and writes aggregated results to payments-summary. The payments topic has fields payment_id, customer_id, amount, and status. I have not decided on the window size yet.",
+      "expected_output": "The agent should ask only about the missing window size, not re-ask about information already provided (topic name, fields, output topic). It should not generate executable SQL until the window size is confirmed.",
+      "files": [],
+      "assertions": [
+        "Does NOT re-ask for the input topic name, field names, or output topic — these were already provided",
+        "Asks specifically about the missing window size (or windowing approach) since it materially affects the SQL",
+        "Does NOT generate executable Flink SQL before the window size is confirmed",
+        "Does NOT ask about fields already named in the prompt such as payment_id, customer_id, amount, or status"
+      ]
     }
   ]
 }
