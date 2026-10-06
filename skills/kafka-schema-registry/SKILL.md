@@ -1,8 +1,8 @@
 ---
 name: kafka-schema-registry
-description: Scan a project to identify Kafka applications, extract schemas from data models, tag PII fields, generate Terraform for Confluent Schema Registry registration, and produce a migration report with rollout ordering. Use this skill when a user asks to analyze a folder or repo for Kafka usage, extract schemas, audit producer/consumer configurations, or generate Terraform for Schema Registry.
+description: Scan a project to identify Kafka applications, extract schemas from data models, tag PII fields, generate Terraform for Confluent Schema Registry registration, and produce a migration report with rollout ordering. Use this skill when a user asks to analyze a folder or repo for Kafka usage, extract schemas, audit producer/consumer configurations, or generate Terraform for Schema Registry. Do NOT trigger for evolving or changing a schema that is already registered — choosing a compatibility mode, checking whether a change is compatible, sequencing the producer/consumer deploy, or diagnosing a rejected schema change (use kafka-schema-evolution).
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
 # Kafka Schema Registry Skill

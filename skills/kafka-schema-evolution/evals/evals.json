@@ -1,0 +1,123 @@
+{
+  "skill_name": "kafka-schema-evolution",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "Our `orders-value` Avro schema is registered on Confluent Cloud. I want to add a required string field `fulfillment_region` to it. The subject is on BACKWARD compatibility. Can I just add it?",
+      "expected_output": "Explains that adding a field without a default is BACKWARD-incompatible because a consumer on the new schema cannot read existing records that lack the field, and recommends adding a default value (or a nullable union with default null). Offers to verify with a check-without-registering call.",
+      "files": [],
+      "assertions": [
+        "States the change is NOT backward compatible as written",
+        "Explains the reason: the new schema reading old data has no value for `fulfillment_region`",
+        "Recommends giving `fulfillment_region` a `default` value",
+        "Offers the nullable form `[\"null\",\"string\"]` with `default` null as an alternative",
+        "References `POST /compatibility/subjects/orders-value/versions/latest` or `confluent schema-registry schema validate` before registering",
+        "Does NOT suggest setting compatibility to `NONE`"
+      ]
+    },
+    {
+      "id": 1,
+      "prompt": "We have about 15 teams each running their own consumers and producers off the `customer-events` topic and we can't coordinate their deploy windows. Which Schema Registry compatibility mode should the subject be on?",
+      "expected_output": "Recommends FULL_TRANSITIVE (or FULL) because deploy order cannot be controlled and consumers may replay history, explains added/removed fields must be optional, and shows PUT /config/customer-events scoped to the subject with a confirmation step.",
+      "files": [],
+      "assertions": [
+        "Recommends `FULL_TRANSITIVE` (or `FULL`)",
+        "States that under `FULL` neither producers nor consumers have to deploy first",
+        "Says added and removed fields must have a `default` under `FULL`",
+        "Shows `PUT /config/customer-events` or `--subject customer-events`, NOT a global `PUT /config`",
+        "Asks the user to confirm before the `PUT /config` call because it mutates registry state"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "I need to drop the deprecated `legacy_id` field (a plain int32, field number 4) from our Protobuf schema `payment-events-value`. Subject is on FULL_TRANSITIVE. What's the safe way?",
+      "expected_output": "Explains removal is allowed only if both the field number and name are marked reserved, shows `reserved 4;` and `reserved \"legacy_id\";`, and warns field number 4 must never be reused.",
+      "files": [],
+      "assertions": [
+        "Says field number 4 must be marked `reserved`",
+        "Says the field name `\"legacy_id\"` must also be marked `reserved`",
+        "Shows both `reserved 4;` and `reserved \"legacy_id\";`",
+        "Warns that field number `4` must NOT be reused for a different field later",
+        "Confirms the change is compatible under `FULL_TRANSITIVE` once both are reserved"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Adding an optional property `coupon_code` (string) to our JSON Schema for `checkout-value`. The schema has \"additionalProperties\": false. We're on Confluent Platform 7.6, subject compatibility is FORWARD. Is this going to pass?",
+      "expected_output": "Flags that the closed content model changes the outcome, explains FORWARD means old consumers must read new data, and insists on verifying with a live check-without-registering call because JSON Schema compatibility does not follow Avro intuition.",
+      "files": [],
+      "assertions": [
+        "Identifies `\"additionalProperties\": false` as a closed content model that drives the result",
+        "States JSON Schema compatibility is NOT the same as Avro and offline reasoning is not authoritative",
+        "Recommends `POST /compatibility/subjects/checkout-value/versions/latest?verbose=true` against the CP registry",
+        "Explains `FORWARD` requires a consumer on the old schema to read data written with the new schema",
+        "Names the open content model (`additionalProperties` absent / true) as the more evolvable alternative"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Registering a new version of `shipment-value` returns HTTP 409. How do I find out what's actually incompatible?",
+      "expected_output": "Explains 409 = compatibility failure at registration, and to run the explicit compatibility endpoint with ?verbose=true to get the specific messages; maps common error codes to causes and fixes.",
+      "files": [],
+      "assertions": [
+        "Explains HTTP `409` means the schema failed the compatibility check at register time",
+        "Gives `POST /compatibility/subjects/shipment-value/versions/latest?verbose=true`",
+        "States that `?verbose=true` returns the specific incompatibility messages",
+        "Interprets at least one error code such as `READER_FIELD_MISSING_DEFAULT_VALUE`",
+        "Notes that a non-`_TRANSITIVE` mode checks only against the latest version"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "Scan this repo for all our Kafka producers, extract their schemas, tag PII, and generate Terraform to register everything in Schema Registry for the first time.",
+      "expected_output": "Recognizes this is first-time Schema Registry onboarding / repo inventory, not evolution of an already-registered schema, and hands off to the kafka-schema-registry skill instead of proceeding.",
+      "files": [],
+      "assertions": [
+        "Directs the user to the `kafka-schema-registry` skill",
+        "States this skill is for evolving already-registered schemas, NOT onboarding or repo scans",
+        "Does NOT produce a `schema-report.md`",
+        "Does NOT generate a `terraform/` directory of schema resources",
+        "Does NOT start grepping the repo for producers"
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "How do I stop a bad schema change from ever reaching production? We build our Java producers with Maven and deploy to Confluent Platform.",
+      "expected_output": "Recommends wiring the kafka-schema-registry-maven-plugin test-compatibility goal into the build, mapping each subject to its schema file and pointing schemaRegistryUrls at the target registry, failing the build on is_compatible false.",
+      "files": [],
+      "assertions": [
+        "Recommends the `io.confluent:kafka-schema-registry-maven-plugin`",
+        "Names the `test-compatibility` goal",
+        "Shows the `<subjects>` mapping of subject name to schema file in the plugin `<configuration>`",
+        "Says the build MUST fail when `is_compatible` is false",
+        "Binds the goal to a Maven phase such as `verify`"
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "On Confluent Cloud, I want to loosen `user-profile-value` from FULL to BACKWARD so I can drop a couple of fields. Give me the exact command.",
+      "expected_output": "Provides the subject-scoped command, warns it needs a Schema Registry API key not a cluster key, asks for confirmation, and notes it does not re-validate existing versions.",
+      "files": [],
+      "assertions": [
+        "Gives a subject-scoped command, NOT a global config change",
+        "Uses `confluent schema-registry compatibility level update` with `--subject user-profile-value` or `PUT /config/user-profile-value`",
+        "Notes Confluent Cloud Schema Registry auth uses a dedicated Schema Registry API key/secret, not a cluster API key",
+        "States that changing the mode does NOT re-validate existing registered versions",
+        "Asks the user to confirm before running the config change — does NOT present it as auto-applied"
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "We genuinely need to change `event_time` in `telemetry-value` (Avro) from a long millis timestamp to a nested record with timezone info. There's no compatible path. What are our options?",
+      "expected_output": "Confirms this is a true breaking change and lays out: new subject / versioned topic with parallel run, Data Contracts compatibility group + migration rules, and a stream-processing dual-write transform. Rules out setting NONE.",
+      "files": [],
+      "assertions": [
+        "Confirms the `event_time` type change is a genuine breaking change with no in-place compatible path",
+        "Recommends a new subject or versioned topic such as `telemetry.v2` with a parallel run and consumer migration",
+        "Mentions Data Contracts `compatibilityGroup` with migration rules as an option on Confluent Cloud or CP 7.4+",
+        "Mentions a stream-processing dual-write / transform as an option",
+        "Explicitly says NOT to set the subject to `NONE`, register, and switch back"
+      ]
+    }
+  ]
+}
