@@ -1,0 +1,154 @@
+{
+  "skill_name": "developing-kafka-dotnet-client",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "I need a .NET Kafka producer for Confluent Cloud that sends user signup events with fields: userId, email, planType, signedUpAt. Use the default non-blocking send pattern.",
+      "expected_output": "A .NET project with a JsonSchemaProducer.cs using the delivery-handler callback (Produce with a callback, serializer wrapped in AsSyncOverAsync), KafkaConfig.cs, Value.cs, AppTests.cs, appsettings.json.example, and a .csproj referencing Confluent.Kafka and Confluent.SchemaRegistry.Serdes.Json. Producer reuses one IProducer instance, registers the JSON schema explicitly with AutoRegisterSchemas=false, targets Confluent Cloud with SaslSsl. Tests pass with dotnet test.",
+      "files": [],
+      "assertions": [
+        "JsonSchemaProducer.cs is generated",
+        "KafkaConfig.cs is generated",
+        "The .csproj references the Confluent.Kafka, Confluent.SchemaRegistry, and Confluent.SchemaRegistry.Serdes.Json packages",
+        "Value.cs is generated with a UserId property and a [Description] attribute on every property",
+        "Producer uses JsonSerializer<Value> from Confluent.SchemaRegistry.Serdes for the value serializer",
+        "The serializer passed to Produce() is wrapped with .AsSyncOverAsync() -- NOT passed to Produce() directly as an IAsyncSerializer",
+        "Producer sends with a delivery-handler callback (producer.Produce(topic, message, callback)) -- NOT await producer.ProduceAsync(...)",
+        "Serializer config sets AutoRegisterSchemas = false",
+        "Schema is registered explicitly via RegisterSchemaAsync (or an equivalent ISchemaRegistryClient.RegisterSchemaAsync call) before producing",
+        "The Produce helper method accepts an IProducer<TKey,TValue> parameter and does NOT construct a producer inside it",
+        "Producer calls `Flush(...)` before the process exits",
+        "KafkaConfig builds SecurityProtocol.SaslSsl with SaslMechanism.Plain for KAFKA_ENV=cloud",
+        "appsettings.json.example sets KAFKA_ENV to cloud",
+        "AppTests.cs is generated and all tests pass with `dotnet test`"
+      ]
+    },
+    {
+      "id": 1,
+      "prompt": "Create a .NET consumer that reads order events from my Confluent Cloud topic and deserializes them with Schema Registry.",
+      "expected_output": "A .NET project with JsonSchemaConsumer.cs, KafkaConfig.cs, Value.cs, AppTests.cs, appsettings.json.example. Consumer uses JsonDeserializer<Value> wrapped with AsSyncOverAsync, targets Confluent Cloud, and uses a CancellationToken-based shutdown pattern (not Java's wakeup()).",
+      "files": [],
+      "assertions": [
+        "JsonSchemaConsumer.cs is generated",
+        "KafkaConfig.cs is generated",
+        "Consumer uses JsonDeserializer<Value> (NOT a raw string deserializer for the value)",
+        "The deserializer is wrapped with .AsSyncOverAsync() before being passed to SetValueDeserializer",
+        "Consumer uses a CancellationTokenSource / CancellationToken for shutdown -- it does NOT reference Java's consumer.wakeup() or WakeupException",
+        "Consumer catches OperationCanceledException and calls Close() in a finally block",
+        "ConsumerConfig sets EnableAutoCommit = false and the consumer commits explicitly after processing",
+        "The skill does NOT offer or generate a Share Consumer / KafkaShareConsumer-style implementation for .NET",
+        "AppTests.cs is generated and all tests pass with dotnet test"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Scaffold a .NET project with both a producer and consumer for IoT sensor readings (deviceId, temperature, humidity, readingTime) on Confluent Cloud.",
+      "expected_output": "A .NET project with JsonSchemaProducer.cs, JsonSchemaConsumer.cs, KafkaConfig.cs, Value.cs, AppTests.cs, appsettings.json.example, and a .csproj. Both use Schema Registry (JSON Schema default) and Confluent Cloud config.",
+      "files": [],
+      "assertions": [
+        "JsonSchemaProducer.cs is generated",
+        "JsonSchemaConsumer.cs is generated",
+        "Value.cs includes a DeviceId property and a Temperature property, each with a [Description] attribute",
+        "The .csproj sets <StartupObject> since more than one generated class defines a static Main",
+        "Producer uses JsonSerializer<Value> and registers the schema with AutoRegisterSchemas = false",
+        "Consumer uses JsonDeserializer<Value> wrapped with .AsSyncOverAsync()",
+        "AppTests.cs is generated and all tests pass with `dotnet test`"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "I want to try Kafka locally with Docker. Set up a .NET producer and consumer for order events (orderId, customerId, product, quantity, price). This is a batch script so I want to confirm each write lands before moving to the next one.",
+      "expected_output": "A .NET project with JsonSchemaProducerSync.cs (await ProduceAsync per record), JsonSchemaConsumer.cs, KafkaConfig.cs, docker-compose.yml, Value.cs, AppTests.cs, appsettings.json.example. Uses Plaintext for local Docker.",
+      "files": [],
+      "assertions": [
+        "JsonSchemaProducerSync.cs is generated and uses await producer.ProduceAsync(...) -- NOT the delivery-handler callback Produce() method",
+        "The serializer passed to ProduceAsync is NOT wrapped with .AsSyncOverAsync() -- it is used directly as the async serializer",
+        "JsonSchemaConsumer.cs is generated",
+        "docker-compose.yml is generated using confluentinc/confluent-local and cp-schema-registry images",
+        "docker-compose.yml does NOT invent custom listener names (uses PLAINTEXT, PLAINTEXT_HOST, CONTROLLER)",
+        "appsettings.json.example sets KAFKA_ENV to local and SCHEMA_REGISTRY_URL to http://localhost:8081",
+        "KafkaConfig uses SecurityProtocol.Plaintext with no SASL mechanism set when KAFKA_ENV=local",
+        "Value.cs includes an OrderId property",
+        "Producer registers the schema explicitly with AutoRegisterSchemas = false",
+        "AppTests.cs is generated and all tests pass with `dotnet test`"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "I need a Kafka producer app in .NET. Can you set it up for me?",
+      "expected_output": "The skill should NOT generate code immediately. It must ask about the target environment (Confluent Cloud / local Docker / WarpStream), producer-or-consumer scope, and send pattern (delivery-handler callback vs ProduceAsync awaited) before generating, then confirm via a recap.",
+      "files": [],
+      "assertions": [
+        "Skill asks which target environment to use (Confluent Cloud, local Docker, or WarpStream) before generating",
+        "Skill explicitly confirms which of producer, consumer, or both the user wants before generating -- either by asking (since this prompt leaves it unstated for consumer/both) or, for anything the prompt already answered, by echoing back what it understood",
+        "Skill does NOT write any files in the first turn, and states that it will present a recap for confirmation once the remaining open questions (environment, existing-app-vs-greenfield, schema/data fields, topic) are answered",
+        "Skill does NOT scaffold files in the first turn before requirements are confirmed"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "I have an order-events topic that carries three event types: OrderCreated, OrderUpdated, and OrderCancelled. I need a .NET producer on Confluent Cloud that can produce all three event types to the same topic. Use Avro since that fits a union schema best.",
+      "expected_output": "A .NET project with an Avro producer that produces multiple event types to one topic. The Avro schema is a top-level union of records (one per event type), each with an eventType discriminator, registered under order-events-value with TopicNameStrategy (no RecordNameStrategy). The producer and serializer are parameterized over the common ISpecificRecord interface, not one concrete branch type.",
+      "files": [],
+      "assertions": [
+        "value.avsc defines a top-level Avro union of records (OrderCreated, OrderUpdated, OrderCancelled)",
+        "Each union branch record includes an `eventType` discriminator field",
+        "Each union branch has a `doc` on the record and on every field",
+        "The producer is parameterized as IProducer<string, ISpecificRecord> (or equivalent common interface) rather than one concrete generated class",
+        "AvroSerializer<ISpecificRecord> (or the equivalent common-interface type parameter) is used for the value serializer",
+        "The skill keeps the default TopicNameStrategy -- it does NOT switch to RecordNameStrategy or TopicRecordNameStrategy",
+        "The union schema is registered explicitly under order-events-value with AutoRegisterSchemas = false",
+        "The skill mentions avrogen must be run to generate the C# classes from value.avsc before building"
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "I have an existing ASP.NET Core Worker Service that produces JSON to Kafka without Schema Registry. Here is my current code:\n\n```csharp\npublic class EventPublisher\n{\n    private readonly IProducer<string, string> _producer;\n    public EventPublisher(IConfiguration config)\n    {\n        var producerConfig = new ProducerConfig { BootstrapServers = config[\"BOOTSTRAP_SERVER\"] };\n        _producer = new ProducerBuilder<string, string>(producerConfig).Build();\n    }\n    public void Publish(string topic, object evt)\n    {\n        var json = System.Text.Json.JsonSerializer.Serialize(evt);\n        _producer.Produce(topic, new Message<string, string> { Value = json });\n    }\n}\n```\n\nAnd here's my .csproj:\n\n```xml\n<Project Sdk=\"Microsoft.NET.Sdk.Worker\">\n  <PropertyGroup>\n    <TargetFramework>net8.0</TargetFramework>\n    <Nullable>enable</Nullable>\n    <ImplicitUsings>enable</ImplicitUsings>\n  </PropertyGroup>\n  <ItemGroup>\n    <PackageReference Include=\"Confluent.Kafka\" Version=\"2.6.1\" />\n  </ItemGroup>\n</Project>\n```\n\nI want to add Schema Registry. I'm on Confluent Cloud. We haven't registered any schemas in Schema Registry yet. Events look like: {\"userId\":\"abc\",\"action\":\"page_view\",\"url\":\"/home\",\"occurredAt\":\"2026-04-13T10:00:00Z\"}",
+      "expected_output": "The skill should NOT scaffold a brand new project. It modifies the existing EventPublisher to use a Confluent Schema Registry JsonSerializer<T> instead of raw System.Text.Json serialization to a string, generates a POCO class matching the existing message structure, adds the Confluent.SchemaRegistry.Serdes.Json PackageReference to the SAME .csproj the user provided, and registers the schema with AutoRegisterSchemas=false.",
+      "files": [
+        {
+          "path": "EventPublisher.cs",
+          "content": "using Confluent.Kafka;\nusing Microsoft.Extensions.Configuration;\n\npublic class EventPublisher\n{\n    private readonly IProducer<string, string> _producer;\n    public EventPublisher(IConfiguration config)\n    {\n        var producerConfig = new ProducerConfig { BootstrapServers = config[\"BOOTSTRAP_SERVER\"] };\n        _producer = new ProducerBuilder<string, string>(producerConfig).Build();\n    }\n    public void Publish(string topic, object evt)\n    {\n        var json = System.Text.Json.JsonSerializer.Serialize(evt);\n        _producer.Produce(topic, new Message<string, string> { Value = json });\n    }\n}\n"
+        },
+        {
+          "path": "EventPublishing.csproj",
+          "content": "<Project Sdk=\"Microsoft.NET.Sdk.Worker\">\n  <PropertyGroup>\n    <TargetFramework>net8.0</TargetFramework>\n    <Nullable>enable</Nullable>\n    <ImplicitUsings>enable</ImplicitUsings>\n  </PropertyGroup>\n  <ItemGroup>\n    <PackageReference Include=\"Confluent.Kafka\" Version=\"2.6.1\" />\n  </ItemGroup>\n</Project>\n"
+        }
+      ],
+      "assertions": [
+        "The existing EventPublisher.cs is modified in place -- the skill does NOT scaffold a new top-level JsonSchemaProducer.cs project",
+        "The value type/serializer changes from a raw string built with System.Text.Json.JsonSerializer.Serialize to a Confluent Schema Registry JsonSerializer<T>",
+        "A POCO class is generated from the existing message structure including a UserId property and an Action property",
+        "The Confluent.SchemaRegistry.Serdes.Json PackageReference is added to the SAME EventPublishing.csproj the user provided -- the skill does NOT fabricate a separate new .csproj as a stand-in",
+        "Serializer is configured with AutoRegisterSchemas = false"
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "I want a .NET consumer on Confluent Cloud for a work queue: I need many consumers to cooperatively process messages off the same topic concurrently and scale beyond the partition count, like Kafka's Share Consumer / Queues for Kafka feature. Events have fields jobId, payload, submittedAt.",
+      "expected_output": "The skill does NOT fabricate a Share Consumer implementation for .NET, since Confluent.Kafka does not support KIP-932 (Queues for Kafka) as of Kafka 4.x -- that is Java-client-only. The skill tells the user this isn't available via the .NET client yet and points them at the developing-kafka-java-client skill, offering the regular consumer group as the closest available option.",
+      "files": [],
+      "assertions": [
+        "The skill does NOT generate code referencing a KafkaShareConsumer, IShareConsumer, or any share-group API in .NET",
+        "The skill explicitly states that the .NET client (Confluent.Kafka) does not currently support the Share Consumer API / Queues for Kafka (KIP-932)",
+        "The skill points the user to the developing-kafka-java-client skill (or the Java client) as the option that does support Share Consumer",
+        "If code is generated at all, it is a regular IConsumer<TKey,TValue> consumer group (JsonSchemaConsumer.cs), not a fabricated queue API"
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "I need a .NET Kafka producer for a batch ETL job on Confluent Cloud that ingests CSV rows with fields: employeeId, department, salary, hireDate. I want to confirm each row lands before continuing to the next row.",
+      "expected_output": "A .NET project with JsonSchemaProducerSync.cs (await ProduceAsync per record), KafkaConfig.cs, Value.cs, AppTests.cs, appsettings.json.example. Producer awaits each send, registers the schema explicitly, targets Confluent Cloud.",
+      "files": [],
+      "assertions": [
+        "JsonSchemaProducerSync.cs is generated and calls await producer.ProduceAsync(...)",
+        "The JsonSchemaProducer.cs delivery-callback variant is NOT generated for this request",
+        "The ProduceAsync helper method accepts an IProducer<TKey,TValue> parameter and does NOT construct a producer inside it",
+        "Producer calls `Flush(...)` after sending",
+        "Value.cs includes an EmployeeId property with a [Description] attribute on every property",
+        "Serializer sets AutoRegisterSchemas = false and the schema is registered via an ISchemaRegistryClient.RegisterSchemaAsync call",
+        "AppTests.cs is generated and all tests pass with `dotnet test`"
+      ]
+    }
+  ]
+}
