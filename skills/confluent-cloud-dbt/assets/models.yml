@@ -1,0 +1,54 @@
+# Column declarations for dbt-confluent models.
+#
+# REQUIRED for `streaming_table` models — the materialization issues a CREATE
+# TABLE before the INSERT, and the CREATE TABLE needs the schema up front. A
+# streaming_table model without a `models.yml` entry will fail at DDL time
+# with an empty CREATE TABLE.
+#
+# OPTIONAL for `table` models — column types are inferred from the SELECT.
+# Add an entry here only if you want an enforced contract or schema docs.
+#
+# NOT USED for `streaming_source` models — the model body itself is the
+# column DDL, so the schema is declared inline in the .sql file.
+#
+# Constraints (`NOT NULL`, `PRIMARY KEY`) go in the `constraints:` list, NEVER
+# in `data_type:` — the adapter raises a clear error if you mix them.
+
+version: 2
+
+models:
+
+  # streaming_table — REQUIRED to declare columns
+  - name: orders_per_customer_5m
+    description: "Per-customer order count and spend in 5-minute tumbling windows."
+    columns:
+      - name: window_start
+        data_type: timestamp(3)
+        constraints:
+          - type: not_null
+      - name: window_end
+        data_type: timestamp(3)
+        constraints:
+          - type: not_null
+      - name: customer_id
+        data_type: bigint
+        constraints:
+          - type: not_null
+      - name: order_count
+        data_type: bigint
+        constraints:
+          - type: not_null
+      - name: total_spend
+        data_type: decimal(10, 2)
+
+  # table — OPTIONAL to declare columns; included here only for documentation.
+  # Without this entry, the model still works (CTAS infers types from SELECT).
+  - name: customer_lifetime_stats
+    description: "Per-customer lifetime order count and total spend."
+    columns:
+      - name: customer_id
+        data_type: bigint
+      - name: lifetime_order_count
+        data_type: bigint
+      - name: lifetime_spend
+        data_type: decimal(10, 2)

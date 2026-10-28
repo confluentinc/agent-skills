@@ -1,0 +1,10 @@
+# Pin dbt-confluent to the version your project is built against.
+#
+# IMPORTANT: replace <X.Y.Z> below with the CURRENT published version. Verify with:
+#     pip index versions dbt-confluent
+# or by checking https://pypi.org/project/dbt-confluent/ — do NOT guess.
+#
+# Adapter major-version bumps may change materialization behaviour, so prefer an
+# exact pin (==) over a range until you've validated the upgrade.
+
+dbt-confluent==<X.Y.Z>
