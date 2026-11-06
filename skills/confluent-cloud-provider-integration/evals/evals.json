@@ -1,0 +1,198 @@
+{
+  "skill_name": "confluent-cloud-provider-integration",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I need to connect a fully-managed S3 Sink connector on Confluent Cloud to my bucket in environment env-abc123 without using access keys. How do I set up the provider integration?",
+      "expected_output": "A guided AWS IAM AssumeRole provider-integration setup that plans first, follows the correct map-then-finalize-trust ordering, and produces a trust policy with External ID and TagSession.",
+      "files": [],
+      "assertions": [
+        "Identifies the target CSP as AWS and reads `references/aws.md` before giving CSP-specific steps",
+        "Presents a numbered plan and waits for explicit confirmation before any resource-modifying step such as `confluent provider-integration create`",
+        "Maps the role in Confluent to obtain the Confluent role ARN and External ID BEFORE finalizing the AWS trust policy, NOT the reverse order",
+        "Finalized AWS trust policy includes both an `sts:ExternalId` condition and an `sts:TagSession` statement",
+        "Uses `confluent provider-integration create` with the `--customer-role-arn` and `--environment` flags"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Set up a provider integration so my Confluent Cloud connector can reach an Azure storage account. Walk me through the whole thing.",
+      "expected_output": "A UI-driven Microsoft Entra ID setup that creates the service principal via the Azure CLI and validates trust with the tenant ID.",
+      "files": [],
+      "assertions": [
+        "Identifies the CSP as Azure and reads `references/azure.md`",
+        "Instructs creating the service principal with `az ad sp create --id` and states the Azure Portal cannot create it for a multi-tenant app",
+        "Notes the required Entra role is `Cloud Application Administrator` or `Application Administrator`",
+        "Establishes trust by entering the Microsoft tenant ID in Confluent and clicking `Validate`",
+        "Does NOT instruct the user to paste an Azure client secret or access key into the connector configuration"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "My team uses Google Cloud. How do I let a Confluent Cloud connector read a GCS bucket via a provider integration instead of a service account key file?",
+      "expected_output": "A GCP service-account impersonation setup granting Token Creator to Confluent's service account, with a note about IAM propagation lag on validation.",
+      "files": [],
+      "assertions": [
+        "Identifies the CSP as Google Cloud and reads `references/gcp.md`",
+        "Grants Confluent's service account the `roles/iam.serviceAccountTokenCreator` role on the user's own service account",
+        "Warns that validation may fail due to IAM propagation lag and to retry after a few minutes, NOT that the setup is necessarily misconfigured",
+        "Suggests verifying impersonation with `gcloud auth print-access-token --impersonate-service-account`"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Can I just paste my AWS access key and secret into the S3 sink connector config? That seems easier than the whole provider integration thing.",
+      "expected_output": "A correction that steers the user to the assume-role provider integration instead of embedding long-term keys.",
+      "files": [],
+      "assertions": [
+        "Explains that provider integrations exist to eliminate long-term access keys and steers the user to the IAM AssumeRole integration approach",
+        "Does NOT endorse embedding long-term AWS access keys or secrets in the connector configuration",
+        "Reads `references/aws.md` to guide the correct setup"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "I finished the AWS provider integration but the connector fails with an AssumeRole AccessDenied error. What should I check?",
+      "expected_output": "Targeted troubleshooting from the AWS reference file covering the trust policy, External ID, TagSession, and CloudTrail.",
+      "files": [],
+      "assertions": [
+        "Reads the Troubleshooting section of `references/aws.md` before doing a generic web search",
+        "Checks that the trust policy contains the `sts:TagSession` statement and the correct `sts:ExternalId` value",
+        "Recommends inspecting AWS CloudTrail `AssumeRole` events for the failure reason",
+        "Any web search is scoped to the specific error string, NOT a generic query"
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "I want to delete a provider integration cspi-12345 that I no longer need in environment env-abc123.",
+      "expected_output": "A safe deletion flow that checks for dependent workloads and reminds the user to clean up CSP-side resources.",
+      "files": [],
+      "assertions": [
+        "Warns that deletion fails if any workload still uses the integration and suggests `confluent connect cluster list` to find dependent connectors",
+        "Notes that deleting the integration does NOT remove the AWS, Azure, or GCP-side role, service principal, or service account",
+        "Uses `confluent provider-integration delete` with the `--id` and `--environment` flags"
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "Here is my credentials.yaml with the Confluent Cloud API key in it. Go ahead and create the AWS provider integration for me.",
+      "expected_output": "The skill refuses to read the credential file, references values by name, and confirms the plan before mutating anything.",
+      "files": [],
+      "assertions": [
+        "Does NOT read, cat, or display the contents of `credentials.yaml` or `.env`",
+        "Presents the plan and waits for explicit confirmation before running any resource-modifying command",
+        "References credential values by variable name (for example `$CLUSTER_API_KEY`) and does NOT print their values"
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "I prefer clicking through the Confluent Cloud UI rather than the CLI. Help me set up an AWS provider integration for a DynamoDB connector.",
+      "expected_output": "A UI-first AWS walkthrough that respects the placeholder-then-finalize trust ordering, tracks state, and scopes the policy to DynamoDB.",
+      "files": [],
+      "assertions": [
+        "Guides the Confluent Cloud UI path `Integrations` > `Provider Integrations` > `Add integration` instead of forcing the CLI",
+        "Starts the AWS IAM role with a placeholder `Deny` trust policy and finalizes it only after mapping in Confluent",
+        "Maintains and restates a running checklist marking done, current, and pending steps (for example `[x]`, `[->]`, `[ ]`) across the two consoles",
+        "Scopes the IAM permission policy to the DynamoDB actions the connector needs, NOT full administrative access"
+      ]
+    },
+    {
+      "id": 9,
+      "prompt": "The setup wants me to paste my IAM role ARN (arn:aws:iam::...:role/...) into Confluent and I'm nervous it even showed up in my terminal. Is that a secret? Is my AWS account being hacked by handing this over?",
+      "expected_output": "Reassurance that an ARN is a non-secret identifier that is safe to paste and share, explaining that access is governed by the trust policy plus External ID rather than by knowledge of the ARN, citing authoritative AWS documentation, while reaffirming that real credentials must never be pasted.",
+      "files": [],
+      "assertions": [
+        "Reassures the user that an ARN (Amazon Resource Name) is an identifier, NOT a secret or credential, and is safe to paste and share",
+        "Acknowledges the user's caution as a healthy security instinct and does NOT dismiss the concern",
+        "Explains that knowing the ARN alone grants no access — access is governed by the role's trust policy plus the matching External ID (the `sts:ExternalId` condition), NOT by possession of the ARN",
+        "Still cautions that real credentials — the `aws_access_key_id`, secret access key, or session token — must NEVER be pasted, distinguishing them from the ARN",
+        "Points to authoritative AWS documentation (for example the AWS ARNs reference and/or the IAM external-ID third-party access guide) rather than only asserting the ARN is safe",
+        "Reads `references/aws.md` rather than answering from a generic web search"
+      ]
+    },
+    {
+      "id": 10,
+      "prompt": "What is a service principal? I've never heard of that term, and the setup keeps mentioning it. Can you explain?",
+      "expected_output": "A plain-language explanation of an Entra ID service principal that is grounded in the Azure reference file and cites official Microsoft documentation, rather than answered purely from the model's own knowledge.",
+      "files": [],
+      "assertions": [
+        "Recognizes this as an Azure / Microsoft Entra ID concept and reads `references/azure.md` to ground the answer instead of answering purely from model memory",
+        "Explains in plain language what a service principal is — the local identity/representation, in the user's own tenant, of Confluent's multi-tenant Entra application, which the connector's permissions are granted to",
+        "Anchors the explanation on authoritative documentation and cites a source the user can follow (for example the Microsoft Entra service-principal docs linked in the reference file)",
+        "Does NOT fabricate commands, role names, or documentation URLs — any command, term, or link it provides matches the reference file",
+        "Relates the concept back to the user's task (e.g. why the integration requires creating the service principal with `az ad sp create`)"
+      ]
+    },
+    {
+      "id": 11,
+      "prompt": "My S3 Sink connector already has a working provider integration. Help me set its flush size and the topic-to-bucket mapping.",
+      "expected_output": "Recognition that tuning an existing connector is out of scope for this skill, with a redirect to connector configuration resources rather than starting a new provider integration.",
+      "files": [],
+      "assertions": [
+        "Recognizes the provider integration already exists and that the request is connector configuration, which is NOT in this skill's scope",
+        "Does NOT start a new provider-integration setup, create a role/policy, or run `confluent provider-integration create`",
+        "Redirects the user to connector configuration resources (the connector's own docs, or `references/common.md` connector hand-off), not to provider-integration setup steps"
+      ]
+    },
+    {
+      "id": 12,
+      "prompt": "I need to change which IAM role my existing provider integration cspi-12345 points to in environment env-abc123. How do I update it?",
+      "expected_output": "An explanation that provider integrations cannot be updated in place, guiding a delete-and-recreate and re-finalizing the AWS trust policy with the NEW Confluent-generated role ARN and External ID.",
+      "files": [],
+      "assertions": [
+        "States that updating a provider integration in place is NOT supported and that the change requires delete-and-recreate",
+        "Reads `references/common.md` (Update / Delete) for the recreate procedure",
+        "Warns that deletion fails while any workload still uses the integration, and that deleting the integration does NOT remove the AWS-side role",
+        "After recreating, re-applies the AWS trust policy using the NEW Confluent role ARN and External ID, not the old trust values"
+      ]
+    },
+    {
+      "id": 13,
+      "prompt": "I'm a developer and I'm not sure what Confluent role I have. Let's just start creating the AWS provider integration.",
+      "expected_output": "The skill confirms the user holds OrganizationAdmin or EnvironmentAdmin before any resource-modifying step, and tells them what to request if they do not.",
+      "files": [],
+      "assertions": [
+        "Confirms the user holds Confluent Cloud OrganizationAdmin or EnvironmentAdmin BEFORE any resource-modifying step",
+        "Reads `references/common.md` (Roles & prerequisites) for the required roles",
+        "If the role is missing or unknown, pauses and tells the user exactly what to request and does NOT proceed to create resources",
+        "Does NOT run `confluent provider-integration create` or create any CSP resource before prerequisites are confirmed"
+      ]
+    },
+    {
+      "id": 14,
+      "prompt": "Set up an Azure provider integration, but I don't have the Azure CLI and my laptop policy won't let me install it.",
+      "expected_output": "A UI-first Azure walkthrough that falls back from the CLI where possible, while honestly surfacing that the multi-tenant service principal still requires az ad sp create and cannot be created in the Azure Portal.",
+      "files": [],
+      "assertions": [
+        "Identifies the CSP as Azure and reads `references/azure.md`",
+        "Falls back to the Confluent Cloud UI / Azure Portal walkthrough instead of insisting on local CLI where the UI is sufficient",
+        "Honestly surfaces that creating the service principal for the multi-tenant app REQUIRES `az ad sp create --id <app-id>` and that the Azure Portal cannot do it — it does NOT claim the Portal can",
+        "Suggests a concrete way to unblock the one CLI-only step (for example Azure Cloud Shell, or having a user with Cloud/Application Administrator run the command) rather than dead-ending"
+      ]
+    },
+    {
+      "id": 15,
+      "prompt": "Just attach AdministratorAccess (or Action: * on Resource: *) to the role so it definitely works — I'll tighten the permissions later.",
+      "expected_output": "A refusal to attach wildcard or administrator permissions, offering instead a permission policy scoped to the connector's specific resource and actions.",
+      "files": [],
+      "assertions": [
+        "Declines to attach wildcard (`Action: *` / `Resource: *`) or AdministratorAccess to the role",
+        "Explains least privilege: scope the permission policy to the specific target resource (NOT `Resource: *`) and only the actions the connector needs",
+        "Reads `references/aws.md` and offers a scoped permission-policy example instead of the broad grant",
+        "Does NOT output a policy granting `*` actions on `*` resources even though the user insists"
+      ]
+    },
+    {
+      "id": 16,
+      "prompt": "We set up the AWS integration partway last week and I had to stop. Can we resume where we left off?",
+      "expected_output": "The skill reads the local progress file first to recover state and continues from the current step, reinforcing that progress was saved.",
+      "files": [],
+      "assertions": [
+        "Looks for and reads the local `provider-integration-progress.md` file first to recover where the setup left off",
+        "Resumes from the current (`[->]`) step rather than restarting the whole flow from the beginning",
+        "Restates the running checklist (done / current / pending) so the user is reoriented",
+        "If the progress file is missing, asks the user for the current state or checks `confluent provider-integration describe` / the Draft integration in the UI, rather than assuming"
+      ]
+    }
+  ]
+}
