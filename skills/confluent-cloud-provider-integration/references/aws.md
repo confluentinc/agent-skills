@@ -43,7 +43,8 @@ Track this checklist and restate it after every step:
 [ ] 3. AWS: copy the role ARN
 [ ] 4. Confluent: create integration mapping that ARN → get Confluent role ARN + External ID
 [ ] 5. AWS: replace the trust policy with the ALLOW policy using step-4 values
-[ ] 6. Confluent: validate (describe; confirm no AssumeRole AccessDenied)
+[ ] 6. Confluent: describe to confirm the config; report live validation as
+       PENDING until a workload assumes the role (AWS has no Validate — see Validate)
 ```
 
 The reason for the ping-pong: in step 2 you cannot yet know who to trust, so you
@@ -106,6 +107,21 @@ the catalog:
   ]
 }
 ```
+> **Recommended — narrow statement 1 to the specific table** instead of
+> `table/*`. The first statement reads a specific table and its stream, so scope
+> it to that table (and the stream sub-resource):
+> ```json
+> "Resource": [
+>   "arn:aws:dynamodb:<region>:<account-id>:table/<table-name>",
+>   "arn:aws:dynamodb:<region>:<account-id>:table/<table-name>/stream/*"
+> ]
+> ```
+> This is **table scoping**, not a time limit — `/stream/*` matches that table's
+> stream ARNs (whose suffix is a timestamp you can't predict, so it stays `*`).
+> The **third** statement must keep `Resource: ["*"]` — `ListStreams`/`ListTables`/
+> `tag:GetResources` are account-level discovery actions AWS won't let you
+> resource-scope. If the user doesn't know their table name yet, it's fine to
+> proceed with `table/*` and tighten later — nudge, don't block.
 
 **Tableflow with AWS Glue Data Catalog.** The portal uses **two separate
 policies**, not one combined policy: a **Glue Catalog Sync** policy (metadata) and
@@ -126,6 +142,20 @@ no partition actions, no S3):
   ]
 }
 ```
+> **Recommended — narrow the Glue resource** from the account-wide `:*` to the
+> specific catalog, database, and its tables. Glue actions authorize against the
+> catalog plus the database/table ARNs, so the scoped form is:
+> ```json
+> "Resource": [
+>   "arn:aws:glue:<region>:<account-id>:catalog",
+>   "arn:aws:glue:<region>:<account-id>:database/<database-name>",
+>   "arn:aws:glue:<region>:<account-id>:table/<database-name>/*"
+> ]
+> ```
+> `:*` grants these create/delete/update actions across **every** Glue database in
+> the account — prefer the scoped ARNs. If the database/table names aren't known
+> yet, proceeding with `:*` is acceptable; nudge, don't block.
+
 *Tableflow S3 Bucket* (portal-exact — includes `s3:DeleteObject`, unlike the S3
 Sink policy):
 ```json
@@ -148,6 +178,13 @@ Sink policy):
 For any resource not shown here, use the portal-exact entry from
 `references/aws-permission-policies.md` (or the connector's own docs via
 `references/common.md` → Connector hand-off) — same actions, same scope.
+
+> **Rendering the ARNs correctly matters.** Several templates won't authorize if
+> you drop in the friendly name — Redshift needs `dbuser:<cluster>/<db-user>` and
+> `dbname:<cluster>/<db-name>`, RDS needs the immutable `DbiResourceId` (not the
+> instance name), and Secrets Manager needs the full ARN *including* the random
+> `-xxxxxx` suffix. See **"Applying these templates — ARN rendering notes"** at the
+> top of `references/aws-permission-policies.md` before filling placeholders.
 
 ## Trust policy JSON
 
@@ -235,13 +272,32 @@ Record `iam_role_arn` and `external_id` from the response for the trust policy.
 
 ## Validate
 
+> **AWS has no live self-validation.** There is no **Validate** button and no
+> `confluent provider-integration v2 validate` for AWS (that command supports only
+> Azure and GCP). `describe` below returns the integration's *configuration* — it
+> does **not** perform an AssumeRole, so it cannot prove the trust actually works.
+> Report status as **"trust configured; live validation pending"** until a real
+> workload assumes the role.
+>
+> **Why you can't self-test it:** the trust policy grants assumption to
+> *Confluent's* principal gated by the External ID — not to your own AWS identity —
+> so you cannot assume the role from your CLI to check it. Running
+> `aws sts assume-role` as yourself will fail by design and proves nothing.
+
 ```bash
-confluent provider-integration describe --id cspi-XXXXX --environment env-abc123
+confluent provider-integration describe cspi-XXXXX --environment env-abc123
 ```
-Then confirm the AWS role's **Trust relationships** tab shows the Allow +
-TagSession statements with the correct principal and External ID. A quick way to
-prove trust end-to-end is to create the connector and confirm it provisions
-without an AssumeRole error; connector creation itself is out of scope here.
+`describe` takes the integration ID **positionally** (there is no `--id` flag).
+It confirms the mapping exists; then confirm the AWS role's **Trust
+relationships** tab shows the Allow + TagSession statements with the correct
+principal and External ID — i.e. the *configuration* is in place.
+
+**To actually prove the trust end-to-end**, one of:
+- Create the connector / Tableflow that uses this integration and confirm it
+  provisions without an AssumeRole error (connector creation is out of scope here,
+  but a successful first run is the real validation signal); or
+- After a workload has run, check **AWS CloudTrail** for a successful
+  `AssumeRole` event naming the Confluent principal and your role.
 
 ## Troubleshooting
 
@@ -251,7 +307,7 @@ without an AssumeRole error; connector creation itself is out of scope here.
 | `AccessDenied` mentioning External ID / condition failed | External ID mismatch | Copy the External ID from `describe` verbatim into `sts:ExternalId` |
 | Works intermittently | IP-conditional policy, or External ID changed | Check for conditional policies; verify External ID; inspect CloudTrail `AssumeRole` events |
 | Connector can read metadata but not objects | Permission policy too narrow | Add the missing S3/DynamoDB/Glue actions from the connector's docs |
-| Tableflow: `AccessDenied` on `glue:CreateTable`/`UpdateTable` | Glue policy scope or action missing | Use the portal-exact Glue Catalog Sync policy: the 8 `glue:*` actions on `arn:aws:glue:<region>:<account-id>:*` |
+| Tableflow: `AccessDenied` on `glue:CreateTable`/`UpdateTable` | Glue policy scope or action missing | Use the 8 `glue:*` actions from the Glue Catalog Sync policy; if you scoped the resource, include `catalog` + `database/<db>` + `table/<db>/*` (not just the database), else fall back to `arn:aws:glue:<region>:<account-id>:*` |
 | `describe` fails though it's listed | Role deleted/modified after creation | Verify the IAM role still exists and its trust policy still allows Confluent |
 
 Check **AWS CloudTrail** for `AssumeRole` failure events to see the exact reason.

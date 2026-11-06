@@ -64,38 +64,93 @@ If you stop after step 2–3 but before mapping your SA, the integration shows a
 > BigLake, etc.), see `references/gcp-permission-policies.md` — a verbatim catalog
 > captured from the wizard. Use those permissions in the custom role below.
 
+> **Some of the copied values are predefined roles, not permissions.** A few
+> connectors (notably **Pub/Sub**) list `roles/...`-style two-segment names
+> (`pubsub.subscriber`, `pubsub.viewer`) in the portal. Those are **predefined
+> role short names**, not IAM permissions — do **not** feed them to
+> `gcloud iam roles create --permissions` (it fails). Grant them directly as
+> roles instead (`--role=roles/pubsub.subscriber`), skipping the custom role for
+> those. See `references/gcp-permission-policies.md` for which entries are roles.
+
 ```bash
-# 4. Create a custom role with the copied permissions
+# 4. Create a custom role with the copied PERMISSIONS (skip this for entries that
+#    are predefined roles — grant those directly in step 5b)
 gcloud iam roles create ConfluentConnectorRole \
   --project=<YOUR_PROJECT_ID> \
   --title="Confluent Connector Role" \
   --permissions=<COMMA_SEPARATED_PERMISSIONS_FROM_CONFLUENT>
 
-# 5. Create your service account and grant it that role
+# 5. Create your service account
 gcloud iam service-accounts create confluent-connector-sa \
   --project=<YOUR_PROJECT_ID> --display-name="Confluent connector SA"
+```
 
+**5b. Grant the role — scoped to the target resource (recommended).** Bind the
+role at the specific resource the connector touches, *not* project-wide, so the SA
+can only reach what it needs:
+
+```bash
+# GCS bucket:
+gsutil iam ch \
+  serviceAccount:confluent-connector-sa@<YOUR_PROJECT_ID>.iam.gserviceaccount.com:projects/<YOUR_PROJECT_ID>/roles/ConfluentConnectorRole \
+  gs://<bucket-name>
+
+# BigQuery dataset (members[].role in the dataset's IAM):
+bq add-iam-policy-binding \
+  --member="serviceAccount:confluent-connector-sa@<YOUR_PROJECT_ID>.iam.gserviceaccount.com" \
+  --role="projects/<YOUR_PROJECT_ID>/roles/ConfluentConnectorRole" \
+  <YOUR_PROJECT_ID>:<dataset>
+
+# Pub/Sub subscription (predefined roles — no custom role):
+gcloud pubsub subscriptions add-iam-policy-binding <subscription> \
+  --member="serviceAccount:confluent-connector-sa@<YOUR_PROJECT_ID>.iam.gserviceaccount.com" \
+  --role="roles/pubsub.subscriber"
+
+# Secret Manager secret, Cloud SQL instance, etc. — bind on that resource similarly.
+```
+
+*Fallback — project-wide* (only if the resource-scoped binding isn't practical,
+e.g. the connector discovers resources dynamically). This grants the role across
+the **whole project**:
+```bash
 gcloud projects add-iam-policy-binding <YOUR_PROJECT_ID> \
   --member="serviceAccount:confluent-connector-sa@<YOUR_PROJECT_ID>.iam.gserviceaccount.com" \
   --role="projects/<YOUR_PROJECT_ID>/roles/ConfluentConnectorRole"
+```
 
-# 6. Let Confluent's SA impersonate YOUR SA (the trust binding)
+```bash
+# 6. Let Confluent's SA impersonate YOUR SA (the trust binding).
+#    Bind Token Creator on YOUR specific SA — NEVER project-wide (see warning).
 gcloud iam service-accounts add-iam-policy-binding \
   confluent-connector-sa@<YOUR_PROJECT_ID>.iam.gserviceaccount.com \
   --member="serviceAccount:<CONFLUENT_SA_EMAIL_FROM_STEP_2>" \
   --role="roles/iam.serviceAccountTokenCreator"
 ```
 
-For resource-scoped grants (e.g. a specific GCS bucket or BigQuery dataset), bind
-the role at that resource scope instead of project-wide where possible, following
-least privilege. You can also do all of this via the Google Cloud Console (Create
-role → Create service account → grant Token Creator on it).
+> ⚠️ **Never grant Token Creator / `iam.serviceAccounts.getAccessToken`
+> project-wide.** The step-6 binding is applied with
+> `gcloud iam service-accounts add-iam-policy-binding` on **one named SA** on
+> purpose. Granting `roles/iam.serviceAccountTokenCreator` (or a custom role
+> containing `iam.serviceAccounts.getAccessToken`) at the **project** level lets
+> Confluent's SA impersonate **every** service account in your project — a real
+> privilege-escalation path, not just over-broad data access. This one is a hard
+> "don't," unlike the data-plane scope nudges above. Keep impersonation scoped to
+> the single SA you created.
+
+You can also do all of this via the Google Cloud Console (Create role → Create
+service account → grant the role on the target resource → grant Token Creator on
+the SA).
 
 ## Establish trust + validate
 
 1. Back in Confluent, in **Google Cloud service account**, enter **your** service
    account email (the one you created in step 5).
-2. Click **Validate** — confirms Confluent can impersonate your SA.
+2. **Validate — this is the authoritative check.** It verifies that *Confluent's*
+   SA can impersonate *your* SA (the real trust binding), which no local command
+   can confirm. Either:
+   - Click **Validate** in the UI, or
+   - Run the CLI: `confluent provider-integration v2 validate <cspi-...> \
+     --gcp-service-account <your-sa-email> --environment env-abc123`
    - Success → "Successfully validated."
    - **Failure right after granting Token Creator is often just propagation
      lag** — GCP needs a few minutes to sync IAM bindings. Wait and retry before
@@ -111,11 +166,18 @@ role → Create service account → grant Token Creator on it).
 | Impersonation works but connector lacks access | Custom role missing permissions, or bound at too-narrow scope | Add the copied permissions; bind at the resource the connector uses |
 | `describe` fails though listed | Your SA disabled/deleted after creation | Verify your SA still exists and the impersonation binding is intact |
 
-Test impersonation manually:
+**Optional local sanity check (NON-authoritative — do not rely on it):**
 ```bash
 gcloud auth print-access-token \
   --impersonate-service-account=confluent-connector-sa@<YOUR_PROJECT_ID>.iam.gserviceaccount.com
 ```
+> ⚠️ This tests whether **your own** identity can impersonate your SA — it does
+> **not** test whether *Confluent's* SA can. Both false passes (you have Token
+> Creator but Confluent doesn't) and false fails (Confluent is bound but you
+> aren't) are possible. Use it only to confirm the SA exists and is impersonable in
+> principle; the **Confluent Validate step above is the source of truth** for the
+> trust binding.
+
 Check **Google Cloud Audit Logs** for impersonation failures.
 
 ## Google Cloud documentation

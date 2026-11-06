@@ -70,9 +70,13 @@ identity paradigm:
    waiting for the user to say go. See "Plan-before-execute" below.
 2. **Track state out loud.** After every step, restate the running checklist and
    what comes next (see "State tracking"). This is the core value of the skill.
-3. **Respect the ordering.** For every CSP the trust/impersonation binding is
-   finalized *last*, using values Confluent generates when you map the identity.
-   Applying it early (or skipping the placeholder) is the #1 cause of failures.
+3. **Respect the ordering (it differs per CSP).** Apply the trust/impersonation
+   binding only once you hold the values it references, and confirm/validate it
+   last. The exact step order is **not** the same across CSPs — follow the
+   selected reference file's ordered checklist; do not impose one global sequence
+   (e.g. AWS needs the IAM role to exist *before* the Confluent create call,
+   whereas Azure/GCP have Confluent generate the identity first). Applying the
+   binding before you hold the values it needs is the #1 cause of failures.
 4. **Never read, display, or log credential files.** No `cat`/`Read`/`head`/
    `grep` on `.env` or `credentials.yaml`. Reference variables by name only.
    Use synthetic placeholders in all examples.
@@ -82,11 +86,19 @@ identity paradigm:
    Confluent documentation it links — and cite that source — rather than
    answering purely from model memory. Never invent commands, role names, or doc
    URLs; if the reference file doesn't cover it, say so and point to the docs.
-6. **Least privilege — refuse broad grants.** Scope every CSP permission policy
-   to the specific target resource and only the actions the connector needs.
-   **Decline** requests to attach wildcard (`Action: *` / `Resource: *`) or
-   administrator-level access "just to make it work" — offer the scoped policy
-   instead, even if the user insists.
+6. **Least privilege — scope by default, refuse only true admin grants.** Scope
+   every statement to the specific target resource ARN(s) and only the actions the
+   connector needs, and *recommend* that scoped form. Two cases where `Resource: *`
+   is legitimate, not a violation: (a) actions the provider won't let you
+   resource-scope — account-level discovery such as `dynamodb:ListTables`,
+   `dynamodb:ListStreams`, `s3:ListAllMyBuckets`, `tag:GetResources` — which
+   *require* `*`; (b) a user who knowingly declines to scope — recommend the
+   scoped policy, note that a wildcard resource on a **data-reading** action
+   (`GetSecretValue`, `GetObject`, `Scan`, …) grants account-wide access to that
+   data, but **proceed** if they still want to. Enforcing least privilege is not
+   this skill's job — nudging is. **Always decline `Action: *` / administrator-level
+   access** — no connector needs it; offer the scoped policy instead even if the
+   user insists.
 
 ## Step 1 — Detect the CSP and gather requirements
 
@@ -146,20 +158,27 @@ the UI walkthrough.
 ## Plan-before-execute (mandatory)
 
 Before the first resource-modifying action, present a numbered plan and wait for
-explicit approval. Keep it concise but exact:
+explicit approval. Keep it concise but exact.
+
+> ⚠️ **Take the step *order* from the selected CSP reference file, not from this
+> template.** The sequence is **not** the same across CSPs — AWS needs the IAM
+> role to exist *before* the `confluent provider-integration create` call (create
+> takes `--customer-role-arn`), whereas Azure/GCP have Confluent generate the
+> identity first and you grant trust afterward. The skeleton below is
+> *representative*; fill the real ordered checklist from `references/<csp>.md`.
 
 ```
 Plan: <CSP> provider integration for <resource/connector> in <env-id>
 
 Interaction: Confluent = <CLI/UI/MCP>, <CSP> = <CLI/Console>
 
-Steps (in order):
-  1. <Confluent> create integration / generate identity
-  2. <CSP> create permission policy
-  3. <CSP> create role / service principal / service account (placeholder trust)
-  4. <Confluent> map identity → obtain <ARN+ExternalID / app-id / SA email>
-  5. <CSP> finalize trust/impersonation using the values from step 4
-  6. <Confluent> validate the trust relationship
+Steps (in the order given by references/<csp>.md — representative skeleton):
+  - <CSP> create permission policy + identity (role / SP / service account)
+  - <Confluent> create/map the integration (AWS: pass the existing role ARN;
+    Azure/GCP: Confluent generates the app/SA for you)
+  - exchange values: obtain <ARN+ExternalID / app-id+tenant / SA email>
+  - <CSP> finalize trust/impersonation using those values
+  - <Confluent/CSP> validate (per-CSP — see the reference file)
 
 Resources created:
   - Confluent: provider integration "<name>"
@@ -192,9 +211,13 @@ local file** that survives across sessions. Keep the user oriented:
   you left off, then continue from the `[→]` step.
 - When you hand the user off to the other UI, tell them exactly what value
   to copy, where to paste it, and what to bring back.
-- Before finalizing trust, explicitly confirm you have the Confluent-generated
-  values in hand (AWS: Confluent role ARN + External ID; Azure: application/
-  client ID + your tenant ID; GCP: Confluent service-account email).
+- Before finalizing trust, explicitly confirm you have both sides' values in
+  hand. **Confluent-generated** (returned when you create/map the integration):
+  AWS — Confluent's role ARN + External ID; Azure — the multi-tenant
+  application/client ID; GCP — Confluent's service-account email. **Yours** (you
+  already hold these, Confluent does not issue them): AWS — your target role ARN;
+  Azure — your Entra **tenant ID**; GCP — the service account to be impersonated.
+  Don't mislabel your tenant ID as a Confluent-generated value.
 
 > ⚠️ **Never write secrets to the progress file** (Golden rule 4). Record only
 > non-secret state: step status, environment ID, integration ID (`cspi-...`),
@@ -220,31 +243,50 @@ Integration ID: cspi-xxxxx      # filled in after step 3 (non-secret)
 
 ## Universal setup flow
 
-Every CSP follows the same four phases; the reference file fills in the exact
-commands, JSON, and UI clicks.
+Every CSP moves through the same four *phases*, but **the phase order differs per
+CSP** — the reference file gives the authoritative ordered checklist plus the
+exact commands, JSON, and UI clicks. The phases:
 
-1. **Start the integration in Confluent** — create it (AWS CLI) or generate the
-   Confluent-side identity (Azure Entra app / GCP service account via the UI).
-2. **Create the CSP permission policy + identity** — the role (AWS), service
+1. **Create the CSP permission policy + identity** — the role (AWS), service
    principal (Azure), or service account + custom role (GCP), scoped to the
    target resource with least privilege.
-3. **Map the identity in Confluent** — this is where Confluent returns the
-   values you must trust (ARN + External ID, or confirms the app/SA).
+2. **Create/map the integration in Confluent** — **AWS:** the IAM role must
+   already exist, because `confluent provider-integration create` takes
+   `--customer-role-arn`; the create call returns Confluent's External ID.
+   **Azure/GCP:** Confluent *generates* the identity for you here (Entra
+   multi-tenant app / Confluent-owned service account) via the UI.
+3. **Exchange the trust values** — collect what the other side must trust: AWS —
+   Confluent's role ARN + External ID; Azure — the generated app/client ID (plus
+   your tenant ID); GCP — Confluent's service-account email.
 4. **Finalize trust + validate** — apply the trust/impersonation binding on the
-   CSP using the step-3 values, then validate:
-   - AWS: `confluent provider-integration describe --id <cspi-...>` and confirm
-     the trust policy resolves (no AccessDenied on AssumeRole).
-   - Azure: click **Validate** after entering your tenant ID.
+   CSP using the phase-3 values, then validate. **Validation is not the same on
+   all three (see note below):**
+   - AWS: **no live self-validation is possible.** `confluent
+     provider-integration describe <cspi-...>` and the IAM **Trust relationships**
+     tab confirm the *configuration*, not that an AssumeRole actually succeeds.
+     Report status as **"trust configured; live validation pending"** until a real
+     workload assumes the role (first connector/Tableflow run, or a CloudTrail
+     `AssumeRole` event). Do not claim the trust is proven from `describe` alone.
+   - Azure: click **Validate** after entering your tenant ID. Note this confirms
+     the **service principal exists in your tenant** — it does **not** verify the
+     data-plane RBAC role assignments; those are proven only when a connector runs.
    - GCP: click **Validate** after granting Token Creator (retry after a few
-     minutes — IAM propagation lag is normal).
+     minutes — IAM propagation lag is normal). This one does exercise the
+     impersonation binding.
 
 > **Note — validation differs by CSP (by design).** Azure and GCP expose an
-> *optional but recommended* **Validate** button in the Confluent Cloud UI that
-> checks the trust before you finish. **AWS has no Validate button today** — its
-> trust is proven implicitly when a connector first assumes the role, so confirm
-> it with `confluent provider-integration describe` plus the IAM
-> **Trust relationships** tab. A Validate option for AWS is on the roadmap; when a
-> Validate control appears in the AWS flow, use it the same way as Azure/GCP.
+> *optional but recommended* **Validate** button in the Confluent Cloud UI — and a
+> matching CLI command, `confluent provider-integration v2 validate <cspi-...>`
+> (with `--azure-tenant-id` for Azure or `--gcp-service-account` for GCP) — that
+> checks the trust before you finish. **AWS has neither a Validate button nor a
+> `v2 validate` path today** — `v2 validate` supports only Azure and GCP. AWS trust
+> is proven implicitly when a connector first assumes the role, so confirm the
+> *configuration* with `confluent provider-integration describe` plus the IAM
+> **Trust relationships** tab, and report live validation as pending until a
+> workload runs. A Validate option for AWS is on the roadmap; when one appears, use
+> it the same way as Azure/GCP. **Also:** Azure's Validate confirms the service
+> principal exists in your tenant, not that the data-plane RBAC assignments are
+> correct; GCP's Validate does exercise the impersonation binding.
 >
 > **Who clicks Validate:** by default, **ask the user** to click **Validate** in
 > the UI (the agent should not assume it can reach the browser). *Optionally*, if
@@ -297,8 +339,13 @@ Scope ends here. Tell the user how to consume the integration and point them on:
 
 Before telling the user setup is complete, confirm:
 - [ ] The integration exists and `describe` returns it with the expected CSP.
+      (`describe` proves *configuration*, not a working AssumeRole — see below.)
 - [ ] The CSP trust/impersonation binding uses the Confluent-generated values.
-- [ ] Validation succeeded (CLI describe / UI **Validate**).
+- [ ] Validation state is reported **honestly per CSP**:
+      - Azure/GCP: **Validate** (UI button or `v2 validate`) returned success.
+      - AWS: there is no live validation — state **"trust configured; live
+        validation pending until a workload assumes the role"**, and don't claim
+        it's proven from `describe` alone.
 - [ ] The user knows the `cspi-...` ID and how to reference it from a connector.
 - [ ] No credential file was read; all examples used synthetic placeholders.
 - [ ] Progress was tracked in `provider-integration-progress.md`, and it holds

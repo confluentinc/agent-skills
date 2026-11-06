@@ -93,15 +93,42 @@ az role assignment create \
 Use exactly the role(s)/permissions the Confluent screen listed; prefer built-in
 roles scoped to the narrowest resource.
 
+> ⚠️ **Not every listed role is Azure RBAC.** A few connectors require
+> **data-plane** roles that `az role assignment create` cannot grant — assigning
+> them that way silently fails or errors. The one to watch today is **Azure Data
+> Explorer (Kusto)**: its `Database Ingestor` / `Database Viewer` are ADX
+> database-principal roles, not ARM RBAC roles. Grant those with the Kusto command
+> instead:
+> ```bash
+> az kusto database-principal-assignment create \
+>   --cluster-name <kusto-cluster> \
+>   --database-name <database> \
+>   --resource-group <RG> \
+>   --principal-assignment-name <unique-name> \
+>   --principal-id <APPLICATION_ID> \
+>   --principal-type App \
+>   --role Ingestor        # or: Viewer
+> ```
+> `references/azure-permission-policies.md` flags which catalog entries are
+> non-RBAC. When in doubt, check there before reaching for `az role assignment
+> create`.
+
 ## Establish trust + validate
 
 1. Back in Confluent, in **Microsoft tenant ID account**, enter your Azure
-   **tenant ID**.
-2. Click **Validate** — this checks that the service principal exists in your
-   tenant for Confluent's multi-tenant app.
+   **tenant ID** (this is *your* value — Confluent does not generate it).
+2. **Validate.** Either click **Validate** in the UI, or run the CLI:
+   `confluent provider-integration v2 validate <cspi-...> \
+   --azure-tenant-id <your-tenant-id> --environment env-abc123`.
    - Success → "the Microsoft tenant ID is valid."
    - Failure → the message states why; verify the tenant ID and that
      `az ad sp create` actually completed, then retry.
+   > ⚠️ **What Validate does and does not prove.** It confirms the **service
+   > principal exists in your tenant** for Confluent's multi-tenant app — i.e. the
+   > *trust anchor*. It does **not** verify that the **RBAC role assignments** (or
+   > the Kusto data-plane roles) are correct; those are only exercised when a
+   > connector actually runs. A green Validate with missing/wrong role assignments
+   > will still fail at connect time — so double-check step 5 independently.
 3. Click **Continue**. The integration shows status **Created**.
 
 ## Troubleshooting

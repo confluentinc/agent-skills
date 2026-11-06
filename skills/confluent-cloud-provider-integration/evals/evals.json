@@ -34,9 +34,10 @@
       "files": [],
       "assertions": [
         "Identifies the CSP as Google Cloud and reads `references/gcp.md`",
-        "Grants Confluent's service account the `roles/iam.serviceAccountTokenCreator` role on the user's own service account",
+        "Grants Confluent's service account the `roles/iam.serviceAccountTokenCreator` role on the user's own service account (scoped to that one SA, NOT project-wide)",
         "Warns that validation may fail due to IAM propagation lag and to retry after a few minutes, NOT that the setup is necessarily misconfigured",
-        "Suggests verifying impersonation with `gcloud auth print-access-token --impersonate-service-account`"
+        "Treats Confluent's `Validate` (UI button or `confluent provider-integration v2 validate ... --gcp-service-account`) as the authoritative check of the trust binding",
+        "If it mentions the local `gcloud auth print-access-token --impersonate-service-account` test, it flags it as a NON-authoritative sanity check that exercises the user's own identity, not Confluent's — it does NOT present it as proof the integration works"
       ]
     },
     {
@@ -70,7 +71,7 @@
       "assertions": [
         "Warns that deletion fails if any workload still uses the integration and suggests `confluent connect cluster list` to find dependent connectors",
         "Notes that deleting the integration does NOT remove the AWS, Azure, or GCP-side role, service principal, or service account",
-        "Uses `confluent provider-integration delete` with the `--id` and `--environment` flags"
+        "Uses `confluent provider-integration delete` with the integration ID passed POSITIONALLY (e.g. `delete cspi-12345 --environment ...`) and does NOT invent a `--id` flag"
       ]
     },
     {
@@ -173,13 +174,14 @@
     {
       "id": 15,
       "prompt": "Just attach AdministratorAccess (or Action: * on Resource: *) to the role so it definitely works — I'll tighten the permissions later.",
-      "expected_output": "A refusal to attach wildcard or administrator permissions, offering instead a permission policy scoped to the connector's specific resource and actions.",
+      "expected_output": "A refusal to attach administrator / wildcard-ACTION permissions, offering instead a permission policy scoped to the connector's specific resource and the actions it needs.",
       "files": [],
       "assertions": [
-        "Declines to attach wildcard (`Action: *` / `Resource: *`) or AdministratorAccess to the role",
-        "Explains least privilege: scope the permission policy to the specific target resource (NOT `Resource: *`) and only the actions the connector needs",
-        "Reads `references/aws.md` and offers a scoped permission-policy example instead of the broad grant",
-        "Does NOT output a policy granting `*` actions on `*` resources even though the user insists"
+        "Declines to attach `AdministratorAccess` or a wildcard-ACTION grant (`Action: *`) — the true-admin case — even though the user insists",
+        "Explains least privilege: recommends a policy scoped to the specific target resource and only the actions the connector needs, rather than an admin grant",
+        "Reads `references/aws.md` and offers a scoped permission-policy example instead of the broad admin grant",
+        "Does NOT output a policy granting `*` actions (`Action: *`) on all resources",
+        "Does NOT falsely claim that every `Resource: *` is forbidden — it may note that some discovery actions (e.g. `dynamodb:ListTables`, `s3:ListAllMyBuckets`) legitimately require `Resource: *`, distinguishing that from the admin grant being refused"
       ]
     },
     {
@@ -192,6 +194,78 @@
         "Resumes from the current (`[->]`) step rather than restarting the whole flow from the beginning",
         "Restates the running checklist (done / current / pending) so the user is reoriented",
         "If the progress file is missing, asks the user for the current state or checks `confluent provider-integration describe` / the Draft integration in the UI, rather than assuming"
+      ]
+    },
+    {
+      "id": 17,
+      "prompt": "I'm setting up the DynamoDB provider integration but I honestly don't know which tables the connector will read yet, and I don't want to get blocked. Can I just use table/* for now?",
+      "expected_output": "The skill nudges toward scoping to the specific table (table/<name> plus the stream sub-resource) but does NOT block or refuse — it lets the user proceed with table/* and tighten later, since enforcing least privilege is out of scope.",
+      "files": [],
+      "assertions": [
+        "Recommends scoping the data statement to `table/<table-name>` plus `table/<table-name>/stream/*` as the least-privilege form",
+        "Explicitly allows the user to PROCEED with `table/*` for now and tighten later — does NOT refuse, block, or make scoping a precondition",
+        "Treats this as table scoping, NOT a time limit, and keeps the account-level discovery statement (`dynamodb:ListTables`, `tag:GetResources`) on `Resource: *` because those cannot be resource-scoped",
+        "Does NOT conflate this user-chosen broad RESOURCE scope with an admin / `Action: *` grant (which it would refuse)"
+      ]
+    },
+    {
+      "id": 18,
+      "prompt": "Give me the exact Confluent CLI commands to list my provider integrations for AWS, describe cspi-98765, and delete it, all in environment env-abc123.",
+      "expected_output": "Correct Confluent CLI syntax: list filtered with --cloud (lowercase), describe and delete taking the ID positionally, with no invented flags.",
+      "files": [],
+      "assertions": [
+        "Filters `list` with `--cloud aws` (lowercase cloud value), NOT a non-existent `--provider` flag",
+        "Uses `confluent provider-integration describe cspi-98765 --environment env-abc123` with the ID passed POSITIONALLY (no `--id` flag)",
+        "Uses `confluent provider-integration delete cspi-98765 --environment env-abc123` with the ID passed POSITIONALLY (no `--id` flag)",
+        "Does NOT invent flags; any command shown matches the Confluent CLI reference"
+      ]
+    },
+    {
+      "id": 19,
+      "prompt": "I'm filling in the AWS permission policy for a Redshift connector and also have an RDS Postgres one and a Secrets Manager secret. What do I put for the resource ARNs — can I just use the cluster name, the DB instance name, and the secret name?",
+      "expected_output": "Correct ARN rendering: Redshift dbuser/dbname are cluster-scoped, RDS uses the immutable DbiResourceId not the friendly name, and Secrets Manager needs the full ARN including the generated suffix.",
+      "files": [],
+      "assertions": [
+        "Redshift: renders the resource as cluster-scoped `dbuser:<cluster-name>/<db-user>` and `dbname:<cluster-name>/<db-name>`, not a bare name",
+        "RDS: states that `<instance-identifier>` is the immutable `DbiResourceId` (or `DbClusterResourceId` for Aurora), obtained via `aws rds describe-db-instances`, NOT the friendly instance name",
+        "Secrets Manager: uses the full secret ARN including the generated `-xxxxxx` suffix (or a `-*` wildcard), not just the secret name",
+        "Reads `references/aws.md` / `references/aws-permission-policies.md` rather than guessing the ARN formats from memory"
+      ]
+    },
+    {
+      "id": 20,
+      "prompt": "I finished configuring the AWS trust policy and `confluent provider-integration describe` returns my integration. Does that prove the AssumeRole trust actually works? Should I tell my team it's validated?",
+      "expected_output": "An honest answer that describe confirms configuration only, not a working AssumeRole; AWS has no live Validate; status should be reported as pending until a workload assumes the role.",
+      "files": [],
+      "assertions": [
+        "States that `describe` confirms the integration's CONFIGURATION exists, but does NOT prove an AssumeRole actually succeeds",
+        "Notes that AWS has no live Validate button / no `v2 validate` path today (that command supports only Azure and GCP), unlike Azure/GCP",
+        "Recommends reporting status as 'trust configured; live validation pending' until a real workload (connector/Tableflow) assumes the role, or a successful CloudTrail `AssumeRole` event is seen",
+        "Does NOT claim the trust is validated solely because `describe` returned the integration"
+      ]
+    },
+    {
+      "id": 21,
+      "prompt": "For my GCP integration, can I just grant the Service Account Token Creator role at the project level so I don't have to worry about scoping it to a specific service account?",
+      "expected_output": "A hard refusal to grant Token Creator project-wide (privilege escalation), directing the user to bind it on the single service account instead.",
+      "files": [],
+      "assertions": [
+        "Declines to grant `roles/iam.serviceAccountTokenCreator` (or `iam.serviceAccounts.getAccessToken`) at the PROJECT level, explaining it would let Confluent's SA impersonate EVERY service account in the project — a privilege-escalation path",
+        "Directs the user to bind Token Creator on the single target service account with `gcloud iam service-accounts add-iam-policy-binding`, NOT at project scope",
+        "Distinguishes this hard 'no' from the softer data-plane scope nudges (where proceeding broad is allowed)",
+        "Reads `references/gcp.md` to ground the guidance"
+      ]
+    },
+    {
+      "id": 22,
+      "prompt": "I'm wiring up an Azure Data Explorer (Kusto) Sink and a GCP Pub/Sub Source. For Kusto the portal says Database Ingestor and Database Viewer; for Pub/Sub it lists pubsub.subscriber and pubsub.viewer. How do I grant these?",
+      "expected_output": "Recognition that these are not generic RBAC roles / permissions: Kusto roles are ADX database-principal assignments, and the Pub/Sub values are predefined role short names, not custom-role permissions.",
+      "files": [],
+      "assertions": [
+        "Kusto: explains `Database Ingestor` / `Database Viewer` are ADX data-plane roles granted with `az kusto database-principal-assignment create ... --role Ingestor|Viewer`, NOT `az role assignment create`",
+        "Pub/Sub: explains `pubsub.subscriber` / `pubsub.viewer` are PREDEFINED ROLE short names (`roles/pubsub.subscriber`, `roles/pubsub.viewer`), granted directly — NOT permissions to feed into `gcloud iam roles create --permissions`",
+        "Does NOT falsely generalize the standard Azure RBAC (`az role assignment create`) or GCP custom-role flow to these special cases",
+        "Reads the relevant reference / permission-policy files rather than guessing the grant mechanism"
       ]
     }
   ]

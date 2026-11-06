@@ -18,11 +18,26 @@
    prescribes for that resource — no more — via a **custom IAM role** (or the
    equivalent predefined role) bound on the **target resource** (bucket, Cloud
    SQL instance, BigQuery dataset, Pub/Sub subscription, secret).
-3. A few entries list **predefined roles** (e.g. `roles/biglake.admin`) instead
-   of granular permissions — grant those roles as shown.
+3. **Some entries are predefined roles, not permissions — grant them as roles,
+   don't build a custom role from them.** Watch for these:
+   - **Pub/Sub Source** (`PubSubSource`) lists `pubsub.subscriber` /
+     `pubsub.viewer`. Despite the single-word look, these are **predefined role**
+     short names (`roles/pubsub.subscriber`, `roles/pubsub.viewer`), **not** IAM
+     permissions. Feeding them to `gcloud iam roles create --permissions` fails
+     with "not a valid permission". Grant them directly:
+     `--role=roles/pubsub.subscriber` and `--role=roles/pubsub.viewer` on the
+     target subscription — skip the custom role for this connector.
+   - **Tableflow BigLake Metastore** lists `roles/biglake.admin` /
+     `roles/storage.objectViewer` — already full role names; grant as-is.
+   Everything else in the catalog is a real granular permission suitable for a
+   custom role.
 4. This is **in addition to** the impersonation binding
    (`roles/iam.serviceAccountTokenCreator` on your own service account for
-   Confluent's service account) described in `references/gcp.md`.
+   Confluent's service account) described in `references/gcp.md`. Note that the
+   Cloud SQL entries legitimately include `iam.serviceAccounts.getAccessToken` as a
+   *permission in the custom role*; that is separate from — and must not be
+   confused with — granting the Token Creator **role** project-wide, which
+   `references/gcp.md` warns against.
 
 Request the **same** permissions the portal does — this catalog is the source of
 truth; the inline examples in `references/gcp.md` are teaching aids.

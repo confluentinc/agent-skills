@@ -18,10 +18,15 @@
    prescribes — no broader role — via an **Azure RBAC role assignment** scoped to
    the **target resource** (storage account/container, Cosmos DB account, Event
    Hubs namespace, Key Vault, etc.). Prefer the narrowest scope.
-3. Some entries are **not** Azure RBAC roles:
+3. Some entries are **not** Azure RBAC roles — `az role assignment create` will
+   not grant these:
    - **"Microsoft Entra admin"** (SQL Server / MySQL / Postgres) means the service
      principal must be set as an **Entra admin / database user** on the database,
      not an RBAC role — follow the connector's DB-auth docs.
+   - **Azure Data Explorer (Kusto)** — `Database Ingestor` / `Database Viewer` are
+     **ADX database-principal roles**, not ARM RBAC. Grant them with
+     `az kusto database-principal-assignment create … --role Ingestor|Viewer`
+     (`--principal-type App`, `--principal-id <app-id>`) — see `references/azure.md`.
    - **"Default access policy"** (Azure Managed Redis) and **Cosmos DB Built-in**
      roles are service-specific data-plane roles, assigned on that service.
 4. This is **in addition to** creating the service principal with

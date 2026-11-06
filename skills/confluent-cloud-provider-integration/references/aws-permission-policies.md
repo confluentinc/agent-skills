@@ -28,6 +28,47 @@ Request the **same** permissions the portal does — this catalog is the source 
 truth; the inline examples in `references/aws.md` are teaching aids kept in sync
 with these entries.
 
+## Applying these templates — ARN rendering notes
+
+The catalog JSON below is **verbatim from the portal** and is not edited. But for
+three resource families the portal's placeholder is **not** simply the friendly
+name — dropping in the console name produces an ARN that looks right yet silently
+fails to authorize (`AccessDenied` at connect time). Render these correctly when
+you substitute placeholders:
+
+- **Redshift** (`redshift:GetClusterCredentials`). The `dbuser`/`dbname`
+  placeholders are **cluster-scoped**, not bare names. Render:
+  - `arn:aws:redshift:<region>:<account-id>:dbuser:<cluster-name>/<db-user>`
+  - `arn:aws:redshift:<region>:<account-id>:dbname:<cluster-name>/<db-name>`
+  - (and `…:dbgroup:<cluster-name>/<group>` if a group is used). Omitting
+    `<cluster-name>/` means the action authorizes against nothing and is denied.
+
+- **RDS / Aurora** (`rds-db:connect`). The `<instance-identifier>` in the resource
+  ARN is the **immutable resource ID**, not the friendly instance name:
+  - DB instance: `DbiResourceId` (looks like `db-ABCDEF1234567890`)
+  - Aurora cluster: `DbClusterResourceId` (looks like `cluster-ABCDEF123…`)
+  - ARN form: `arn:aws:rds-db:<region>:<account-id>:dbuser:<DbiResourceId>/<db-username>`
+  - Look it up — don't guess:
+    ```bash
+    aws rds describe-db-instances \
+      --query 'DBInstances[].DbiResourceId' --output text
+    # Aurora:
+    aws rds describe-db-clusters \
+      --query 'DBClusters[].DbClusterResourceId' --output text
+    ```
+    The friendly name will not authorize `rds-db:connect`. Covers all six RDS/Aurora
+    entries (MySQL/PostgreSQL CDC V2, MySQL/PostgreSQL JDBC Sink/Source).
+
+- **Secrets Manager** (`secretsmanager:GetSecretValue`). A secret's ARN ends in a
+  **random 6-character suffix** (`-aB3xYz`); the friendly name alone won't match.
+  Use the full ARN, or a trailing wildcard:
+  - `aws secretsmanager describe-secret --secret-id <name> --query ARN --output text`
+  - or `arn:aws:secretsmanager:<region>:<account-id>:secret:<secret-name>-*`
+    (the `-*` tolerates the generated suffix without pinning it).
+
+These are *rendering* corrections for the apply path — the catalog payloads stay
+exactly as captured.
+
 ## Resource index
 
 | Resource (portal label) | template_id | Scope highlight |

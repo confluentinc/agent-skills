@@ -32,13 +32,13 @@ Contact Confluent Support to raise it.
 ## List / describe
 
 ```bash
-# List all, or filter by provider
+# List all, or filter by cloud (lowercase aws|azure|gcp, flag is --cloud)
 confluent provider-integration list --environment env-abc123
-confluent provider-integration list --provider AWS --environment env-abc123
-confluent provider-integration list --provider GCP --environment env-abc123
+confluent provider-integration list --cloud aws --environment env-abc123
+confluent provider-integration list --cloud gcp --environment env-abc123
 
-# Describe one
-confluent provider-integration describe --id cspi-XXXXX --environment env-abc123
+# Describe one — the ID is POSITIONAL (there is no --id flag)
+confluent provider-integration describe cspi-XXXXX --environment env-abc123
 ```
 
 REST equivalents:
@@ -68,7 +68,8 @@ delete and recreate it. Cloud-specific notes when recreating:
 ## Delete
 
 ```bash
-confluent provider-integration delete --id cspi-XXXXX --environment env-abc123
+# delete takes the ID(s) POSITIONALLY (no --id flag); multiple IDs are allowed
+confluent provider-integration delete cspi-XXXXX --environment env-abc123
 ```
 ```bash
 curl --request DELETE \
