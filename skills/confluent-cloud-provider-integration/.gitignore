@@ -1,0 +1,4 @@
+# Never commit filled-in credential files
+credentials.yaml
+.env
+*.env
